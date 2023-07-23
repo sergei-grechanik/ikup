@@ -2,7 +2,7 @@ import io
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union, Callable
+from typing import Optional, Union, Callable, Tuple, TextIO
 
 PLACEHOLDER_CHAR = "\U0010EEEE"
 
@@ -82,24 +82,6 @@ ROWCOLUMN_DIACRITICS = ['\U00000305', '\U0000030d', '\U0000030e', '\U00000310',
                         '\U0001d1ac', '\U0001d1ad', '\U0001d242', '\U0001d243',
                         '\U0001d244']  # noqa
 
-@dataclass(frozen=True)
-class Rect:
-    start_column: int = 0
-    start_row: int = 0
-    end_column: int = 0
-    end_row: int = 0
-
-    @property
-    def width(self):
-        return self.end_column - self.start_column
-
-    @property
-    def height(self):
-        return self.end_row - self.start_row
-
-    def clone_with(self, **kwargs):
-        return dataclasses.replace(self, **kwargs)
-
 class DiacriticLevel(Enum):
     NONE = 0
     ROW = 1
@@ -123,11 +105,11 @@ class ImagePlaceholderMode:
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
 
-    def only24bitcolors(self):
+    def with_only24bitcolors(self):
         return self.clone_with(allow_256colors_for_image_id=False, allow_256colors_for_placement_id=False)
 
     @staticmethod
-    def standard():
+    def default():
         return ImagePlaceholderMode()
 
     @staticmethod
@@ -166,7 +148,7 @@ class ImagePlaceholder:
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
 
-    def to_stream(self, stream: io.TextIOBase, mode: ImagePlaceholderMode=ImagePlaceholderMode.standard(), place: Optional[Rect]=None, no_escape: bool=False, additional_formatting: Union[str, Callable[[int], str]]=""):
+    def to_stream(self, stream: TextIO, mode: ImagePlaceholderMode=ImagePlaceholderMode.default(), position: Optional[Tuple[int, int]]=None, no_escape: bool=False, additional_formatting: Union[str, Callable[[int], str]]=""):
         line_prefix = ""
         line_suffix = ""
         # Encode first 24 bits of IDs in the fg and underline colors.
@@ -198,18 +180,12 @@ class ImagePlaceholder:
             if mode.other_columns_diacritic_level == DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO:
                 other_diacritic_count = 2
 
-        # Adjust the end row/column to fit the rectangle.
-        end_row = self.end_row
-        end_column = self.end_column
-        if place is not None:
-            end_row = min(end_row, self.start_row + place.height)
-            end_column = min(end_column, self.start_column + place.width)
-
         # Print the placeholder.
-        for row in range(self.start_row, end_row):
-            
-            if place:
-                
+        for row in range(self.start_row, self.end_row):
+            # If the explicit position coordinates are specified, move the
+            # cursor.
+            if position is not None:
+                stream.write(f"\033[{position[1] + row - self.start_row + 1};{position[0] + 1}H")
             # Print line formatting: colors for IDs and user-specified
             # additional formatting.
             stream.write(line_prefix)
@@ -228,7 +204,7 @@ class ImagePlaceholder:
                     if firstcol_diacritic_count >= 3:
                         stream.write(image_id_4thbyte_diacritic)
             # Print the placeholders with diacritics for other columns.
-            for col in range(self.start_column + 1, end_column):
+            for col in range(self.start_column + 1, self.end_column):
                 stream.write(mode.placeholder_char)
                 if firstcol_diacritic_count >= 1:
                     stream.write(row_diacritic)
@@ -237,5 +213,5 @@ class ImagePlaceholder:
                         if firstcol_diacritic_count >= 3:
                             stream.write(image_id_4thbyte_diacritic)
             stream.write(line_suffix)
-            if place is None:
+            if position is None:
                 stream.write("\n")
