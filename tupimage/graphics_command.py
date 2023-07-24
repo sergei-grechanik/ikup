@@ -46,13 +46,13 @@ def kv_tuple_to_stream(tup, stream: TextIO):
 @dataclass
 class PlacementData:
     placement_id: Optional[int] = None
-    virtual: Optiona[bool] = None
+    virtual: Optional[bool] = None
     rows: Optional[int] = None
     columns: Optional[int] = None
     do_not_move_cursor: Optional[bool] = None
     # TODO: x, y, w, h, z, X, Y
 
-    def content_to_stream(self, stream: TexIO):
+    def content_to_stream(self, stream: TextIO):
         tup = (('p', self.placement_id), ('U', self.virtual), ('r', self.rows), ('c', self.columns), ('C', self.do_not_move_cursor))
         kv_tuple_to_stream(tup, stream)
 
@@ -60,7 +60,7 @@ class PlacementData:
 class TransmitCommand(GraphicsCommand):
     image_id: Optional[int] = None
     image_number: Optional[int] = None
-    medium: TransmissionMedium
+    medium: Optional[TransmissionMedium] = None
     data: str = ""
     data_size: Optional[int] = None
     quiet: Optional[Quietness] = None

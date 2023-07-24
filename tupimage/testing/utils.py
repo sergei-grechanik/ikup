@@ -4,6 +4,10 @@ import subprocess
 from typing import List, Optional, Callable
 from tupimage import GraphicsTerminal
 from functools import wraps
+from typing import Tuple, Union
+import time
+import termios
+import tty
 
 def take_screenshot(filename: str, width: int=320, height: int=192):
     window_id = os.getenv('WINDOWID')
@@ -24,15 +28,15 @@ class TestManager:
         self.testing_context._end_test()
 
 class TestingContext:
-    def __init__(self, term: GraphicsTerminal, output_dir: str, reference_dir: str, data_dir: str, term_width: int=80, term_height: int=24, screenshot_cell_width: int=4, screenshot_cell_height: int=8):
+    all_tests: List[Callable[['TestingContext'], None]] = []
+
+    def __init__(self, term: GraphicsTerminal, output_dir: str, reference_dir: str, data_dir: str, term_size: Tuple[int, int]=(80, 24), screenshot_cell_size: Tuple[int, int]=(4, 8)):
         self.term: GraphicsTerminal = term
-        sefl.output_dir: str = output_dir
+        self.output_dir: str = output_dir
         self.reference_dir: str = reference_dir
         self.data_dir: str = data_dir
-        self.term_width: int = term_width
-        self.term_height: int = term_height
-        self.screenshot_width: int = term_width * screenshot_cell_width
-        self.screenshot_height: int = term_height * screenshot_cell_height
+        self.screenshot_width: int = term_size[0] * screenshot_cell_size[0]
+        self.screenshot_height: int = term_size[1] * screenshot_cell_size[1]
         os.makedirs(self.data_dir, exist_ok=True)
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
@@ -49,19 +53,19 @@ class TestingContext:
         return download
 
     def init_image_downloaders(self):
-        wikipedia_png = image_downloader("https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png")
-        transparency_png = image_downloader(
+        self.wikipedia_png = self.image_downloader("https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png")
+        self.transparency_png = self.image_downloader(
                 "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png")
-        column_png =
-            image_downloader(
+        self.column_png = self.image_downloader(
                 "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png")
-        horizontal_png =
-            image_downloader(
+        self.horizontal_png = self.image_downloader(
                 "https://upload.wikimedia.org/wikipedia/commons/2/2a/Horizontal_hemiola.png")
-        diagonal_png =
-            image_downloader(
+        self.diagonal_png = self.image_downloader(
                 "https://upload.wikimedia.org/wikipedia/commons/5/5d/Linear_Graph.png")
-        castle_jpg = image_downloader("https://upload.wikimedia.org/wikipedia/commons/1/10/Neuschwanstein_Castle_from_Marienbr%C3%BCcke_Bridge.jpg")
+        self.castle_jpg = self.image_downloader("https://upload.wikimedia.org/wikipedia/commons/1/10/Neuschwanstein_Castle_from_Marienbr%C3%BCcke_Bridge.jpg")
+
+    def write(self, string: Union[str, bytes]):
+        self.term.write(string)
 
     def test(self, name: str) -> TestManager:
         return TestManager(self, name)
@@ -78,7 +82,9 @@ class TestingContext:
     def take_screenshot(self):
         if self.test_name is None:
             raise RuntimeError("No test running")
-        filename = os.path.join(self.output_dir, self.test_name, f"screenshot-{self.screenshot_index}.png")
+        self.term.tty_out.flush()
+        time.sleep(0.05)
+        filename = os.path.join(self.output_dir, self.test_name, f"screenshot-{self.screenshot_index}.jpg")
         take_screenshot(filename, width=self.screenshot_width, height=self.screenshot_height)
         self.screenshot_index += 1
 
@@ -87,4 +93,6 @@ def screenshot_test(func):
     def wrapper(ctx, *args, **kwargs):
         with ctx.test(func.__name__):
             return func(ctx, *args, **kwargs)
+    wrapper.is_screenshot_test = True
+    TestingContext.all_tests.append(wrapper)
     return wrapper
