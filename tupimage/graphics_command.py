@@ -1,10 +1,9 @@
 import base64
 import copy
-import dataclasses
 import io
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Callable, List, Optional, Tuple, Union
+from typing import BinaryIO, List, Optional
 
 
 class Quietness(Enum):

@@ -293,7 +293,7 @@ def run_tests(
             )
     if output_dir is None:
         now = datetime.datetime.now()
-        date_time_string = now.strftime("%Y%m%d%H%M%S")
+        now.strftime("%Y%m%d%H%M%S")
         output_dir = (
             f".tupimage-testing/output-"
             f"{{term_size[0]}}x{{term_size[1]}}-"

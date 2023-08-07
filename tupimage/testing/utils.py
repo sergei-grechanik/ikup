@@ -2,7 +2,6 @@ import os
 import subprocess
 import termios
 import time
-import tty
 import urllib.request
 from functools import wraps
 from typing import Callable, List, Optional, Tuple, Union

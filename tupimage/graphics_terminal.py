@@ -1,13 +1,10 @@
-import dataclasses
 import fcntl
-import io
 import os
 import select
 import struct
 import termios
 import tty
-from dataclasses import dataclass
-from typing import BinaryIO, Callable, List, Optional, Tuple, Union
+from typing import BinaryIO, Optional, Tuple, Union
 
 from tupimage import GraphicsCommand, GraphicsResponse, TransmitCommand
 
@@ -64,7 +61,6 @@ class GraphicsTerminal:
     def receive_response(self, timeout: float) -> GraphicsResponse:
         buffer = b""
         is_graphics_response = False
-        start_time = time.time()
         end_time = time.time() + timeout
         while True:
             ready, _, _ = select.select([self.tty_in], [], [], timeout)

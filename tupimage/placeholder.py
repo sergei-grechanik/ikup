@@ -1,5 +1,4 @@
 import dataclasses
-import io
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Optional, TextIO, Tuple, Union
@@ -456,7 +455,7 @@ class ImagePlaceholder:
                 mode.other_columns_diacritic_level
                 == DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO
             ):
-                other_diacritic_count = 3
+                othercol_diacritic_count = 3
         else:
             if (
                 mode.first_column_diacritic_level
@@ -467,7 +466,7 @@ class ImagePlaceholder:
                 mode.other_columns_diacritic_level
                 == DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO
             ):
-                other_diacritic_count = 2
+                othercol_diacritic_count = 2
 
         # Print the placeholder.
         for row in range(self.start_row, self.end_row):
@@ -497,13 +496,13 @@ class ImagePlaceholder:
             # Print the placeholders with diacritics for other columns.
             for col in range(self.start_column + 1, self.end_column):
                 stream.write(mode.placeholder_char)
-                if firstcol_diacritic_count >= 1:
+                if othercol_diacritic_count >= 1:
                     stream.write(row_diacritic)
-                    if firstcol_diacritic_count >= 2 and col < len(
+                    if othercol_diacritic_count >= 2 and col < len(
                         ROWCOLUMN_DIACRITICS
                     ):
                         stream.write(ROWCOLUMN_DIACRITICS[col])
-                        if firstcol_diacritic_count >= 3:
+                        if othercol_diacritic_count >= 3:
                             stream.write(image_id_4thbyte_diacritic)
             stream.write(line_suffix)
             if position is None:
