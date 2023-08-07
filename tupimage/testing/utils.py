@@ -1,13 +1,13 @@
 import os
 import subprocess
-from typing import List, Optional, Callable
-from tupimage import GraphicsTerminal
-from functools import wraps
-from typing import Tuple, Union
-import time
 import termios
+import time
 import tty
 import urllib.request
+from functools import wraps
+from typing import Callable, List, Optional, Tuple, Union
+
+from tupimage import GraphicsTerminal
 
 
 def take_screenshot(filename: str, width: int = 320, height: int = 192):

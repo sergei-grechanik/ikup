@@ -1,13 +1,13 @@
 from .graphics_command import (
-    Quietness,
-    Format,
-    TransmissionMedium,
     Compression,
+    Format,
     GraphicsCommand,
-    PlacementData,
-    TransmitCommand,
-    MoreDataCommand,
-    PutCommand,
     GraphicsResponse,
+    MoreDataCommand,
+    PlacementData,
+    PutCommand,
+    Quietness,
+    TransmissionMedium,
+    TransmitCommand,
 )
 from .graphics_terminal import GraphicsTerminal

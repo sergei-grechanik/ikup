@@ -1,14 +1,15 @@
+import dataclasses
+import fcntl
 import io
 import os
-import dataclasses
-from dataclasses import dataclass
-from typing import Optional, Union, Callable, Tuple, BinaryIO, List
 import select
-from tupimage import GraphicsCommand, GraphicsResponse, TransmitCommand
-import fcntl
-import termios
 import struct
+import termios
 import tty
+from dataclasses import dataclass
+from typing import BinaryIO, Callable, List, Optional, Tuple, Union
+
+from tupimage import GraphicsCommand, GraphicsResponse, TransmitCommand
 
 
 class GraphicsTerminal:

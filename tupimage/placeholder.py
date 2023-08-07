@@ -1,8 +1,8 @@
-import io
 import dataclasses
+import io
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union, Callable, Tuple, TextIO
+from typing import Callable, Optional, TextIO, Tuple, Union
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 

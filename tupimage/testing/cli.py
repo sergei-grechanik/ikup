@@ -1,10 +1,12 @@
-import click
 import datetime
-from tupimage.testing import TestingContext, screenshot_test
-from tupimage import GraphicsTerminal, TransmitCommand, PutCommand
-import tupimage
-from typing import List
 from fnmatch import fnmatch
+from typing import List
+
+import click
+
+import tupimage
+from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
+from tupimage.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
