@@ -10,8 +10,15 @@ import termios
 import struct
 import tty
 
+
 class GraphicsTerminal:
-    def __init__(self, tty_filename: Optional[str]=None, tty_out: Optional[BinaryIO]=None, tty_in: Optional[BinaryIO]=None, autosplit_max_size: int=3072):
+    def __init__(
+        self,
+        tty_filename: Optional[str] = None,
+        tty_out: Optional[BinaryIO] = None,
+        tty_in: Optional[BinaryIO] = None,
+        autosplit_max_size: int = 3072,
+    ):
         self.num_tmux_layers: int = 0
         if tty_out is None and tty_filename is None:
             tty_filename = "/dev/tty"
@@ -42,7 +49,7 @@ class GraphicsTerminal:
         self.tty_out.write(string)
         self.tty_out.flush()
 
-    def send_command(self, command: GraphicsCommand, autosplit: bool=True):
+    def send_command(self, command: GraphicsCommand, autosplit: bool = True):
         if autosplit and isinstance(command, TransmitCommand):
             for subcommand in command.split(self.autosplit_max_size):
                 self.start_graphics_command()
@@ -93,7 +100,11 @@ class GraphicsTerminal:
         self.old_term_settings.append(termios.tcgetattr(self.tty_in.fileno()))
 
     def pop_tty_settings(self):
-        termios.tcsetattr(self.tty_in.fileno(), termios.TCSADRAIN, self.old_term_settings.pop())
+        termios.tcsetattr(
+            self.tty_in.fileno(),
+            termios.TCSADRAIN,
+            self.old_term_settings.pop(),
+        )
 
     def wait_keypress(self) -> bytes:
         self.push_tty_settings()
@@ -123,9 +134,13 @@ class GraphicsTerminal:
     def _get_sizes(self) -> Tuple[int, int, int, int]:
         try:
             return struct.unpack(
-                'HHHH',
-                fcntl.ioctl(self.tty_out.fileno(), termios.TIOCGWINSZ,
-                            struct.pack('HHHH', 0, 0, 0, 0)))
+                "HHHH",
+                fcntl.ioctl(
+                    self.tty_out.fileno(),
+                    termios.TIOCGWINSZ,
+                    struct.pack("HHHH", 0, 0, 0, 0),
+                ),
+            )
         except OSError:
             return 0, 0, 0, 0
 
@@ -139,9 +154,16 @@ class GraphicsTerminal:
         lines, cols, width, height = self._get_sizes()
         if lines == 0 or cols == 0 or width == 0 or height == 0:
             return None
-        return (width/cols, height/lines)
+        return (width / cols, height / lines)
 
-    def move_cursor(self, *, right: Optional[int]=None, down: Optional[int]=None, left: Optional[int]=None, up: Optional[int]=None):
+    def move_cursor(
+        self,
+        *,
+        right: Optional[int] = None,
+        down: Optional[int] = None,
+        left: Optional[int] = None,
+        up: Optional[int] = None
+    ):
         if up is not None:
             if down is not None:
                 raise ValueError("Cannot specify both up and down")
@@ -162,7 +184,9 @@ class GraphicsTerminal:
                 self.tty_out.write(b"\033[%dD" % -right)
         self.tty_out.flush()
 
-    def move_cursor_abs(self, *, row: Optional[int]=None, col: Optional[int]=None):
+    def move_cursor_abs(
+        self, *, row: Optional[int] = None, col: Optional[int] = None
+    ):
         if row is not None:
             self.tty_out.write(b"\033[%dd" % (row + 1))
         if col is not None:
