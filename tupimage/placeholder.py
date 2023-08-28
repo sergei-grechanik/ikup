@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Optional, TextIO, Tuple, Union
+from typing import BinaryIO, Tuple, List
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 
@@ -305,6 +305,8 @@ ROWCOLUMN_DIACRITICS = [
     "\U0001d244",
 ]  # noqa
 
+ROWCOLUMN_DIACRITICS_UTF8 = [c.encode("utf-8") for c in ROWCOLUMN_DIACRITICS]
+
 
 class DiacriticLevel(Enum):
     NONE = 0
@@ -328,7 +330,7 @@ class ImagePlaceholderMode:
     placeholder_char: str = PLACEHOLDER_CHAR
 
     def __post_init__(self):
-        if firstcol_diacritic_count == DiacriticLevel.NONE:
+        if self.first_column_diacritic_level == DiacriticLevel.NONE:
             raise ValueError(
                 "first_column_diacritic_level cannot be NONE, at least the row"
                 " must be printed"
@@ -384,26 +386,26 @@ class ImagePlaceholder:
                 "Placement ID must be a 24-bit unsigned integer, but it is"
                 " {self.placement_id}"
             )
-        if start_column < 0:
+        if self.start_column < 0:
             raise ValueError(
                 "Start column must be non-negative, but it is"
                 " {self.start_column}"
             )
-        if start_row < 0:
+        if self.start_row < 0:
             raise ValueError(
                 "Start row must be non-negative, but it is {self.start_row}"
             )
-        if start_column >= end_column:
+        if self.start_column >= self.end_column:
             raise ValueError(
                 "Start column must be less than end column, but"
                 " {self.start_column} >= {self.end_column}"
             )
-        if start_row >= end_row:
+        if self.start_row >= self.end_row:
             raise ValueError(
                 "Start row must be less than end row, but {self.start_row} >="
                 " {self.end_row}"
             )
-        if end_row > len(ROWCOLUMN_DIACRITICS):
+        if self.end_row > len(ROWCOLUMN_DIACRITICS):
             raise ValueError(
                 "End row must not be greater than {len(ROWCOLUMN_DIACRITICS)},"
                 " but it is {self.end_row}"
@@ -412,41 +414,43 @@ class ImagePlaceholder:
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
 
-    def to_stream(
+    def to_lines(
         self,
-        stream: TextIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        position: Optional[Tuple[int, int]] = None,
         no_escape: bool = False,
-        additional_formatting: Union[str, Callable[[int], str]] = "",
-    ):
-        line_prefix = ""
-        line_suffix = ""
+    ) -> List[bytes]:
+        placeholder_bytes = mode.placeholder_char.encode("utf-8")
+
+        line_formatting = b""
         # Encode first 24 bits of IDs in the fg and underline colors.
         if not no_escape:
-            line_prefix += "\033[0m"
-            line_suffix += "\033[0m"
             if mode.allow_256colors_for_image_id and (
                 self.image_id & 0xFFFF00 == 0
             ):
-                line_prefix += f"\033[38;5;{self.image_id & 0xFF}m"
+                line_formatting += b"\033[38;5;%dm" % (self.image_id & 0xFF)
             else:
-                line_prefix += (
-                    f"\033[38;2;{(self.image_id >> 16) & 0xFF};{(self.image_id >> 8) & 0xFF};{self.image_id & 0xFF}m"
+                line_formatting += b"\033[38;2;%d;%d;%dm" % (
+                    (self.image_id >> 16) & 0xFF,
+                    (self.image_id >> 8) & 0xFF,
+                    self.image_id & 0xFF,
                 )
-            if mode.skip_placement_id_if_zero and self.placement_id == 0:
+            if not (mode.skip_placement_id_if_zero and self.placement_id == 0):
                 if mode.allow_256colors_for_placement_id and (
                     self.placement_id & 0xFFFF00 == 0
                 ):
-                    line_prefix += f"\033[58;5;{self.placement_id & 0xFF}m"
+                    line_formatting += b"\033[58;5;%dm" % (
+                        self.placement_id & 0xFF
+                    )
                 else:
-                    line_prefix += (
-                        f"\033[58;2;{(self.placement_id >> 16) & 0xFF};{(self.placement_id >> 8) & 0xFF};{self.placement_id & 0xFF}m"
+                    line_formatting += b"\033[58;2;%d;%d;%dm" % (
+                        (self.placement_id >> 16) & 0xFF,
+                        (self.placement_id >> 8) & 0xFF,
+                        self.placement_id & 0xFF,
                     )
 
         # Figure out how many diacritics to print.
         image_id_4thbyte = (self.image_id & 0xFF000000) >> 24
-        image_id_4thbyte_diacritic = ROWCOLUMN_DIACRITICS[image_id_4thbyte]
+        image_id_4thbyte_diacritic = ROWCOLUMN_DIACRITICS_UTF8[image_id_4thbyte]
         firstcol_diacritic_count = mode.first_column_diacritic_level.value
         othercol_diacritic_count = mode.other_columns_diacritic_level.value
         if image_id_4thbyte != 0:
@@ -468,42 +472,77 @@ class ImagePlaceholder:
             ):
                 othercol_diacritic_count = 2
 
+        result = []
         # Print the placeholder.
         for row in range(self.start_row, self.end_row):
-            # If the explicit position coordinates are specified, move the
-            # cursor.
-            if position is not None:
-                stream.write(
-                    f"\033[{position[1] + row - self.start_row + 1};{position[0] + 1}H"
-                )
-            # Print line formatting: colors for IDs and user-specified
-            # additional formatting.
-            stream.write(line_prefix)
-            if isinstance(additional_formatting, str):
-                stream.write(additional_formatting)
-            else:
-                stream.write(additional_formatting(row))
+            # Line formatting encoding colors for IDs.
+            line = line_formatting
             # The row diacritic.
-            row_diacritic = ROWCOLUMN_DIACRITICS[row]
+            row_diacritic = ROWCOLUMN_DIACRITICS_UTF8[row]
             # Print the placeholder and diacritics for the first column.
-            stream.write(mode.placeholder_char)
+            line += placeholder_bytes
             if firstcol_diacritic_count >= 1:
-                stream.write(row_diacritic)
+                line += row_diacritic
                 if firstcol_diacritic_count >= 2:
-                    stream.write(ROWCOLUMN_DIACRITICS[0])
+                    line += ROWCOLUMN_DIACRITICS_UTF8[0]
                     if firstcol_diacritic_count >= 3:
-                        stream.write(image_id_4thbyte_diacritic)
+                        line += image_id_4thbyte_diacritic
             # Print the placeholders with diacritics for other columns.
             for col in range(self.start_column + 1, self.end_column):
-                stream.write(mode.placeholder_char)
+                line += placeholder_bytes
                 if othercol_diacritic_count >= 1:
-                    stream.write(row_diacritic)
+                    line += row_diacritic
                     if othercol_diacritic_count >= 2 and col < len(
-                        ROWCOLUMN_DIACRITICS
+                        ROWCOLUMN_DIACRITICS_UTF8
                     ):
-                        stream.write(ROWCOLUMN_DIACRITICS[col])
+                        line += ROWCOLUMN_DIACRITICS_UTF8[col]
                         if othercol_diacritic_count >= 3:
-                            stream.write(image_id_4thbyte_diacritic)
-            stream.write(line_suffix)
-            if position is None:
-                stream.write("\n")
+                            line += image_id_4thbyte_diacritic
+            result.append(line)
+        return result
+
+    def to_stream_with_linefeeds(
+        self,
+        stream: BinaryIO,
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        no_escape: bool = False,
+    ):
+        lines = self.to_lines(mode, no_escape=no_escape)
+        if not no_escape:
+            stream.write(b"\033[0m")
+        for line in lines:
+            stream.write(line)
+            stream.write(b"\n")
+        if not no_escape:
+            stream.write(b"\033[0m")
+
+    def to_stream_abs_position(
+        self,
+        stream: BinaryIO,
+        position: Tuple[int, int],
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+    ):
+        lines = self.to_lines(mode)
+        stream.write(b"\033[0m")
+        for idx, line in enumerate(lines):
+            stream.write(
+                b"\033[%d;%dH" % (position[1] + idx + 1, position[0] + 1)
+            )
+            stream.write(line)
+        stream.write(b"\033[0m")
+
+    def to_stream_at_cursor(
+        self,
+        stream: BinaryIO,
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+    ):
+        lines = self.to_lines(mode)
+        stream.write(b"\033[0m")
+        for idx, line in enumerate(lines):
+            stream.write(line)
+            if idx != len(lines) - 1:
+                stream.write(
+                    b"\033[%dD" % (self.end_column - self.start_column)
+                )
+                stream.write(b"\033[B")
+        stream.write(b"\033[0m")

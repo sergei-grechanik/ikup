@@ -4,9 +4,18 @@ import select
 import struct
 import termios
 import tty
+import copy
+import random
 from typing import BinaryIO, Optional, Tuple, Union
 
-from tupimage import GraphicsCommand, GraphicsResponse, TransmitCommand
+from tupimage import (
+    GraphicsCommand,
+    GraphicsResponse,
+    TransmitCommand,
+    PlacementData,
+    PutCommand,
+)
+from tupimage.placeholder import ImagePlaceholderMode, ImagePlaceholder
 
 
 class GraphicsTerminal:
@@ -16,6 +25,7 @@ class GraphicsTerminal:
         tty_out: Optional[BinaryIO] = None,
         tty_in: Optional[BinaryIO] = None,
         autosplit_max_size: int = 3072,
+        force_placeholders: bool = False,
     ):
         self.num_tmux_layers: int = 0
         if tty_out is None and tty_filename is None:
@@ -27,7 +37,24 @@ class GraphicsTerminal:
             self.tty_out = os.fdopen(fd, "wb", buffering=0)
             self.tty_in = os.fdopen(fd, "rb", buffering=0)
         self.autosplit_max_size: int = autosplit_max_size
+        self.force_placeholders: bool = force_placeholders
         self.old_term_settings = []
+
+    def clone_with(
+        self,
+        autosplit_max_size: Optional[int] = None,
+        force_placeholders: Optional[bool] = None,
+        num_tmux_layers: Optional[int] = None,
+    ):
+        res = copy.copy(self)
+        res.old_term_settings = []
+        if autosplit_max_size is not None:
+            res.autosplit_max_size = autosplit_max_size
+        if force_placeholders is not None:
+            res.force_placeholders = force_placeholders
+        if num_tmux_layers is not None:
+            res.num_tmux_layers = num_tmux_layers
+        return res
 
     def write(self, string: Union[str, bytes]):
         if isinstance(string, str):
@@ -47,7 +74,48 @@ class GraphicsTerminal:
         self.tty_out.write(string)
         self.tty_out.flush()
 
-    def send_command(self, command: GraphicsCommand, autosplit: bool = True):
+    def print_placeholder(
+        self,
+        put_command: PutCommand,
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+    ):
+        placement_id = put_command.placement_id
+        if placement_id is None:
+            placement_id = 0
+        placeholder = ImagePlaceholder(
+            image_id=put_command.image_id,
+            placement_id=placement_id,
+            end_column=put_command.columns,
+            end_row=put_command.rows,
+        )
+        placeholder.to_stream_at_cursor(self.tty_out, mode=mode)
+        if put_command.do_not_move_cursor:
+            self.move_cursor(left=put_command.columns, up=put_command.rows)
+
+    def send_command(
+        self,
+        command: GraphicsCommand,
+        autosplit: bool = True,
+        force_placeholders: bool = None,
+    ):
+        if force_placeholders is None:
+            force_placeholders = self.force_placeholders
+        if force_placeholders:
+            if (
+                isinstance(command, TransmitCommand)
+                and command.placement is not None
+                and not command.placement.virtual
+            ):
+                command = command.clone_with()
+                command.placement.virtual = True
+                if command.placement.placement_id is None:
+                    command.placement.placement_id = random.randint(
+                        1, 2**24 - 1
+                    )
+            if isinstance(command, PutCommand) and not command.virtual:
+                command = command.clone_with(virtual=True)
+                if command.placement_id is None:
+                    command.placement_id = random.randint(1, 2**24 - 1)
         if autosplit and isinstance(command, TransmitCommand):
             for subcommand in command.split(self.autosplit_max_size):
                 self.start_graphics_command()
@@ -57,6 +125,14 @@ class GraphicsTerminal:
             self.start_graphics_command()
             command.content_to_stream(self.tty_out)
             self.end_graphics_command()
+        if force_placeholders:
+            if (
+                isinstance(command, TransmitCommand)
+                and command.placement is not None
+            ):
+                self.print_placeholder(command.get_put_command())
+            if isinstance(command, PutCommand):
+                self.print_placeholder(command)
 
     def receive_response(self, timeout: float) -> GraphicsResponse:
         buffer = b""

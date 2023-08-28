@@ -3,7 +3,6 @@ import subprocess
 import termios
 import time
 import urllib.request
-from functools import wraps
 from typing import Callable, List, Optional, Tuple, Union
 
 from tupimage import GraphicsTerminal
@@ -42,7 +41,7 @@ class TestManager:
 
 
 class TestingContext:
-    all_tests: List[Callable[["TestingContext"], None]] = []
+    all_tests: List[Tuple[str, Callable[["TestingContext"], None]]] = []
 
     def __init__(
         self,
@@ -142,15 +141,25 @@ class TestingContext:
         )
         self.screenshot_index += 1
         if self.pause_after_screenshot:
-            self.term.wait_keypress()
+            key = self.term.wait_keypress()
+            if key == b"\x03":
+                self.term.write(b"\033[0m")
+                raise KeyboardInterrupt()
 
 
-def screenshot_test(func):
-    @wraps(func)
-    def wrapper(ctx, *args, **kwargs):
-        with ctx.test(func.__name__):
-            return func(ctx, *args, **kwargs)
+def screenshot_test(func=None, suffix: Optional[str] = None, params: dict = {}):
+    def decorator(func):
+        name = func.__name__
+        if suffix is not None:
+            name += "_" + suffix
 
-    wrapper.is_screenshot_test = True
-    TestingContext.all_tests.append(wrapper)
-    return wrapper
+        def wrapper(ctx):
+            with ctx.test(name):
+                return func(ctx, **params)
+
+        TestingContext.all_tests.append((name, lambda ctx: wrapper(ctx)))
+        return func
+
+    if func:
+        return decorator(func)
+    return decorator

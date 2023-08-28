@@ -1,218 +1,11 @@
 import datetime
 from fnmatch import fnmatch
 from typing import List
-
 import click
 
 import tupimage
-from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
-
-
-@screenshot_test
-def test_text_printing(ctx: TestingContext):
-    for i in range(24):
-        ctx.write(str(i) + "\n")
-    ctx.write(
-        "This is a text-only test. If it fails, it means there is something"
-        " wrong with how the terminal is configured (size, colors) or with the"
-        " screenshot comparison algorithm.\n"
-    )
-    for i in range(33, 127):
-        ctx.write(chr(i))
-    ctx.take_screenshot(
-        "Some text and all printable ascii characters. The text should be at"
-        " the bottom of the screen."
-    )
-
-
-@screenshot_test
-def test_text_colors(ctx: TestingContext):
-    for i in range(16):
-        for j in range(16):
-            ctx.write(f"\033[48;5;{i}m\033[38;5;{j}m Aa ")
-        ctx.write("\n")
-    ctx.take_screenshot("")
-
-
-@screenshot_test
-def test_nonplaceholder(ctx: TestingContext):
-    cmd = TransmitCommand(
-        image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1)
-        .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20)
-    )
-    ctx.take_screenshot("Wikipedia logo. May be slightly stretched on kitty.")
-    ctx.term.move_cursor(up=9)
-    ctx.term.send_command(
-        cmd.clone_with(image_id=2)
-        .set_filename(ctx.get_column_png())
-        .set_placement(rows=10, columns=5)
-    )
-    ctx.term.move_cursor(up=9)
-    ctx.term.send_command(PutCommand(image_id=1, rows=10, columns=20, quiet=1))
-    ctx.term.move_cursor(up=9)
-    ctx.term.send_command(PutCommand(image_id=1, rows=5, columns=10, quiet=1))
-    ctx.term.move_cursor(left=10, down=1)
-    ctx.term.send_command(PutCommand(image_id=1, rows=5, columns=10, quiet=1))
-    ctx.take_screenshot("Wikipedia logo and some columns.")
-
-
-@screenshot_test
-def test_nonplaceholder_nomovecursor(ctx: TestingContext):
-    cmd = TransmitCommand(
-        image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1)
-        .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20, do_not_move_cursor=True)
-    )
-    ctx.take_screenshot(
-        "Wikipedia logo (slightly stretched on kitty). The cursor should be at"
-        " the top left corner."
-    )
-    ctx.term.move_cursor(right=20)
-    ctx.term.send_command(
-        cmd.clone_with(image_id=2)
-        .set_filename(ctx.get_column_png())
-        .set_placement(rows=10, columns=5, do_not_move_cursor=True)
-    )
-    ctx.term.move_cursor(right=5)
-    ctx.term.send_command(
-        PutCommand(
-            image_id=1, rows=10, columns=20, quiet=1, do_not_move_cursor=True
-        )
-    )
-    ctx.term.move_cursor(right=20)
-    ctx.term.send_command(
-        PutCommand(
-            image_id=1, rows=5, columns=10, quiet=1, do_not_move_cursor=True
-        )
-    )
-    ctx.term.move_cursor(down=5)
-    ctx.term.send_command(
-        PutCommand(
-            image_id=1, rows=5, columns=10, quiet=1, do_not_move_cursor=True
-        )
-    )
-    ctx.take_screenshot(
-        "Wikipedia logo and some columns. The cursor should be at the top left"
-        " corner of the last column image."
-    )
-
-
-@screenshot_test
-def test_nonplaceholder_multisize(ctx: TestingContext):
-    cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
-    for r in range(1, 5):
-        start_col = 0
-        for c in range(1, 10):
-            ctx.term.move_cursor_abs(col=start_col)
-            ctx.term.send_command(
-                PutCommand(
-                    image_id=1,
-                    rows=r,
-                    columns=c,
-                    quiet=1,
-                    do_not_move_cursor=True,
-                )
-            )
-            start_col += c
-        ctx.term.move_cursor_abs(col=0)
-        ctx.term.move_cursor(down=r)
-    ctx.take_screenshot(
-        "A grid of penguins of various sizes. On kitty they may be stretched."
-    )
-
-
-@screenshot_test
-def test_nonplaceholder_oob(ctx: TestingContext):
-    cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_ruler_png())
-    )
-    for r in range(24):
-        ctx.term.move_cursor_abs(row=r, col=80 - (24 - r))
-        ctx.term.send_command(
-            PutCommand(
-                image_id=1, rows=1, columns=24, quiet=1, do_not_move_cursor=True
-            )
-        )
-    ctx.term.move_cursor_abs(row=0, col=0)
-    ctx.take_screenshot("A ruler that goes off the screen. Not to scale.")
-
-
-@screenshot_test
-def test_nonplaceholder_oob_down(ctx: TestingContext):
-    cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
-    for r in range(3):
-        ctx.term.send_command(
-            PutCommand(
-                image_id=1,
-                rows=10,
-                columns=20,
-                quiet=1,
-                do_not_move_cursor=False,
-            )
-        )
-    ctx.take_screenshot(
-        "Three penguins, arranged diagonally. The top one is cut off."
-    )
-
-
-@screenshot_test
-def test_nonplaceholder_oob_down_nomovecursor(ctx: TestingContext):
-    cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    )
-    ctx.term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
-    for r in range(3):
-        ctx.term.send_command(
-            PutCommand(
-                image_id=1,
-                rows=10,
-                columns=20,
-                quiet=1,
-                do_not_move_cursor=True,
-            )
-        )
-        ctx.term.move_cursor(down=10)
-    ctx.take_screenshot(
-        "Three penguins arranged vertially. The bottom one is cut off because"
-        " the terminal shouldn't introduce new lines when C=1."
-    )
+from tupimage import GraphicsTerminal
+from tupimage.testing import TestingContext, test_basics
 
 
 def validate_size(ctx, param, value: str):
@@ -229,8 +22,7 @@ def validate_size(ctx, param, value: str):
     return (width, height)
 
 
-def is_test_enabled(func, tests: List[str]):
-    funcname = func.__name__
+def is_test_enabled(funcname, tests: List[str]):
     name = funcname[5:] if funcname.startswith("test_") else funcname
     for test in tests:
         if fnmatch(name, test) or fnmatch(funcname, test):
@@ -252,6 +44,7 @@ def is_test_enabled(func, tests: List[str]):
 @click.option("--reference-dir", "--reference", "--ref", default=None, type=str)
 @click.option("--data-dir", default=None, type=str)
 @click.option("--pause", is_flag=True)
+@click.option("--list", "-l", is_flag=True)
 @click.argument("tests", nargs=-1, type=str)
 def run_tests(
     term_size,
@@ -261,6 +54,7 @@ def run_tests(
     reference_dir,
     data_dir,
     pause,
+    list,
     tests,
 ):
     term = GraphicsTerminal()
@@ -310,12 +104,14 @@ def run_tests(
         screenshot_cell_size=cell_size,
         pause_after_screenshot=pause,
     )
-    for func in TestingContext.all_tests:
-        if getattr(func, "is_screenshot_test", False) and is_test_enabled(
-            func, tests
-        ):
-            func(ctx)
-    ctx.term.reset()
+    for name, func in TestingContext.all_tests:
+        if is_test_enabled(name, tests):
+            if list:
+                print(name)
+            else:
+                func(ctx)
+    if not list:
+        ctx.term.reset()
 
 
 if __name__ == "__main__":

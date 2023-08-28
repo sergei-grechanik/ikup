@@ -1,6 +1,7 @@
 import base64
 import copy
 import io
+import dataclasses
 from dataclasses import dataclass
 from enum import Enum
 from typing import BinaryIO, List, Optional
@@ -53,7 +54,7 @@ class GraphicsCommand:
             return bio.getvalue()
 
     def clone_with(self, **kwargs):
-        clone = copy.copy(self)
+        clone = copy.deepcopy(self)
         for k, v in kwargs.items():
             setattr(clone, k, v)
         return clone
@@ -111,6 +112,16 @@ class TransmitCommand(GraphicsCommand):
     pix_height: Optional[int] = None
     query: Optional[bool] = None
     placement: Optional[PlacementData] = None
+
+    def get_put_command(self) -> Optional["PutCommand"]:
+        if self.placement is None:
+            return None
+        return PutCommand(
+            image_id=self.image_id,
+            image_number=self.image_number,
+            quiet=self.quiet,
+            **dataclasses.asdict(self.placement)
+        )
 
     def split(self, max_size: int) -> List[GraphicsCommand]:
         if len(self.base64_data) <= max_size:
