@@ -6,6 +6,7 @@ import termios
 import tty
 import copy
 import random
+import time
 from typing import BinaryIO, Optional, Tuple, Union
 
 from tupimage import (
@@ -16,6 +17,17 @@ from tupimage import (
     PutCommand,
 )
 from tupimage.placeholder import ImagePlaceholderMode, ImagePlaceholder
+
+
+class TtySettingsGuard:
+    def __init__(self, term: "GraphicsTerminal"):
+        self.term = term
+
+    def __enter__(self):
+        self.term.push_tty_settings()
+
+    def __exit__(self, type, value, traceback):
+        self.term.pop_tty_settings()
 
 
 class GraphicsTerminal:
@@ -74,7 +86,7 @@ class GraphicsTerminal:
         self.tty_out.write(string)
         self.tty_out.flush()
 
-    def print_placeholder(
+    def print_placeholder_for_put(
         self,
         put_command: PutCommand,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
@@ -82,15 +94,28 @@ class GraphicsTerminal:
         placement_id = put_command.placement_id
         if placement_id is None:
             placement_id = 0
+        term_cols, term_rows = self.get_size()
+        cur_x, cur_y = self.get_cursor_position()
+        cols = min(put_command.columns, term_cols - cur_x)
+        rows = put_command.rows
+        if term_rows - cur_y < rows:
+            if put_command.do_not_move_cursor:
+                rows = term_rows - cur_y
+            else:
+                newlines = rows - (term_rows - cur_y)
+                self.write(b"\033[%dS" % newlines)
+                self.move_cursor(up=newlines)
+        if cols <= 0 or rows <= 0:
+            return
         placeholder = ImagePlaceholder(
             image_id=put_command.image_id,
             placement_id=placement_id,
-            end_column=put_command.columns,
-            end_row=put_command.rows,
+            end_column=cols,
+            end_row=rows,
         )
         placeholder.to_stream_at_cursor(self.tty_out, mode=mode)
         if put_command.do_not_move_cursor:
-            self.move_cursor(left=put_command.columns, up=put_command.rows)
+            self.move_cursor(left=cols, up=rows - 1)
 
     def send_command(
         self,
@@ -130,44 +155,78 @@ class GraphicsTerminal:
                 isinstance(command, TransmitCommand)
                 and command.placement is not None
             ):
-                self.print_placeholder(command.get_put_command())
+                self.print_placeholder_for_put(command.get_put_command())
             if isinstance(command, PutCommand):
-                self.print_placeholder(command)
+                self.print_placeholder_for_put(command)
 
-    def receive_response(self, timeout: float) -> GraphicsResponse:
-        buffer = b""
-        is_graphics_response = False
-        end_time = time.time() + timeout
-        while True:
-            ready, _, _ = select.select([self.tty_in], [], [], timeout)
-            if ready:
-                buffer += self.tty_in.read(1)
-                if is_graphics_response:
-                    if buffer.endswith(b"\033\\"):
-                        break
-                else:
-                    if buffer.endswith(b"\033_G"):
-                        is_graphics_response = True
-            timeout = end_time - time.time()
-            if timeout < 0:
-                return GraphicsResponse(is_valid=False, non_response=buffer)
-        # Now parse the response
-        res = GraphicsResponse(is_valid=True)
-        non_response, response = buffer.split(b"\033_G", 2)
-        res.non_response = non_response
-        resp_and_message = response[3:-2].split(b";", 2)
-        if len(resp_and_message) > 1:
-            res.message = resp_and_message[1].decode("utf-8")
-            res.is_ok = resp_and_message[1] == b"OK"
-        for part in resp_and_message[0].split(b","):
-            try:
-                if part.startswith(b"i="):
-                    res.image_id = int(part[2:])
-                elif part.startswith(b"I="):
-                    res.image_number = int(part[2:])
-            except ValueError:
-                pass
-        return res
+    def receive_response(self, timeout: float = 10) -> GraphicsResponse:
+        with self.guard_tty_settings():
+            tty.setraw(self.tty_in.fileno())
+            buffer = b""
+            is_graphics_response = False
+            end_time = time.time() + timeout
+            while True:
+                ready, _, _ = select.select([self.tty_in], [], [], timeout)
+                if ready:
+                    buffer += self.tty_in.read(1)
+                    if is_graphics_response:
+                        if buffer.endswith(b"\033\\"):
+                            break
+                    else:
+                        if buffer.endswith(b"\033_G"):
+                            is_graphics_response = True
+                timeout = end_time - time.time()
+                if timeout < 0:
+                    return GraphicsResponse(is_valid=False, non_response=buffer)
+            # Now parse the response
+            res = GraphicsResponse(is_valid=True)
+            non_response, response = buffer.split(b"\033_G", 2)
+            res.non_response = non_response
+            resp_and_message = response[3:-2].split(b";", 2)
+            if len(resp_and_message) > 1:
+                res.message = resp_and_message[1].decode("utf-8")
+                res.is_ok = resp_and_message[1] == b"OK"
+            for part in resp_and_message[0].split(b","):
+                try:
+                    if part.startswith(b"i="):
+                        res.image_id = int(part[2:])
+                    elif part.startswith(b"I="):
+                        res.image_number = int(part[2:])
+                except ValueError:
+                    pass
+            return res
+
+    def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
+        with self.guard_tty_settings():
+            tty.setraw(self.tty_in.fileno())
+            self.write(b"\033[6n")
+            buffer = b""
+            end_time = time.time() + timeout
+            is_response = False
+            while True:
+                ready, _, _ = select.select([self.tty_in], [], [], timeout)
+                if ready:
+                    buffer += self.tty_in.read(1)
+                    if is_response:
+                        if buffer.endswith(b"R"):
+                            break
+                    else:
+                        if buffer.endswith(b"\033["):
+                            is_response = True
+                            buffer = b""
+                timeout = end_time - time.time()
+                if timeout < 0:
+                    raise TimeoutError(
+                        "No response to cursor position request: %r" % buffer
+                    )
+            # Now parse the response
+            parts = buffer[:-1].split(b";")
+            if len(parts) != 2:
+                raise ValueError(
+                    "Invalid response to cursor position request: %r" % buffer
+                )
+            y, x = parts
+            return (int(x) - 1, int(y) - 1)
 
     def push_tty_settings(self):
         self.old_term_settings.append(termios.tcgetattr(self.tty_in.fileno()))
@@ -179,9 +238,11 @@ class GraphicsTerminal:
             self.old_term_settings.pop(),
         )
 
+    def guard_tty_settings(self) -> TtySettingsGuard:
+        return TtySettingsGuard(self)
+
     def wait_keypress(self) -> bytes:
-        self.push_tty_settings()
-        try:
+        with self.guard_tty_settings():
             tty.setraw(self.tty_in.fileno())
             result = b""
             while len(result) < 256:
@@ -189,9 +250,7 @@ class GraphicsTerminal:
                 ready, _, _ = select.select([self.tty_in], [], [], 0)
                 if not ready:
                     break
-        finally:
-            self.pop_tty_settings()
-        return result
+            return result
 
     def detect_tmux(self):
         term = os.environ.get("TERM", "")
