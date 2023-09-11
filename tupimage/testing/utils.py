@@ -12,7 +12,7 @@ def take_screenshot(filename: str, width: int = 320, height: int = 192):
     window_id = os.getenv("WINDOWID")
     if window_id is None:
         raise RuntimeError("WINDOWID not set")
-    subprocess.run(
+    res = subprocess.run(
         [
             "import",
             "-depth",
@@ -23,8 +23,11 @@ def take_screenshot(filename: str, width: int = 320, height: int = 192):
             window_id,
             filename,
         ],
-        check=True,
+        stderr=subprocess.PIPE,
+        text=True
     )
+    if res.returncode != 0:
+        raise RuntimeError(f"Screenshot capture failed: {res.stderr}")
 
 
 class TestManager:
@@ -60,6 +63,7 @@ class TestingContext:
         self.screenshot_width: int = term_size[0] * screenshot_cell_size[0]
         self.screenshot_height: int = term_size[1] * screenshot_cell_size[1]
         os.makedirs(self.data_dir, exist_ok=True)
+        self.report_file: Optional[TextIO] = None
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
         self.pause_after_screenshot = pause_after_screenshot
@@ -120,31 +124,75 @@ class TestingContext:
         os.makedirs(
             os.path.join(self.output_dir, self.test_name), exist_ok=True
         )
+        if self.report_file is None:
+            self.report_file = open(
+                os.path.join(self.output_dir, "report.html"), "w", buffering=1
+            )
         self.screenshot_index = 0
+        self.report_file.write(f"<h2>{name}</h2>\n")
         self.term.reset()
 
     def _end_test(self):
         self.test_name = None
 
+
+    def compare_images(self, filename: str, ref_filename: str) -> float:
+        # Load the images with Pillow and compare them using mse.
+        # This is not the best way to compare images, but it's good enough for
+        # our purposes.
+        from PIL import Image
+        import numpy as np
+        img1 = Image.open(filename)
+        img2 = Image.open(ref_filename)
+        if img1.size != img2.size:
+            return 1.0
+        img1 = np.array(img1).astype(np.float32) / 255.0
+        img2 = np.array(img2).astype(np.float32) / 255.0
+        return np.mean(np.square(img1 - img2))
+
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:
             raise RuntimeError("No test running")
         self.term.tty_out.flush()
-        time.sleep(0.05)
+        time.sleep(0.5)
+        rel_filename = os.path.join(
+            self.test_name,
+            f"screenshot-{self.screenshot_index}.png",
+        )
         filename = os.path.join(
             self.output_dir,
-            self.test_name,
-            f"screenshot-{self.screenshot_index}.jpg",
+            rel_filename
         )
         take_screenshot(
             filename, width=self.screenshot_width, height=self.screenshot_height
         )
+        reference_img = ""
+        status = ""
+        diffscore = 0.0
+        if self.reference_dir:
+            reference_img = os.path.join(self.reference_dir, rel_filename)
+            if not os.path.exists(reference_img):
+                status = "No reference screenshot"
+            else:
+                diffscore = self.compare_images(filename, reference_img)
+                status = f"Diff score: {diffscore:.6f}"
+        self.report_file.write(f"<h3>{self.screenshot_index} {status}</h3>\n")
+        if description is not None:
+            self.report_file.write(f"<p>{description}</p>\n")
+        self.report_file.write(f"<img src=\"{rel_filename}\">\n")
+        if reference_img and diffscore != 0.0:
+            rel_reference_img = os.path.relpath(reference_img, self.output_dir)
+            self.report_file.write(f"<img src=\"{rel_reference_img}\">\n")
         self.screenshot_index += 1
         if self.pause_after_screenshot:
             key = self.term.wait_keypress()
             if key == b"\x03":
                 self.term.write(b"\033[0m")
                 raise KeyboardInterrupt()
+
+    def print_results(self):
+        print("Output dir: " + os.path.relpath(self.output_dir))
+        print("Report: file://" + os.path.abspath(self.report_file.name))
 
 
 def screenshot_test(func=None, suffix: Optional[str] = None, params: dict = {}):

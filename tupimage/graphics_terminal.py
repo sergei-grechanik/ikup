@@ -95,6 +95,8 @@ class GraphicsTerminal:
         if placement_id is None:
             placement_id = 0
         term_cols, term_rows = self.get_size()
+        # TODO: getting cursor position is very slow on kitty. Make it optional
+        # or track it.
         cur_x, cur_y = self.get_cursor_position()
         cols = min(put_command.columns, term_cols - cur_x)
         rows = put_command.rows
@@ -116,6 +118,7 @@ class GraphicsTerminal:
         placeholder.to_stream_at_cursor(self.tty_out, mode=mode)
         if put_command.do_not_move_cursor:
             self.move_cursor(left=cols, up=rows - 1)
+        self.tty_out.flush()
 
     def send_command(
         self,
@@ -159,9 +162,12 @@ class GraphicsTerminal:
             if isinstance(command, PutCommand):
                 self.print_placeholder_for_put(command)
 
+    def setraw(self):
+        tty.setraw(self.tty_in.fileno())
+
     def receive_response(self, timeout: float = 10) -> GraphicsResponse:
         with self.guard_tty_settings():
-            tty.setraw(self.tty_in.fileno())
+            self.setraw()
             buffer = b""
             is_graphics_response = False
             end_time = time.time() + timeout
@@ -198,7 +204,7 @@ class GraphicsTerminal:
 
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
         with self.guard_tty_settings():
-            tty.setraw(self.tty_in.fileno())
+            self.setraw()
             self.write(b"\033[6n")
             buffer = b""
             end_time = time.time() + timeout
@@ -243,7 +249,7 @@ class GraphicsTerminal:
 
     def wait_keypress(self) -> bytes:
         with self.guard_tty_settings():
-            tty.setraw(self.tty_in.fileno())
+            self.setraw()
             result = b""
             while len(result) < 256:
                 result += self.tty_in.read(1)
@@ -265,10 +271,11 @@ class GraphicsTerminal:
 
     def _get_sizes(self) -> Tuple[int, int, int, int]:
         try:
+            fileno = self.tty_in.fileno() if self.tty_in is not None else self.tty_out.fileno()
             return struct.unpack(
                 "HHHH",
                 fcntl.ioctl(
-                    self.tty_out.fileno(),
+                    fileno,
                     termios.TIOCGWINSZ,
                     struct.pack("HHHH", 0, 0, 0, 0),
                 ),
@@ -323,4 +330,16 @@ class GraphicsTerminal:
             self.tty_out.write(b"\033[%dd" % (row + 1))
         if col is not None:
             self.tty_out.write(b"\033[%dG" % (col + 1))
+        self.tty_out.flush()
+
+    def set_margins(self, top: int, bottom: int):
+        self.tty_out.write(b"\033[%d;%dr" % (top + 1, bottom + 1))
+        self.tty_out.flush()
+
+    def scroll_down(self, lines: int = 1):
+        self.tty_out.write(b"\033[%dS" % lines)
+        self.tty_out.flush()
+
+    def scroll_up(self, lines: int = 1):
+        self.tty_out.write(b"\033[%dT" % lines)
         self.tty_out.flush()

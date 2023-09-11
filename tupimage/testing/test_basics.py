@@ -44,7 +44,7 @@ def test_display_movecursor(ctx: TestingContext, placeholder: bool = False):
         .set_filename(ctx.get_wikipedia_png())
         .set_placement(rows=10, columns=20)
     )
-    ctx.take_screenshot("Wikipedia logo. May be slightly stretched on kitty.")
+    ctx.take_screenshot("Wikipedia logo. May be slightly stretched in kitty.")
     term.move_cursor(up=9)
     term.send_command(
         cmd.clone_with(image_id=2)
@@ -76,7 +76,7 @@ def test_display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
         .set_placement(rows=10, columns=20, do_not_move_cursor=True)
     )
     ctx.take_screenshot(
-        "Wikipedia logo (slightly stretched on kitty). The cursor should be at"
+        "Wikipedia logo (slightly stretched in kitty). The cursor should be at"
         " the top left corner."
     )
     term.move_cursor(right=20)
@@ -219,3 +219,64 @@ def test_oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
         "Three penguins arranged vertically. The bottom one is cut off because"
         " the terminal shouldn't introduce new lines when C=1."
     )
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def test_scrolling(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    term.send_command(
+        cmd.clone_with(image_id=1).set_filename(ctx.get_wikipedia_png())
+    )
+    term.send_command(
+        cmd.clone_with(image_id=2).set_filename(ctx.get_tux_png())
+    )
+    for y in [10, 20]:
+        term.move_cursor_abs(row=y, col=0)
+        for i in range(80):
+            if i % 3 == 0:
+                term.write(str(i % 10))
+            else:
+                term.send_command(
+                    PutCommand(
+                        image_id=i % 3,
+                        rows=1,
+                        columns=1,
+                        quiet=1,
+                    )
+                )
+    for y in range(11, 20):
+        term.move_cursor_abs(row=y, col=0)
+        term.write(str(y % 10))
+    term.move_cursor_abs(row=12, col=1)
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            rows=7,
+            columns=14,
+            quiet=1,
+        )
+    )
+    term.move_cursor_abs(row=12, col=15)
+    term.send_command(
+        PutCommand(
+            image_id=2,
+            rows=7,
+            columns=14,
+            quiet=1,
+        )
+    )
+    ctx.take_screenshot("The initial state of the scrolling test: wiki logo and tux between two rows of small images and numbers")
+    term.set_margins(top=11, bottom=19)
+    for i in range(3):
+        term.scroll_up()
+        ctx.take_screenshot(f"Scrolled up (moved the content down) {i + 1} times")
+    for i in range(6):
+        term.scroll_down()
+        ctx.take_screenshot(f"Scrolled down (moved the content up) {i + 1} times")
+    term.scroll_down(5)
+    ctx.take_screenshot("Scrolled down 6 more lines")

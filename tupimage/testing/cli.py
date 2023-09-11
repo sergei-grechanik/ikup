@@ -44,7 +44,7 @@ def is_test_enabled(funcname, tests: List[str]):
 @click.option("--reference-dir", "--reference", "--ref", default=None, type=str)
 @click.option("--data-dir", default=None, type=str)
 @click.option("--pause", is_flag=True)
-@click.option("--list", "-l", is_flag=True)
+@click.option("--list", "--ls", "-l", is_flag=True)
 @click.argument("tests", nargs=-1, type=str)
 def run_tests(
     term_size,
@@ -87,11 +87,11 @@ def run_tests(
             )
     if output_dir is None:
         now = datetime.datetime.now()
-        now.strftime("%Y%m%d%H%M%S")
+        date_time_string = now.strftime("%Y%m%d%H%M%S")
         output_dir = (
             f".tupimage-testing/output-"
-            f"{{term_size[0]}}x{{term_size[1]}}-"
-            f"{{cell_size[0]}}x{{cell_size[1]}}-{{date_time_string}}"
+            f"{term_size[0]}x{term_size[1]}-"
+            f"{cell_size[0]}x{cell_size[1]}-{date_time_string}"
         )
     if data_dir is None:
         data_dir = f".tupimage-testing/data"
@@ -104,14 +104,17 @@ def run_tests(
         screenshot_cell_size=cell_size,
         pause_after_screenshot=pause,
     )
-    for name, func in TestingContext.all_tests:
-        if is_test_enabled(name, tests):
-            if list:
-                print(name)
-            else:
-                func(ctx)
+    with ctx.term.guard_tty_settings():
+        ctx.term.setraw()
+        for name, func in TestingContext.all_tests:
+            if is_test_enabled(name, tests):
+                if list:
+                    print(name)
+                else:
+                    func(ctx)
     if not list:
         ctx.term.reset()
+        ctx.print_results()
 
 
 if __name__ == "__main__":
