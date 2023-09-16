@@ -220,6 +220,7 @@ def test_oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
         " the terminal shouldn't introduce new lines when C=1."
     )
 
+
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
 def test_scrolling(ctx: TestingContext, placeholder: bool = False):
@@ -270,13 +271,20 @@ def test_scrolling(ctx: TestingContext, placeholder: bool = False):
             quiet=1,
         )
     )
-    ctx.take_screenshot("The initial state of the scrolling test: wiki logo and tux between two rows of small images and numbers")
+    ctx.take_screenshot(
+        "The initial state of the scrolling test: wiki logo and tux between two"
+        " rows of small images and numbers"
+    )
     term.set_margins(top=11, bottom=19)
     for i in range(3):
         term.scroll_up()
-        ctx.take_screenshot(f"Scrolled up (moved the content down) {i + 1} times")
+        ctx.take_screenshot(
+            f"Scrolled up (moved the content down) {i + 1} times"
+        )
     for i in range(6):
         term.scroll_down()
-        ctx.take_screenshot(f"Scrolled down (moved the content up) {i + 1} times")
+        ctx.take_screenshot(
+            f"Scrolled down (moved the content up) {i + 1} times"
+        )
     term.scroll_down(5)
     ctx.take_screenshot("Scrolled down 6 more lines")

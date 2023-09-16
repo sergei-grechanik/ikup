@@ -24,7 +24,7 @@ def take_screenshot(filename: str, width: int = 320, height: int = 192):
             filename,
         ],
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
     )
     if res.returncode != 0:
         raise RuntimeError(f"Screenshot capture failed: {res.stderr}")
@@ -135,13 +135,13 @@ class TestingContext:
     def _end_test(self):
         self.test_name = None
 
-
     def compare_images(self, filename: str, ref_filename: str) -> float:
         # Load the images with Pillow and compare them using mse.
         # This is not the best way to compare images, but it's good enough for
         # our purposes.
         from PIL import Image
         import numpy as np
+
         img1 = Image.open(filename)
         img2 = Image.open(ref_filename)
         if img1.size != img2.size:
@@ -159,10 +159,7 @@ class TestingContext:
             self.test_name,
             f"screenshot-{self.screenshot_index}.png",
         )
-        filename = os.path.join(
-            self.output_dir,
-            rel_filename
-        )
+        filename = os.path.join(self.output_dir, rel_filename)
         take_screenshot(
             filename, width=self.screenshot_width, height=self.screenshot_height
         )
@@ -179,10 +176,10 @@ class TestingContext:
         self.report_file.write(f"<h3>{self.screenshot_index} {status}</h3>\n")
         if description is not None:
             self.report_file.write(f"<p>{description}</p>\n")
-        self.report_file.write(f"<img src=\"{rel_filename}\">\n")
+        self.report_file.write(f'<img src="{rel_filename}">\n')
         if reference_img and diffscore != 0.0:
             rel_reference_img = os.path.relpath(reference_img, self.output_dir)
-            self.report_file.write(f"<img src=\"{rel_reference_img}\">\n")
+            self.report_file.write(f'<img src="{rel_reference_img}">\n')
         self.screenshot_index += 1
         if self.pause_after_screenshot:
             key = self.term.wait_keypress()

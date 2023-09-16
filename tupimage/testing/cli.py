@@ -89,7 +89,7 @@ def run_tests(
         now = datetime.datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
         output_dir = (
-            f".tupimage-testing/output-"
+            ".tupimage-testing/output-"
             f"{term_size[0]}x{term_size[1]}-"
             f"{cell_size[0]}x{cell_size[1]}-{date_time_string}"
         )

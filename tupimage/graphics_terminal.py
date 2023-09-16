@@ -271,7 +271,11 @@ class GraphicsTerminal:
 
     def _get_sizes(self) -> Tuple[int, int, int, int]:
         try:
-            fileno = self.tty_in.fileno() if self.tty_in is not None else self.tty_out.fileno()
+            fileno = (
+                self.tty_in.fileno()
+                if self.tty_in is not None
+                else self.tty_out.fileno()
+            )
             return struct.unpack(
                 "HHHH",
                 fcntl.ioctl(
