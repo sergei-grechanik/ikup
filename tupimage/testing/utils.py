@@ -4,6 +4,9 @@ import termios
 import time
 import urllib.request
 from typing import Callable, List, Optional, Tuple, Union
+from PIL import Image, ImageDraw
+import numpy as np
+import io
 
 from tupimage import GraphicsTerminal
 
@@ -139,9 +142,6 @@ class TestingContext:
         # Load the images with Pillow and compare them using mse.
         # This is not the best way to compare images, but it's good enough for
         # our purposes.
-        from PIL import Image
-        import numpy as np
-
         img1 = Image.open(filename)
         img2 = Image.open(ref_filename)
         if img1.size != img2.size:
@@ -149,6 +149,30 @@ class TestingContext:
         img1 = np.array(img1).astype(np.float32) / 255.0
         img2 = np.array(img2).astype(np.float32) / 255.0
         return np.mean(np.square(img1 - img2))
+
+    def generate_image(self, width: int, height: int) -> bytes:
+        #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))
+        #  np.stack((xx, yy), axis=-1)
+        data = np.random.random_sample(size=(height, width, 3))
+        img = Image.fromarray((data * 255).astype(np.uint8), "RGB")
+        bytesio = io.BytesIO()
+        img.save(bytesio, format="PNG")
+        return bytesio.getvalue()
+
+    def text_to_image(self, text: str, pad: int = 2) -> bytes:
+        img = Image.new("RGB", (1, 1))
+        d = ImageDraw.Draw(img)
+        width, height = d.textsize(text)
+        img = Image.new("RGB", (width + pad * 2, height + pad * 2))
+        d = ImageDraw.Draw(img)
+        d.text((pad, pad), text, fill="white")
+        d.rectangle(
+            [(0, 0), (width + pad * 2 - 1, height + pad * 2 - 1)],
+            outline="grey",
+        )
+        bytesio = io.BytesIO()
+        img.save(bytesio, format="PNG")
+        return bytesio.getvalue()
 
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:

@@ -4,7 +4,7 @@ import io
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, List, Optional
+from typing import BinaryIO, Optional, Union, Iterator
 
 
 class Quietness(Enum):
@@ -54,7 +54,7 @@ class GraphicsCommand:
             return bio.getvalue()
 
     def clone_with(self, **kwargs):
-        clone = copy.deepcopy(self)
+        clone = copy.copy(self)
         for k, v in kwargs.items():
             setattr(clone, k, v)
         return clone
@@ -102,8 +102,8 @@ class TransmitCommand(GraphicsCommand):
     image_id: Optional[int] = None
     image_number: Optional[int] = None
     medium: Optional[TransmissionMedium] = None
-    base64_data: bytes = b""
-    data_size: Optional[int] = None
+    data: Union[bytes, BinaryIO] = b""
+    size: Optional[int] = None
     quiet: Optional[Quietness] = None
     more: Optional[bool] = None
     format: Optional[Format] = None
@@ -123,22 +123,26 @@ class TransmitCommand(GraphicsCommand):
             **dataclasses.asdict(self.placement)
         )
 
-    def split(self, max_size: int) -> List[GraphicsCommand]:
-        if len(self.base64_data) <= max_size:
-            return [self]
-        result = [copy.copy(self)]
-        result[0].base64_data = self.base64_data[:max_size]
-        result[0].more = True
-        for i in range(max_size, len(self.base64_data), max_size):
-            more = MoreDataCommand(
+    def split(self, max_size: int) -> Iterator[GraphicsCommand]:
+        if self.medium != TransmissionMedium.DIRECT:
+            yield self
+            return
+        data = self.data
+        if isinstance(data, bytes):
+            data = io.BytesIO(data)
+        data.seek(0)
+        cur_chunk = data.read(max_size)
+        next_chunk = data.read(max_size)
+        yield self.clone_with(data=cur_chunk, more=bool(next_chunk))
+        while next_chunk:
+            cur_chunk = next_chunk
+            next_chunk = data.read(max_size)
+            yield MoreDataCommand(
                 image_id=self.image_id,
                 image_number=self.image_number,
-                base64_data=self.base64_data[i : i + max_size],
-                more=True,
+                data=cur_chunk,
+                more=bool(next_chunk),
             )
-            result.append(more)
-        result[-1].more = False
-        return result
 
     def to_tuple(self):
         action = "q" if self.query else "t" if self.placement is None else "T"
@@ -147,7 +151,7 @@ class TransmitCommand(GraphicsCommand):
             (b"i", self.image_id),
             (b"I", self.image_number),
             (b"t", self.medium),
-            (b"S", self.data_size),
+            (b"S", self.size),
             (b"q", self.quiet),
             (b"m", self.more),
             (b"f", self.format),
@@ -162,14 +166,18 @@ class TransmitCommand(GraphicsCommand):
     def content_to_stream(self, stream: BinaryIO):
         kv_tuple_to_stream(self.to_tuple(), stream)
         stream.write(b";")
-        stream.write(self.base64_data)
+        data = self.data
+        if not isinstance(data, bytes):
+            data.seek(0)
+            data = data.read()
+        stream.write(base64.b64encode(data))
 
     def set_filename(self, filename: str) -> "TransmitCommand":
-        self.base64_data = base64.b64encode(filename.encode())
+        self.data = filename.encode()
         return self
 
-    def set_data(self, data: bytes) -> "TransmitCommand":
-        self.base64_data = base64.b64encode(data)
+    def set_data(self, data: Union[bytes, BinaryIO]) -> "TransmitCommand":
+        self.data = data
         return self
 
     def set_placement(self, **kwargs) -> "TransmitCommand":
@@ -181,7 +189,7 @@ class TransmitCommand(GraphicsCommand):
 class MoreDataCommand(GraphicsCommand):
     image_id: Optional[int] = None
     image_number: Optional[int] = None
-    base64_data: bytes = b""
+    data: bytes = b""
     more: Optional[bool] = None
 
     def to_tuple(self):
@@ -194,7 +202,7 @@ class MoreDataCommand(GraphicsCommand):
     def content_to_stream(self, stream: BinaryIO):
         kv_tuple_to_stream(self.to_tuple(), stream)
         stream.write(b";")
-        stream.write(self.base64_data)
+        stream.write(base64.b64encode(self.data))
 
 
 @dataclass

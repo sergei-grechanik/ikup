@@ -5,7 +5,12 @@ import click
 
 import tupimage
 from tupimage import GraphicsTerminal
-from tupimage.testing import TestingContext, test_basics
+from tupimage.testing import (
+    TestingContext,
+    test_basics,
+    test_placement,
+    test_uploading,
+)
 
 
 def validate_size(ctx, param, value: str):
@@ -104,17 +109,22 @@ def run_tests(
         screenshot_cell_size=cell_size,
         pause_after_screenshot=pause,
     )
+    ran_any_tests = False
     with ctx.term.guard_tty_settings():
-        ctx.term.setraw()
+        ctx.term.set_immediate_input_noecho()
         for name, func in TestingContext.all_tests:
             if is_test_enabled(name, tests):
                 if list:
                     print(name)
                 else:
+                    ran_any_tests = True
                     func(ctx)
     if not list:
         ctx.term.reset()
-        ctx.print_results()
+        if ran_any_tests:
+            ctx.print_results()
+        else:
+            print("No tests were run.")
 
 
 if __name__ == "__main__":
