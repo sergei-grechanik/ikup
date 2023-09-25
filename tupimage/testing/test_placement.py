@@ -281,7 +281,7 @@ def test_numbers(ctx: TestingContext, placeholder: bool = False):
                 image_id += 1
                 term.send_command(
                     cmd.clone_with(image_id=image_id).set_data(
-                        ctx.text_to_image(str(image_id))
+                        ctx.to_png(ctx.text_to_image(str(image_id)))
                     )
                 )
                 term.send_command(
@@ -295,3 +295,85 @@ def test_numbers(ctx: TestingContext, placeholder: bool = False):
         ctx.take_screenshot(
             f"Screen filled with numbers. Each one is {step} columns wide."
         )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def test_image_ids(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    image_ids = []
+    byte_values = [0, 1, 128, 255]
+    for b3 in byte_values:
+        for b2 in byte_values:
+            for b1 in byte_values:
+                for b0 in byte_values:
+                    image_ids.append(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+    idx = 0
+    for y in range(24):
+        for x in range(0, 80, 5):
+            idx += 1
+            if idx >= len(image_ids):
+                break
+            image_id = image_ids[idx]
+            term.send_command(
+                cmd.clone_with(image_id=image_id).set_data(
+                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                )
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=image_id,
+                    rows=1,
+                    columns=5,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+    ctx.take_screenshot(f"Images with different ids.")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    image_ids = []
+    byte_values = [0, 1, 128, 255]
+    for b3 in byte_values:
+        for b2 in byte_values:
+            for b1 in byte_values:
+                for b0 in byte_values:
+                    image_ids.append(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+    idx = 0
+    for y in range(24):
+        for x in range(0, 80, 5):
+            idx += 1
+            if idx >= len(image_ids):
+                break
+            image_id = image_ids[idx]
+            term.send_command(
+                cmd.clone_with(image_id=image_id).set_data(
+                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                )
+            )
+            # Placement IDs may be only 24-bit.
+            term.send_command(
+                PutCommand(
+                    image_id=image_id,
+                    placement_id=image_id & 0x00FFFFFF,
+                    rows=1,
+                    columns=5,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+    ctx.take_screenshot(f"Images with different ids and placement ids.")

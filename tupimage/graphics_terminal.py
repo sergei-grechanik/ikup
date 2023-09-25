@@ -61,6 +61,7 @@ class GraphicsTerminal:
         self.autosplit_max_size: int = autosplit_max_size
         self.force_placeholders: bool = force_placeholders
         self.old_term_settings = []
+        self.tracked_cursor_position: Optional[Tuple[int, int]] = None
 
     def clone_with(
         self,
@@ -82,18 +83,19 @@ class GraphicsTerminal:
         if isinstance(string, str):
             string = string.encode("utf-8")
         self.tty_out.write(string)
+        self.tracked_cursor_position = None
 
     def start_graphics_command(self):
         string = b"\033_G"
         for i in range(self.num_tmux_layers):
             string = b"\033Ptmux;" + string.replace(b"\033", b"\033\033")
-        self.write(string)
+        self.tty_out.write(string)
 
     def end_graphics_command(self):
         string = b"\033\\"
         for i in range(self.num_tmux_layers):
             string = string.replace(b"\033", b"\033\033") + b"\033\\"
-        self.write(string)
+        self.tty_out.write(string)
         self.tty_out.flush()
 
     def guard_graphics_command(self) -> GraphicsCommandGuard:
@@ -112,9 +114,7 @@ class GraphicsTerminal:
         if placement_id is None:
             placement_id = 0
         term_cols, term_rows = self.get_size()
-        # TODO: getting cursor position is very slow on kitty. Make it optional
-        # or track it.
-        cur_x, cur_y = self.get_cursor_position()
+        cur_x, cur_y = self.get_cursor_position_tracked()
         cols = min(put_command.columns, term_cols - cur_x)
         rows = put_command.rows
         if term_rows - cur_y < rows:
@@ -122,7 +122,7 @@ class GraphicsTerminal:
                 rows = term_rows - cur_y
             else:
                 newlines = rows - (term_rows - cur_y)
-                self.write(b"\033[%dS" % newlines)
+                self.tty_out.write(b"\033[%dS" % newlines)
                 self.move_cursor(up=newlines)
         if cols <= 0 or rows <= 0:
             return
@@ -132,12 +132,17 @@ class GraphicsTerminal:
             end_column=cols,
             end_row=rows,
         )
+        cur_x, cur_y = self.tracked_cursor_position
+        self.tracked_cursor_position = None
         placeholder.to_stream_at_cursor(self.tty_out, mode=mode)
         if put_command.do_not_move_cursor:
-            self.move_cursor(left=cols, up=rows - 1)
+            self.move_cursor_abs(col=cur_x, row=cur_y)
         elif cur_x + cols >= term_cols:
             # Newline
-            self.write(b"\033E")
+            self.tty_out.write(b"\033E")
+            self.set_tracked_cursor_position(0, cur_y + rows)
+        else:
+            self.set_tracked_cursor_position(cur_x + cols, cur_y + rows - 1)
         self.tty_out.flush()
 
     def send_command(
@@ -223,7 +228,7 @@ class GraphicsTerminal:
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
         with self.guard_tty_settings():
             self.set_immediate_input_noecho()
-            self.write(b"\033[6n")
+            self.tty_out.write(b"\033[6n")
             buffer = b""
             end_time = time.time() + timeout
             is_response = False
@@ -250,7 +255,15 @@ class GraphicsTerminal:
                     "Invalid response to cursor position request: %r" % buffer
                 )
             y, x = parts
-            return (int(x) - 1, int(y) - 1)
+            self.tracked_cursor_position = (int(x) - 1, int(y) - 1)
+        return self.tracked_cursor_position
+
+    def get_cursor_position_tracked(
+        self, timeout: float = 2.0
+    ) -> Tuple[int, int]:
+        if self.tracked_cursor_position is None:
+            self.get_cursor_position(timeout=timeout)
+        return self.tracked_cursor_position
 
     def push_tty_settings(self):
         self.old_term_settings.append(termios.tcgetattr(self.tty_in.fileno()))
@@ -284,8 +297,9 @@ class GraphicsTerminal:
             self.num_tmux_layers = 0
 
     def reset(self):
-        self.write(b"\033c")
+        self.tty_out.write(b"\033c")
         self.tty_out.flush()
+        self.tracked_cursor_position = (0, 0)
 
     def _get_sizes(self) -> Tuple[int, int, int, int]:
         try:
@@ -317,6 +331,20 @@ class GraphicsTerminal:
             return None
         return (width / cols, height / lines)
 
+    def set_tracked_cursor_position(
+        self,
+        x: int,
+        y: int,
+        columns: Optional[int] = None,
+        lines: Optional[int] = None,
+    ):
+        if columns is None or lines is None:
+            columns, lines = self.get_size()
+        self.tracked_cursor_position = (
+            min(x, columns - 1),
+            min(y, lines - 1),
+        )
+
     def move_cursor(
         self,
         *,
@@ -335,33 +363,51 @@ class GraphicsTerminal:
             right = -left
         if down:
             if down > 0:
-                self.write(b"\033[%dB" % down)
+                self.tty_out.write(b"\033[%dB" % down)
             else:
-                self.write(b"\033[%dA" % -down)
+                self.tty_out.write(b"\033[%dA" % -down)
         if right:
             if right > 0:
-                self.write(b"\033[%dC" % right)
+                self.tty_out.write(b"\033[%dC" % right)
             else:
-                self.write(b"\033[%dD" % -right)
+                self.tty_out.write(b"\033[%dD" % -right)
         self.tty_out.flush()
+        if self.tracked_cursor_position is not None:
+            self.set_tracked_cursor_position(
+                self.tracked_cursor_position[0] + (right or 0),
+                self.tracked_cursor_position[1] + (down or 0),
+            )
 
     def move_cursor_abs(
         self, *, row: Optional[int] = None, col: Optional[int] = None
     ):
         if row is not None:
-            self.write(b"\033[%dd" % (row + 1))
+            self.tty_out.write(b"\033[%dd" % (row + 1))
         if col is not None:
-            self.write(b"\033[%dG" % (col + 1))
+            self.tty_out.write(b"\033[%dG" % (col + 1))
         self.tty_out.flush()
+        if self.tracked_cursor_position is not None:
+            self.set_tracked_cursor_position(
+                col or self.tracked_cursor_position[0],
+                row or self.tracked_cursor_position[1],
+            )
+        elif row is not None and col is not None:
+            self.set_tracked_cursor_position(
+                col,
+                row,
+            )
 
     def set_margins(self, top: int, bottom: int):
-        self.write(b"\033[%d;%dr" % (top + 1, bottom + 1))
+        self.tty_out.write(b"\033[%d;%dr" % (top + 1, bottom + 1))
         self.tty_out.flush()
+        self.tracked_cursor_position = None
 
     def scroll_down(self, lines: int = 1):
-        self.write(b"\033[%dS" % lines)
+        self.tty_out.write(b"\033[%dS" % lines)
         self.tty_out.flush()
+        self.tracked_cursor_position = None
 
     def scroll_up(self, lines: int = 1):
-        self.write(b"\033[%dT" % lines)
+        self.tty_out.write(b"\033[%dT" % lines)
         self.tty_out.flush()
+        self.tracked_cursor_position = None

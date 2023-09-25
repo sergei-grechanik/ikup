@@ -6,7 +6,7 @@ import numpy as np
 
 
 @screenshot_test
-def test_uploading_direct(ctx: TestingContext):
+def test_uploading_direct_png(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -53,7 +53,7 @@ def test_uploading_direct_random_png(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    data = ctx.generate_image(10, 10)
+    data = ctx.to_png(ctx.generate_image(10, 10))
     print(f"size: {len(data)} bytes")
     term.send_command(cmd.clone_with(image_id=100).set_data(data))
     term.send_command(
@@ -66,7 +66,7 @@ def test_uploading_direct_random_png(ctx: TestingContext):
     )
     term.write("\n")
     ctx.take_screenshot("Random < 1K image, direct uploading.")
-    data = ctx.generate_image(1000, 1000)
+    data = ctx.to_png(ctx.generate_image(1000, 1000))
     print(f"size: {len(data) // 1024}K")
     term.send_command(cmd.clone_with(image_id=200).set_data(data))
     term.send_command(
@@ -79,3 +79,141 @@ def test_uploading_direct_random_png(ctx: TestingContext):
     )
     term.write("\n")
     ctx.take_screenshot("Random big image, direct uploading.")
+
+
+@screenshot_test
+def test_uploading_direct_rgb(ctx: TestingContext):
+    term = ctx.term
+    for compress in [False, True]:
+        for bits in [24, 32]:
+            term.reset()
+            cmd = TransmitCommand(
+                medium=tupimage.TransmissionMedium.DIRECT,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.from_bits(bits),
+                compression=tupimage.Compression.from_bool(compress),
+            )
+            data, w, h = ctx.to_rgb_and_wh(
+                ctx.get_tux_png(), bits, compress=compress
+            )
+            print(f"size: {len(data) // 1024}K")
+            term.send_command(
+                cmd.clone_with(image_id=1, pix_width=w, pix_height=h).set_data(
+                    data
+                )
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=1,
+                    rows=10,
+                    columns=20,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+            term.write("\n")
+            data, w, h = ctx.to_rgb_and_wh(
+                ctx.get_wikipedia_png(), bits, compress=compress
+            )
+            print(f"size: {len(data) // 1024}K")
+            term.send_command(
+                cmd.clone_with(image_id=2, pix_width=w, pix_height=h).set_data(
+                    data
+                )
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=2,
+                    rows=10,
+                    columns=20,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+            ctx.take_screenshot(
+                f"Tux and wiki, direct transmission, {bits}-bit data, compress"
+                f" = {compress}"
+            )
+
+
+@screenshot_test
+def test_image_number(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    term.send_command(
+        cmd.clone_with(image_number=42)
+        .set_filename(ctx.get_wikipedia_png())
+        .set_placement(rows=10, columns=20)
+    )
+    term.write("\n")
+    ctx.take_screenshot(
+        "Wikipedia logo, sent with an image number, combined transmit-and-put"
+        " command."
+    )
+    term.send_command(
+        cmd.clone_with(image_number=43).set_filename(ctx.get_tux_png())
+    )
+    term.send_command(
+        PutCommand(
+            image_number=43,
+            rows=10,
+            columns=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    ctx.take_screenshot(
+        "Tux, sent with an image number, separate transmit and put."
+    )
+
+
+@screenshot_test
+def test_image_number_multiple(ctx: TestingContext):
+    term = ctx.term
+    transmit_cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    put_cmd = PutCommand(
+        rows=10,
+        columns=20,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    files = [
+        ctx.get_diagonal_png(),
+        ctx.get_wikipedia_png(),
+        ctx.get_tux_png(),
+        ctx.get_transparency_png(),
+    ]
+    for idx, filename in enumerate(files):
+        number = (idx % 3) + 1
+        term.send_command(
+            transmit_cmd.clone_with(image_number=number).set_filename(filename)
+        )
+    for idx, filename in enumerate(files):
+        number = (idx % 3) + 1
+        term.send_command(put_cmd.clone_with(image_number=number))
+        term.move_cursor(up=9)
+    ctx.take_screenshot(
+        "Dice, wiki, tux, dice again, sent with image numbers, separate"
+        " transmit and put commands."
+    )
+    term.move_cursor_abs(row=10, col=0)
+    for i in range(2):
+        for idx, filename in enumerate(files):
+            term.send_command(
+                transmit_cmd.clone_with(image_number=idx + 1).set_filename(
+                    filename
+                )
+            )
+        for idx, filename in enumerate(files):
+            term.send_command(
+                put_cmd.clone_with(rows=5, columns=10, image_number=idx + 1)
+            )
+            term.move_cursor(up=4)
+    ctx.take_screenshot(
+        "Line, wiki, tux, dice, sent with image numbers, separate transmit and"
+        " put commands."
+    )

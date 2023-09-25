@@ -21,6 +21,15 @@ class Format(Enum):
     RGBA = 32
     PNG = 100
 
+    @staticmethod
+    def from_bits(bits: int) -> "Format":
+        if bits == 24:
+            return Format.RGB
+        elif bits == 32:
+            return Format.RGBA
+        else:
+            raise ValueError(f"Invalid number of bits: {bits}")
+
     def __str__(self):
         return str(self.value)
 
@@ -36,6 +45,10 @@ class TransmissionMedium(Enum):
 
 class Compression(Enum):
     ZLIB = "z"
+
+    @staticmethod
+    def from_bool(compress: bool) -> Optional["Compression"]:
+        return Compression.ZLIB if compress else None
 
     def __str__(self):
         return str(self.value)
@@ -120,7 +133,7 @@ class TransmitCommand(GraphicsCommand):
             image_id=self.image_id,
             image_number=self.image_number,
             quiet=self.quiet,
-            **dataclasses.asdict(self.placement)
+            **dataclasses.asdict(self.placement),
         )
 
     def split(self, max_size: int) -> Iterator[GraphicsCommand]:
@@ -155,7 +168,7 @@ class TransmitCommand(GraphicsCommand):
             (b"q", self.quiet),
             (b"m", self.more),
             (b"f", self.format),
-            (b"c", self.compression),
+            (b"o", self.compression),
             (b"s", self.pix_width),
             (b"v", self.pix_height),
         )

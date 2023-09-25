@@ -7,6 +7,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from PIL import Image, ImageDraw
 import numpy as np
 import io
+import zlib
 
 from tupimage import GraphicsTerminal
 
@@ -155,9 +156,7 @@ class TestingContext:
         #  np.stack((xx, yy), axis=-1)
         data = np.random.random_sample(size=(height, width, 3))
         img = Image.fromarray((data * 255).astype(np.uint8), "RGB")
-        bytesio = io.BytesIO()
-        img.save(bytesio, format="PNG")
-        return bytesio.getvalue()
+        return img
 
     def text_to_image(self, text: str, pad: int = 2) -> bytes:
         img = Image.new("RGB", (1, 1))
@@ -170,9 +169,45 @@ class TestingContext:
             [(0, 0), (width + pad * 2 - 1, height + pad * 2 - 1)],
             outline="grey",
         )
+        return img
+
+    def to_png(self, img: Image.Image) -> bytes:
         bytesio = io.BytesIO()
         img.save(bytesio, format="PNG")
         return bytesio.getvalue()
+
+    def to_rgb(
+        self,
+        img: Union[Image.Image, str],
+        bits: int = 24,
+        compress: bool = False,
+    ) -> bytes:
+        if isinstance(img, str):
+            img = Image.open(img)
+        if bits == 24:
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+        elif bits == 32:
+            if img.mode != "RGBA":
+                img = img.convert("RGBA")
+        else:
+            raise ValueError(f"Invalid number of bits: {bits}")
+        res = img.tobytes()
+        if compress:
+            res = zlib.compress(res)
+        return res
+
+    def to_rgb_and_wh(
+        self,
+        img: Union[Image.Image, str],
+        bits: int = 24,
+        compress: bool = False,
+    ) -> Tuple[bytes, int, int]:
+        if isinstance(img, str):
+            img = Image.open(img)
+        w, h = img.size
+        data = self.to_rgb(img, bits=bits, compress=compress)
+        return data, w, h
 
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:
