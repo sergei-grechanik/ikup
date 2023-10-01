@@ -186,7 +186,7 @@ class GraphicsTerminal:
     def set_immediate_input_noecho(self):
         settings = list(termios.tcgetattr(self.tty_in.fileno()))
         settings[3] &= ~(termios.ECHO | termios.ICANON)
-        termios.tcsetattr(self.tty_in.fileno(), termios.TCSAFLUSH, settings)
+        termios.tcsetattr(self.tty_in.fileno(), termios.TCSADRAIN, settings)
 
     def receive_response(self, timeout: float = 10) -> GraphicsResponse:
         with self.guard_tty_settings():
@@ -211,7 +211,7 @@ class GraphicsTerminal:
             res = GraphicsResponse(is_valid=True)
             non_response, response = buffer.split(b"\033_G", 2)
             res.non_response = non_response
-            resp_and_message = response[3:-2].split(b";", 2)
+            resp_and_message = response[:-2].split(b";", 2)
             if len(resp_and_message) > 1:
                 res.message = resp_and_message[1].decode("utf-8")
                 res.is_ok = resp_and_message[1] == b"OK"
@@ -221,6 +221,15 @@ class GraphicsTerminal:
                         res.image_id = int(part[2:])
                     elif part.startswith(b"I="):
                         res.image_number = int(part[2:])
+                    elif part.startswith(b"p="):
+                        res.placement_id = int(part[2:])
+                    else:
+                        key_and_val = part.split(b"=", 2)
+                        res.additional_data[key_and_val[0].decode("utf-8")] = (
+                            key_and_val[1].decode("utf-8")
+                            if len(key_and_val) > 1
+                            else None
+                        )
                 except ValueError:
                     pass
             return res

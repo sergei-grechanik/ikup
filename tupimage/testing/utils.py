@@ -246,6 +246,16 @@ class TestingContext:
                 self.term.write(b"\033[0m")
                 raise KeyboardInterrupt()
 
+    def assert_equal(self, lhs, rhs):
+        if lhs != rhs:
+            raise AssertionError(f"{lhs} != {rhs}")
+
+    def assert_true(self, value: bool, description: Optional[str] = None):
+        if not value:
+            raise AssertionError(
+                "Assertion failed" + (": " + description if description else "")
+            )
+
     def print_results(self):
         print("Output dir: " + os.path.relpath(self.output_dir))
         print("Report: file://" + os.path.abspath(self.report_file.name))

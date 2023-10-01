@@ -4,7 +4,7 @@ import io
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Optional, Union, Iterator
+from typing import BinaryIO, Optional, Union, Iterator, Dict
 
 
 class Quietness(Enum):
@@ -140,13 +140,16 @@ class TransmitCommand(GraphicsCommand):
         if self.medium != TransmissionMedium.DIRECT:
             yield self
             return
+        original_more = self.more
         data = self.data
         if isinstance(data, bytes):
             data = io.BytesIO(data)
         data.seek(0)
         cur_chunk = data.read(max_size)
         next_chunk = data.read(max_size)
-        yield self.clone_with(data=cur_chunk, more=bool(next_chunk))
+        yield self.clone_with(
+            data=cur_chunk, more=original_more or bool(next_chunk)
+        )
         while next_chunk:
             cur_chunk = next_chunk
             next_chunk = data.read(max_size)
@@ -154,7 +157,7 @@ class TransmitCommand(GraphicsCommand):
                 image_id=self.image_id,
                 image_number=self.image_number,
                 data=cur_chunk,
-                more=bool(next_chunk),
+                more=original_more or bool(next_chunk),
             )
 
     def to_tuple(self):
@@ -241,7 +244,25 @@ class PutCommand(GraphicsCommand, PlacementData):
 class GraphicsResponse:
     image_id: Optional[int] = None
     image_number: Optional[int] = None
+    placement_id: Optional[int] = None
+    additional_data: Dict[str, Optional[str]] = dataclasses.field(
+        default_factory=dict
+    )
     message: str = ""
     is_ok: bool = False
     is_valid: bool = False
     non_response: bytes = b""
+
+    def ok_response(
+        image_id: Optional[int] = None,
+        image_number: Optional[int] = None,
+        placement_id: Optional[int] = None,
+    ) -> "GraphicsResponse":
+        return GraphicsResponse(
+            image_id=image_id,
+            image_number=image_number,
+            placement_id=placement_id,
+            is_ok=True,
+            is_valid=True,
+            message="OK",
+        )

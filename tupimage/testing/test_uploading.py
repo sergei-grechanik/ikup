@@ -217,3 +217,37 @@ def test_image_number_multiple(ctx: TestingContext):
         "Line, wiki, tux, dice, sent with image numbers, separate transmit and"
         " put commands."
     )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def test_stress_many_small_images(
+    ctx: TestingContext, placeholder: bool = False
+):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    image_id = 0
+    for x in range(80):
+        for y in range(24):
+            image_id += 1
+            term.move_cursor_abs(row=y, col=x)
+            term.send_command(
+                cmd.clone_with(image_id=image_id).set_data(
+                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                )
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=image_id,
+                    rows=1,
+                    columns=1,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    do_not_move_cursor=True,
+                )
+            )
+    ctx.take_screenshot("Many one-cell images of numbers")
