@@ -253,6 +253,23 @@ class GraphicsResponse:
     is_valid: bool = False
     non_response: bytes = b""
 
+    def is_err(
+        self,
+        message: str = "",
+        image_id: Optional[int] = None,
+        image_number: Optional[int] = None,
+        placement_id: Optional[int] = None,
+    ) -> bool:
+        return (
+            not self.is_ok
+            and self.is_valid
+            and message in self.message
+            and self.image_id == image_id
+            and self.image_number == image_number
+            and self.placement_id == placement_id
+        )
+
+    @staticmethod
     def ok_response(
         image_id: Optional[int] = None,
         image_number: Optional[int] = None,

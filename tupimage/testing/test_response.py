@@ -9,7 +9,7 @@ from tupimage.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def test_response_transmit_ok(ctx: TestingContext):
+def test_response_ok_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -35,6 +35,12 @@ def test_response_transmit_ok(ctx: TestingContext):
             image_number=12345, image_id=response.image_id
         ),
     )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_ok_direct_transmit(ctx: TestingContext):
+    term = ctx.term
     # Direct uploading.
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.DIRECT,
@@ -89,12 +95,12 @@ def test_response_transmit_ok(ctx: TestingContext):
         ),
     )
     ctx.write("All done\n")
-    ctx.take_screenshot("Ok responses")
+    ctx.take_screenshot("No assertion failures")
 
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def test_response_put_ok(ctx: TestingContext, placement_id=None):
+def test_response_ok_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -173,7 +179,7 @@ def test_response_put_ok(ctx: TestingContext, placement_id=None):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def test_response_direct_transmit_and_put_ok(
+def test_response_ok_direct_transmit_and_put(
     ctx: TestingContext, placement_id=None
 ):
     term = ctx.term
@@ -263,4 +269,154 @@ def test_response_ok_two_responses(ctx: TestingContext):
     ctx.assert_equal(response1, GraphicsResponse.ok_response(image_id=43))
     ctx.assert_equal(response2, GraphicsResponse.ok_response(image_id=44))
     term.write("All done\n")
-    ctx.take_screenshot("Empty, it's assertion-only test")
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_error_transmit(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    # Image id.
+    term.write("Image id is specified, file doesn't exist\n")
+    term.send_command(
+        cmd.clone_with(image_id=42).set_filename("__nonexistent__")
+    )
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err("EBADF", image_id=42), f"Wrong response: {response}"
+    )
+    # Image number.
+    term.write("Image number is specified, file doesn't exist\n")
+    term.send_command(
+        cmd.clone_with(image_number=23456).set_filename("__nonexistent__")
+    )
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err(
+            "EBADF", image_id=response.image_id, image_number=23456
+        ),
+        f"Wrong response: {response}",
+    )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
+@screenshot_test
+def test_response_error_transmit_and_put(
+    ctx: TestingContext, placement_id=None
+):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    # Image id.
+    term.write("Image id is specified, file doesn't exist\n")
+    term.send_command(
+        cmd.clone_with(image_id=42).set_filename("__nonexistent__")
+    )
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err("EBADF", image_id=42, placement_id=placement_id),
+        f"Wrong response: {response}",
+    )
+    # Image number.
+    term.write("Image number is specified, file doesn't exist\n")
+    term.send_command(
+        cmd.clone_with(image_number=23456).set_filename("__nonexistent__")
+    )
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err(
+            "EBADF",
+            image_id=response.image_id,
+            image_number=23456,
+            placement_id=placement_id,
+        ),
+        f"Wrong response: {response}",
+    )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_error_direct_transmit(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    # Fake non-png data.
+    data = ctx.to_rgb(ctx.generate_image(100, 100))
+    # Image id.
+    term.write("Image id is specified, bad png data\n")
+    term.send_command(cmd.clone_with(image_id=42).set_data(data))
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    # st will return EBADF, kitty will return EBADPNG.
+    ctx.assert_true(
+        response.is_err("EBAD", image_id=42), f"Wrong response: {response}"
+    )
+    ctx.take_screenshot("No assertion failures")
+    # Image number.
+    term.write("Image number is specified, bad png data\n")
+    term.send_command(cmd.clone_with(image_number=23456).set_data(data))
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err("EBAD", image_id=response.image_id, image_number=23456),
+        f"Wrong response: {response}",
+    )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
+@screenshot_test
+def test_response_error_direct_transmit_and_put(
+    ctx: TestingContext, placement_id=None
+):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    # Fake non-png data.
+    data = ctx.to_rgb(ctx.generate_image(100, 100))
+    # Image id.
+    term.write("Image id is specified, bad png data\n")
+    term.send_command(cmd.clone_with(image_id=42).set_data(data))
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    # st will return EBADF, kitty will return EBADPNG.
+    ctx.assert_true(
+        response.is_err("EBAD", image_id=42, placement_id=placement_id),
+        f"Wrong response: {response}",
+    )
+    ctx.take_screenshot("No assertion failures")
+    # Image number.
+    term.write("Image number is specified, bad png data\n")
+    term.send_command(cmd.clone_with(image_number=23456).set_data(data))
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err(
+            "EBAD",
+            image_id=response.image_id,
+            image_number=23456,
+            placement_id=placement_id,
+        ),
+        f"Wrong response: {response}",
+    )
+    ctx.take_screenshot("No assertion failures")
