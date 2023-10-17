@@ -9,5 +9,7 @@ from .graphics_command import (
     Quietness,
     TransmissionMedium,
     TransmitCommand,
+    DeleteCommand,
+    WhatToDelete,
 )
 from .graphics_terminal import GraphicsTerminal

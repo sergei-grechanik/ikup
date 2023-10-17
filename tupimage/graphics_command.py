@@ -54,6 +54,22 @@ class Compression(Enum):
         return str(self.value)
 
 
+class WhatToDelete(Enum):
+    VISIBLE_PLACEMENTS = "a"
+    IMAGE_OR_PLACEMENT_BY_ID = "i"
+    IMAGE_OR_PLACEMENT_BY_NUMBER = "n"
+    PLACEMENTS_UNDER_CURSOR = "c"
+    ANIMATION_FRAMES = "f"
+    PLACEMENTS_AT_POSITION = "p"
+    PLACEMENTS_AT_POSITION_AND_ZINDEX = "q"
+    PLACEMENTS_AT_COLUMN = "x"
+    PLACEMENTS_AT_ROW = "y"
+    PLACEMENTS_AT_ZINDEX = "z"
+
+    def __str__(self):
+        return str(self.value)
+
+
 class GraphicsCommand:
     def to_tuple(self):
         raise NotImplementedError()
@@ -235,6 +251,34 @@ class PutCommand(GraphicsCommand, PlacementData):
             (b"q", self.quiet),
         ) + PlacementData.to_tuple(self)
         return tup
+
+    def content_to_stream(self, stream: BinaryIO):
+        kv_tuple_to_stream(self.to_tuple(), stream)
+
+
+@dataclass
+class DeleteCommand(GraphicsCommand):
+    image_id: Optional[int] = None
+    image_number: Optional[int] = None
+    placement_id: Optional[int] = None
+    quiet: Optional[Quietness] = None
+    what: Optional[WhatToDelete] = None
+    delete_data: Optional[bool] = None
+
+    def to_tuple(self):
+        what_str = None
+        if self.what is not None:
+            what_str = self.what.value
+            if self.delete_data:
+                what_str = what_str.upper()
+        return (
+            (b"a", b"d"),
+            (b"i", self.image_id),
+            (b"I", self.image_number),
+            (b"p", self.placement_id),
+            (b"q", self.quiet),
+            (b"d", what_str),
+        )
 
     def content_to_stream(self, stream: BinaryIO):
         kv_tuple_to_stream(self.to_tuple(), stream)
