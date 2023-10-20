@@ -12,6 +12,7 @@ from tupimage.testing import (
     test_uploading,
     test_response,
     test_deletion,
+    test_placeholder,
 )
 
 

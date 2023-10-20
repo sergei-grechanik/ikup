@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Tuple, List
+from typing import BinaryIO, Tuple, List, Optional, Callable
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 
@@ -405,11 +405,6 @@ class ImagePlaceholder:
                 "Start row must be less than end row, but {self.start_row} >="
                 " {self.end_row}"
             )
-        if self.end_row > len(ROWCOLUMN_DIACRITICS):
-            raise ValueError(
-                "End row must not be greater than {len(ROWCOLUMN_DIACRITICS)},"
-                " but it is {self.end_row}"
-            )
 
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
@@ -417,6 +412,7 @@ class ImagePlaceholder:
     def to_lines(
         self,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: Optional[Callable[[int, int], bytes]] = None,
         no_escape: bool = False,
     ) -> List[bytes]:
         placeholder_bytes = mode.placeholder_char.encode("utf-8")
@@ -453,6 +449,8 @@ class ImagePlaceholder:
         image_id_4thbyte_diacritic = ROWCOLUMN_DIACRITICS_UTF8[image_id_4thbyte]
         firstcol_diacritic_count = mode.first_column_diacritic_level.value
         othercol_diacritic_count = mode.other_columns_diacritic_level.value
+        if self.start_column != 0:
+            firstcol_diacritic_count = max(firstcol_diacritic_count, 2)
         if image_id_4thbyte != 0:
             firstcol_diacritic_count = 3
             if (
@@ -475,8 +473,21 @@ class ImagePlaceholder:
         result = []
         # Print the placeholder.
         for row in range(self.start_row, self.end_row):
+            # If the row is over the limit, print spaces.
+            if row >= len(ROWCOLUMN_DIACRITICS_UTF8):
+                line = b""
+                for col in range(self.start_column, self.end_column):
+                    if formatting is not None:
+                        line += formatting(col, row)
+                    line += b" "
+                result.append(line)
+                break
+                continue
             # Line formatting encoding colors for IDs.
             line = line_formatting
+            # Custom cell formatting.
+            if formatting is not None:
+                line += formatting(self.start_column, row)
             # The row diacritic.
             row_diacritic = ROWCOLUMN_DIACRITICS_UTF8[row]
             # Print the placeholder and diacritics for the first column.
@@ -484,11 +495,13 @@ class ImagePlaceholder:
             if firstcol_diacritic_count >= 1:
                 line += row_diacritic
                 if firstcol_diacritic_count >= 2:
-                    line += ROWCOLUMN_DIACRITICS_UTF8[0]
+                    line += ROWCOLUMN_DIACRITICS_UTF8[self.start_column]
                     if firstcol_diacritic_count >= 3:
                         line += image_id_4thbyte_diacritic
             # Print the placeholders with diacritics for other columns.
             for col in range(self.start_column + 1, self.end_column):
+                if formatting is not None:
+                    line += formatting(col, row)
                 line += placeholder_bytes
                 if othercol_diacritic_count >= 1:
                     line += row_diacritic
@@ -505,6 +518,7 @@ class ImagePlaceholder:
         self,
         stream: BinaryIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: Optional[Callable[[int, int], bytes]] = None,
         no_escape: bool = False,
     ):
         lines = self.to_lines(mode, no_escape=no_escape)
@@ -521,8 +535,9 @@ class ImagePlaceholder:
         stream: BinaryIO,
         position: Tuple[int, int],
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: Optional[Callable[[int, int], bytes]] = None,
     ):
-        lines = self.to_lines(mode)
+        lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
             stream.write(
@@ -535,8 +550,9 @@ class ImagePlaceholder:
         self,
         stream: BinaryIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: Optional[Callable[[int, int], bytes]] = None,
     ):
-        lines = self.to_lines(mode)
+        lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
             stream.write(line)
@@ -544,5 +560,6 @@ class ImagePlaceholder:
                 stream.write(
                     b"\033[%dD" % (self.end_column - self.start_column)
                 )
-                stream.write(b"\033[B")
+                # This sequence moves the cursor down, maybe creating a newline.
+                stream.write(b"\033D")
         stream.write(b"\033[0m")

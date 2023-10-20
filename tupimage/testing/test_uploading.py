@@ -238,7 +238,11 @@ def test_stress_many_small_images(
             term.move_cursor_abs(row=y, col=x)
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
-                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                    ctx.to_png(
+                        ctx.text_to_image(
+                            str(image_id), colorize_by_id=image_id
+                        )
+                    )
                 )
             )
             term.send_command(

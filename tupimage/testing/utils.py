@@ -8,6 +8,7 @@ from PIL import Image, ImageDraw
 import numpy as np
 import io
 import zlib
+import colorsys
 
 from tupimage import GraphicsTerminal
 
@@ -158,11 +159,24 @@ class TestingContext:
         img = Image.fromarray((data * 255).astype(np.uint8), "RGB")
         return img
 
-    def text_to_image(self, text: str, pad: int = 2) -> bytes:
+    def text_to_image(
+        self, text: str, pad: int = 2, colorize_by_id: Optional[int] = None
+    ) -> bytes:
+        bg_color = "black"
+        if colorize_by_id is not None:
+            byte4 = (colorize_by_id & 0xFF000000) >> 24
+            r = (colorize_by_id & 0xFF0000) >> 16
+            g = (colorize_by_id & 0x00FF00) >> 8
+            b = colorize_by_id & 0x0000FF
+            h, _, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
+            bg_color = colorsys.hsv_to_rgb(h, 0.3 + byte4 / 255 * 0.7, 0.5)
+            bg_color = tuple(int(c * 255) for c in bg_color)
         img = Image.new("RGB", (1, 1))
         d = ImageDraw.Draw(img)
         width, height = d.textsize(text)
-        img = Image.new("RGB", (width + pad * 2, height + pad * 2))
+        img = Image.new(
+            "RGB", (width + pad * 2, height + pad * 2), color=bg_color
+        )
         d = ImageDraw.Draw(img)
         d.text((pad, pad), text, fill="white")
         d.rectangle(

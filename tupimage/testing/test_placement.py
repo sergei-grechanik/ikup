@@ -281,7 +281,11 @@ def test_numbers(ctx: TestingContext, placeholder: bool = False):
                 image_id += 1
                 term.send_command(
                     cmd.clone_with(image_id=image_id).set_data(
-                        ctx.to_png(ctx.text_to_image(str(image_id)))
+                        ctx.to_png(
+                            ctx.text_to_image(
+                                str(image_id), colorize_by_id=image_id
+                            )
+                        )
                     )
                 )
                 term.send_command(
@@ -323,7 +327,11 @@ def test_image_ids(ctx: TestingContext, placeholder: bool = False):
             image_id = image_ids[idx]
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
-                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                    ctx.to_png(
+                        ctx.text_to_image(
+                            str(image_id), colorize_by_id=image_id
+                        )
+                    )
                 )
             )
             term.send_command(
@@ -363,7 +371,11 @@ def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
             image_id = image_ids[idx]
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
-                    ctx.to_png(ctx.text_to_image(str(image_id)))
+                    ctx.to_png(
+                        ctx.text_to_image(
+                            str(image_id), colorize_by_id=image_id
+                        )
+                    )
                 )
             )
             # Placement IDs may be only 24-bit.

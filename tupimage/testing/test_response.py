@@ -303,6 +303,40 @@ def test_response_error_transmit(ctx: TestingContext):
         ),
         f"Wrong response: {response}",
     )
+    # Control characters in the file name.
+    term.write("Control characters in filename, file doesn't exist\n")
+    term.send_command(
+        cmd.clone_with(image_id=42).set_filename("\007\033[31m__nonexistent__")
+    )
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err("EBADF", image_id=42), f"Wrong response: {response}"
+    )
+    ctx.assert_true(
+        "\007" not in response.message and "\033" not in response.message,
+        "The response mustn't contain control characters",
+    )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_error_transmit_urandom(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    term.write("Image id is specified, file doesn't exist\n")
+    term.send_command(cmd.clone_with(image_id=42).set_filename("/dev/urandom"))
+    response = term.receive_response(timeout=3)
+    ctx.write(f"Response message: {response.message}\n")
+    ctx.assert_true(
+        response.is_err("EBADF", image_id=42)
+        or response.is_err("EPERM", image_id=42),
+        f"Wrong response: {response}",
+    )
     ctx.take_screenshot("No assertion failures")
 
 
@@ -419,4 +453,93 @@ def test_response_error_direct_transmit_and_put(
         ),
         f"Wrong response: {response}",
     )
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_error_syntax_no_response(ctx: TestingContext):
+    term = ctx.term
+
+    ctx.write("Empty command. No response is expected.")
+    term.write("\033_G\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("Almost empty command. No response is expected.")
+    term.write("\033_G;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("Almost empty command with a payload. No response is expected.")
+    term.write("\033_G;abcd\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("No = after key. No response is expected.")
+    term.write("\033_Ga;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("No value after =. No response is expected.")
+    term.write("\033_Ga=;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("No , after a=t. No response is expected.")
+    term.write("\033_Ga=transmit;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("A non-printed char in the command. No response is expected.")
+    term.write("\033_G\007;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.write("A \\n in the command. No response is expected")
+    term.write("\033_G\na=t;\033\\\n")
+    response = term.receive_response(timeout=0.5)
+    ctx.assert_true(not response.is_valid)
+
+    ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def test_response_error_syntax_image_id(ctx: TestingContext):
+    term = ctx.term
+
+    ctx.write("Empty command modulo image id.")
+    term.write("\033_Gi=1234\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Empty command modulo image id and some payload.")
+    term.write("\033_Gi=1234;abcd\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Syntax error (missing key).")
+    term.write("\033_Gi=1234,a=;abcd\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Invalid action")
+    term.write("\033_Gi=1234,a=X;abcd\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Invalid transmission.")
+    term.write("\033_Gi=1234,a=t,t=X;abcd\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Undecodable payload.")
+    term.write("\033_Gi=1234,a=t,t=d,f=100;@#$%\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
+    ctx.write("Undecodable payload as filename.")
+    term.write("\033_Gi=1234,a=t,t=f,f=100;@#$%\033\\\n")
+    response = term.receive_response(timeout=0.2)
+    ctx.write(f"Response message: {response.message}\n")
+
     ctx.take_screenshot("No assertion failures")
