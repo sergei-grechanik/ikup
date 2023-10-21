@@ -9,11 +9,12 @@ import numpy as np
 import io
 import zlib
 import colorsys
+import json
 
 from tupimage import GraphicsTerminal
 
 
-def take_screenshot(filename: str, width: int = 320, height: int = 192):
+def take_screenshot(filename: str, width: int = 480, height: int = 288):
     window_id = os.getenv("WINDOWID")
     if window_id is None:
         raise RuntimeError("WINDOWID not set")
@@ -55,7 +56,6 @@ class TestingContext:
         self,
         term: GraphicsTerminal,
         output_dir: str,
-        reference_dir: str,
         data_dir: str,
         term_size: Tuple[int, int] = (80, 24),
         screenshot_cell_size: Tuple[int, int] = (4, 8),
@@ -63,12 +63,12 @@ class TestingContext:
     ):
         self.term: GraphicsTerminal = term
         self.output_dir: str = output_dir
-        self.reference_dir: str = reference_dir
         self.data_dir: str = data_dir
         self.screenshot_width: int = term_size[0] * screenshot_cell_size[0]
         self.screenshot_height: int = term_size[1] * screenshot_cell_size[1]
         os.makedirs(self.data_dir, exist_ok=True)
         self.report_file: Optional[TextIO] = None
+        self.current_test_data: dict = {}
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
         self.pause_after_screenshot = pause_after_screenshot
@@ -133,24 +133,22 @@ class TestingContext:
             self.report_file = open(
                 os.path.join(self.output_dir, "report.html"), "w", buffering=1
             )
+        self.current_test_data = {"name": name, "screenshots": []}
         self.screenshot_index = 0
         self.report_file.write(f"<h2>{name}</h2>\n")
         self.term.reset()
 
     def _end_test(self):
         self.test_name = None
-
-    def compare_images(self, filename: str, ref_filename: str) -> float:
-        # Load the images with Pillow and compare them using mse.
-        # This is not the best way to compare images, but it's good enough for
-        # our purposes.
-        img1 = Image.open(filename)
-        img2 = Image.open(ref_filename)
-        if img1.size != img2.size:
-            return 1.0
-        img1 = np.array(img1).astype(np.float32) / 255.0
-        img2 = np.array(img2).astype(np.float32) / 255.0
-        return np.mean(np.square(img1 - img2))
+        json_file = os.path.join(self.output_dir, "report.json")
+        if not os.path.exists(json_file):
+            with open(json_file, "w") as f:
+                json.dump([], f)
+        with open(json_file, "r+") as f:
+            lst = json.load(f)
+            lst.append(self.current_test_data)
+            f.seek(0)
+            json.dump(lst, f, indent=4)
 
     def generate_image(self, width: int, height: int) -> bytes:
         #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))
@@ -236,23 +234,13 @@ class TestingContext:
         take_screenshot(
             filename, width=self.screenshot_width, height=self.screenshot_height
         )
-        reference_img = ""
-        status = ""
-        diffscore = 0.0
-        if self.reference_dir:
-            reference_img = os.path.join(self.reference_dir, rel_filename)
-            if not os.path.exists(reference_img):
-                status = "No reference screenshot"
-            else:
-                diffscore = self.compare_images(filename, reference_img)
-                status = f"Diff score: {diffscore:.6f}"
-        self.report_file.write(f"<h3>{self.screenshot_index} {status}</h3>\n")
-        if description is not None:
-            self.report_file.write(f"<p>{description}</p>\n")
-        self.report_file.write(f'<img src="{rel_filename}">\n')
-        if reference_img and diffscore != 0.0:
-            rel_reference_img = os.path.relpath(reference_img, self.output_dir)
-            self.report_file.write(f'<img src="{rel_reference_img}">\n')
+        self.current_test_data["screenshots"].append(
+            {
+                "filename": rel_filename,
+                "index": self.screenshot_index,
+                "description": description or "",
+            }
+        )
         self.screenshot_index += 1
         if self.pause_after_screenshot:
             key = self.term.wait_keypress()
@@ -272,7 +260,6 @@ class TestingContext:
 
     def print_results(self):
         print("Output dir: " + os.path.relpath(self.output_dir))
-        print("Report: file://" + os.path.abspath(self.report_file.name))
 
 
 def screenshot_test(func=None, suffix: Optional[str] = None, params: dict = {}):

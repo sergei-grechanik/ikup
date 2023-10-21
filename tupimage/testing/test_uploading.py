@@ -3,6 +3,7 @@ from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
 import os
 import numpy as np
+import time
 
 
 @screenshot_test
@@ -254,4 +255,6 @@ def test_stress_many_small_images(
                     do_not_move_cursor=True,
                 )
             )
+    # Additional delay since the terminal may be slow to render all the images.
+    time.sleep(1.0)
     ctx.take_screenshot("Many one-cell images of numbers")

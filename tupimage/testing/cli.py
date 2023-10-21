@@ -2,6 +2,7 @@ import datetime
 from fnmatch import fnmatch
 from typing import List
 import click
+import os
 
 import tupimage
 from tupimage import GraphicsTerminal
@@ -38,7 +39,12 @@ def is_test_enabled(funcname, tests: List[str]):
     return False
 
 
-@click.command()
+@click.group()
+def main():
+    pass
+
+
+@main.command()
 @click.option("--term-size", default="80x24", callback=validate_size, type=str)
 @click.option(
     "--cell-size",
@@ -49,17 +55,15 @@ def is_test_enabled(funcname, tests: List[str]):
 )
 @click.option("--ignore-size", is_flag=True)
 @click.option("--output-dir", "--output", "-o", default=None, type=str)
-@click.option("--reference-dir", "--reference", "--ref", default=None, type=str)
 @click.option("--data-dir", default=None, type=str)
 @click.option("--pause", is_flag=True)
 @click.option("--list", "--ls", "-l", is_flag=True)
 @click.argument("tests", nargs=-1, type=str)
-def run_tests(
+def run(
     term_size,
     cell_size,
     ignore_size,
     output_dir,
-    reference_dir,
     data_dir,
     pause,
     list,
@@ -96,22 +100,34 @@ def run_tests(
     if output_dir is None:
         now = datetime.datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
-        output_dir = (
-            ".tupimage-testing/output-"
+        os.makedirs(".tupimage-testing", exist_ok=True)
+        output_dir_name = (
+            "output-"
             f"{term_size[0]}x{term_size[1]}-"
             f"{cell_size[0]}x{cell_size[1]}-{date_time_string}"
+        )
+        latest_link = ".tupimage-testing/latest"
+        if os.path.lexists(latest_link) and os.path.islink(latest_link):
+            os.remove(latest_link)
+        if not os.path.lexists(latest_link):
+            os.symlink(output_dir_name, latest_link)
+        output_dir = f".tupimage-testing/{output_dir_name}"
+    if os.path.exists(output_dir) and os.listdir(output_dir):
+        raise RuntimeError(
+            f"Output directory {output_dir} already exists and is not empty."
         )
     if data_dir is None:
         data_dir = f".tupimage-testing/data"
     ctx = TestingContext(
         term,
         output_dir=output_dir,
-        reference_dir=reference_dir,
         data_dir=data_dir,
         term_size=term_size,
         screenshot_cell_size=cell_size,
         pause_after_screenshot=pause,
     )
+    if not tests:
+        tests = ["*"]
     ran_any_tests = False
     with ctx.term.guard_tty_settings():
         ctx.term.set_immediate_input_noecho()
@@ -130,5 +146,20 @@ def run_tests(
             print("No tests were run.")
 
 
+@main.command()
+@click.option("--output", "-o", type=str)
+@click.argument("test_output", type=str)
+@click.argument("reference", type=str)
+def compare(test_output, reference, output):
+    outdir = os.path.dirname(output)
+    if outdir:
+        os.chdir(outdir)
+    report = tupimage.testing.create_screenshot_comparison_report(
+        test_output, reference
+    )
+    with open(output, "w") as f:
+        f.write(report.to_html())
+
+
 if __name__ == "__main__":
-    run_tests()
+    main()
