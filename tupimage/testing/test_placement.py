@@ -389,3 +389,39 @@ def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
                 )
             )
     ctx.take_screenshot(f"Images with different ids and placement ids.")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def test_display_overwrite_with_spaces(
+    ctx: TestingContext, placeholder: bool = False
+):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    term.send_command(
+        cmd.clone_with(image_id=1)
+        .set_filename(ctx.get_transparency_png())
+        .set_placement(rows=20, columns=40)
+    )
+    term.move_cursor(up=14, left=30)
+    term.write("\033[48;5;1m\033[38;5;2m")
+    for i in range(10):
+        term.write(" " * 15 + "X" * 5)
+        term.move_cursor(left=20, down=1)
+    if placeholder:
+        ctx.take_screenshot(
+            "Dice with a red square in the middle (hiding part of image). The"
+            " right 1/3 of the square is covered with green Xs."
+        )
+    else:
+        ctx.take_screenshot(
+            "Dice with a square patch of red backround in the middle"
+            " (underneath the image). The right 1/3 of the square is covered"
+            " with green Xs. The Xs may behave differently in different"
+            " terminals."
+        )
