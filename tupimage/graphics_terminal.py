@@ -388,8 +388,16 @@ class GraphicsTerminal:
             )
 
     def move_cursor_abs(
-        self, *, row: Optional[int] = None, col: Optional[int] = None
+        self,
+        *,
+        row: Optional[int] = None,
+        col: Optional[int] = None,
+        pos: Optional[Tuple[int, int]] = None
     ):
+        if pos is not None:
+            if row is not None or col is not None:
+                raise ValueError("Cannot specify both pos and row/col")
+            col, row = pos
         if row is not None:
             self.tty_out.write(b"\033[%dd" % (row + 1))
         if col is not None:

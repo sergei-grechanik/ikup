@@ -256,5 +256,5 @@ def test_stress_many_small_images(
                 )
             )
     # Additional delay since the terminal may be slow to render all the images.
-    time.sleep(1.0)
+    time.sleep(1.5)
     ctx.take_screenshot("Many one-cell images of numbers")

@@ -425,3 +425,93 @@ def test_display_overwrite_with_spaces(
             " with green Xs. The Xs may behave differently in different"
             " terminals."
         )
+
+
+@screenshot_test
+def test_no_id_no_number(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement(rows=10, columns=20)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
+    term.move_cursor(up=9)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
+    term.write("\n")
+    term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
+    ctx.take_screenshot(f"Tux, wiki, and then dice on the next line.")
+
+
+@screenshot_test
+def test_no_columns(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement(rows=10)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
+    term.move_cursor(up=9)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
+    term.write("\n")
+    term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
+    ctx.take_screenshot(
+        f"Tux, wiki, and then dice on the next line. The number of columns is"
+        f" inferred"
+    )
+
+
+@screenshot_test
+def test_no_rows(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement(columns=20)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
+    pos = term.get_cursor_position()
+    term.move_cursor_abs(row=0)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
+    term.move_cursor_abs(pos=pos)
+    term.write("\n")
+    term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
+    ctx.take_screenshot(
+        f"Tux, wiki, and then dice on the next line. The number of rows is"
+        f" inferred"
+    )
+
+
+@screenshot_test
+def test_no_size(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    cmd.set_placement()
+    term.send_command(
+        cmd.clone_with().set_data(
+            ctx.to_png(ctx.text_to_image(("Sample multiline text\n" * 10)[:-1]))
+        )
+    )
+    pos = term.get_cursor_position()
+    term.move_cursor_abs(row=0)
+    term.send_command(
+        cmd.clone_with().set_data(
+            ctx.to_png(ctx.text_to_image(("Blah blah blah\n" * 5)[:-1]))
+        )
+    )
+    term.move_cursor_abs(pos=pos)
+    term.write("\n")
+    term.send_command(
+        cmd.clone_with().set_data(
+            ctx.to_png(ctx.text_to_image("Long text " * 8))
+        )
+    )
+    ctx.take_screenshot(f"Text boxes, the number of rows/columns is inferred")
