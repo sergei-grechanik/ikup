@@ -113,6 +113,9 @@ class TestingContext:
         self.get_diagonal_png = self.image_downloader(
             "https://upload.wikimedia.org/wikipedia/commons/5/5d/Linear_Graph.png"
         )
+        self.get_small_arrow_png = self.image_downloader(
+            "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
+        )
         self.get_castle_jpg = self.image_downloader(
             "https://upload.wikimedia.org/wikipedia/commons/1/10/"
             "Neuschwanstein_Castle_from_Marienbr%C3%BCcke_Bridge.jpg"
@@ -149,6 +152,10 @@ class TestingContext:
             lst.append(self.current_test_data)
             f.seek(0)
             json.dump(lst, f, indent=4)
+
+    def get_image_size(self, filename: str) -> Tuple[int, int]:
+        img = Image.open(filename)
+        return img.size
 
     def generate_image(self, width: int, height: int) -> bytes:
         #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))

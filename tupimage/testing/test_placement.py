@@ -16,21 +16,21 @@ def test_display_movecursor(ctx: TestingContext, placeholder: bool = False):
     term.send_command(
         cmd.clone_with(image_id=1)
         .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20)
+        .set_placement(rows=10, cols=20)
     )
     ctx.take_screenshot("Wikipedia logo. May be slightly stretched in kitty.")
     term.move_cursor(up=9)
     term.send_command(
         cmd.clone_with(image_id=2)
         .set_filename(ctx.get_column_png())
-        .set_placement(rows=10, columns=5)
+        .set_placement(rows=10, cols=5)
     )
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=10, columns=20, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=10, cols=20, quiet=1))
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=5, columns=10, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=1))
     term.move_cursor(left=10, down=1)
-    term.send_command(PutCommand(image_id=1, rows=5, columns=10, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=1))
     ctx.take_screenshot("Wikipedia logo and some columns.")
 
 
@@ -47,7 +47,7 @@ def test_display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term.send_command(
         cmd.clone_with(image_id=1)
         .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20, do_not_move_cursor=True)
+        .set_placement(rows=10, cols=20, do_not_move_cursor=True)
     )
     ctx.take_screenshot(
         "Wikipedia logo (slightly stretched in kitty). The cursor should be at"
@@ -57,24 +57,24 @@ def test_display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term.send_command(
         cmd.clone_with(image_id=2)
         .set_filename(ctx.get_column_png())
-        .set_placement(rows=10, columns=5, do_not_move_cursor=True)
+        .set_placement(rows=10, cols=5, do_not_move_cursor=True)
     )
     term.move_cursor(right=5)
     term.send_command(
         PutCommand(
-            image_id=1, rows=10, columns=20, quiet=1, do_not_move_cursor=True
+            image_id=1, rows=10, cols=20, quiet=1, do_not_move_cursor=True
         )
     )
     term.move_cursor(right=20)
     term.send_command(
         PutCommand(
-            image_id=1, rows=5, columns=10, quiet=1, do_not_move_cursor=True
+            image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True
         )
     )
     term.move_cursor(down=5)
     term.send_command(
         PutCommand(
-            image_id=1, rows=5, columns=10, quiet=1, do_not_move_cursor=True
+            image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True
         )
     )
     ctx.take_screenshot(
@@ -103,7 +103,7 @@ def test_multisize(ctx: TestingContext, placeholder: bool = False):
                 PutCommand(
                     image_id=1,
                     rows=r,
-                    columns=c,
+                    cols=c,
                     quiet=1,
                     do_not_move_cursor=True,
                 )
@@ -132,7 +132,7 @@ def test_oob(ctx: TestingContext, placeholder: bool = False):
         term.move_cursor_abs(row=r, col=80 - (24 - r))
         term.send_command(
             PutCommand(
-                image_id=1, rows=1, columns=24, quiet=1, do_not_move_cursor=True
+                image_id=1, rows=1, cols=24, quiet=1, do_not_move_cursor=True
             )
         )
     term.move_cursor_abs(row=0, col=0)
@@ -156,7 +156,7 @@ def test_oob_down(ctx: TestingContext, placeholder: bool = False):
             PutCommand(
                 image_id=1,
                 rows=10,
-                columns=20,
+                cols=20,
                 quiet=1,
                 do_not_move_cursor=False,
             )
@@ -183,7 +183,7 @@ def test_oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
             PutCommand(
                 image_id=1,
                 rows=10,
-                columns=20,
+                cols=20,
                 quiet=1,
                 do_not_move_cursor=True,
             )
@@ -220,7 +220,7 @@ def test_scrolling(ctx: TestingContext, placeholder: bool = False):
                     PutCommand(
                         image_id=i % 3,
                         rows=1,
-                        columns=1,
+                        cols=1,
                         quiet=1,
                     )
                 )
@@ -232,7 +232,7 @@ def test_scrolling(ctx: TestingContext, placeholder: bool = False):
         PutCommand(
             image_id=1,
             rows=7,
-            columns=14,
+            cols=14,
             quiet=1,
         )
     )
@@ -241,7 +241,7 @@ def test_scrolling(ctx: TestingContext, placeholder: bool = False):
         PutCommand(
             image_id=2,
             rows=7,
-            columns=14,
+            cols=14,
             quiet=1,
         )
     )
@@ -292,7 +292,7 @@ def test_numbers(ctx: TestingContext, placeholder: bool = False):
                     PutCommand(
                         image_id=image_id,
                         rows=1,
-                        columns=step,
+                        cols=step,
                         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                     )
                 )
@@ -338,7 +338,7 @@ def test_image_ids(ctx: TestingContext, placeholder: bool = False):
                 PutCommand(
                     image_id=image_id,
                     rows=1,
-                    columns=5,
+                    cols=5,
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
@@ -384,7 +384,7 @@ def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
                     image_id=image_id,
                     placement_id=image_id & 0x00FFFFFF,
                     rows=1,
-                    columns=5,
+                    cols=5,
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
@@ -406,7 +406,7 @@ def test_display_overwrite_with_spaces(
     term.send_command(
         cmd.clone_with(image_id=1)
         .set_filename(ctx.get_transparency_png())
-        .set_placement(rows=20, columns=40)
+        .set_placement(rows=20, cols=40)
     )
     term.move_cursor(up=14, left=30)
     term.write("\033[48;5;1m\033[38;5;2m")
@@ -435,13 +435,13 @@ def test_no_id_no_number(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(rows=10, columns=20)
+    cmd.set_placement(rows=10, cols=20)
     term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
     term.move_cursor(up=9)
     term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
     term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
-    ctx.take_screenshot(f"Tux, wiki, and then dice on the next line.")
+    ctx.take_screenshot("Tux, wiki, and then dice on the next line.")
 
 
 @screenshot_test
@@ -459,8 +459,8 @@ def test_no_columns(ctx: TestingContext):
     term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
     ctx.take_screenshot(
-        f"Tux, wiki, and then dice on the next line. The number of columns is"
-        f" inferred"
+        "Tux, wiki, and then dice on the next line. The number of columns is"
+        " inferred"
     )
 
 
@@ -472,7 +472,7 @@ def test_no_rows(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(columns=20)
+    cmd.set_placement(cols=20)
     term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
     pos = term.get_cursor_position()
     term.move_cursor_abs(row=0)
@@ -481,8 +481,8 @@ def test_no_rows(ctx: TestingContext):
     term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
     ctx.take_screenshot(
-        f"Tux, wiki, and then dice on the next line. The number of rows is"
-        f" inferred"
+        "Tux, wiki, and then dice on the next line. The number of rows is"
+        " inferred"
     )
 
 
@@ -514,4 +514,120 @@ def test_no_size(ctx: TestingContext):
             ctx.to_png(ctx.text_to_image("Long text " * 8))
         )
     )
-    ctx.take_screenshot(f"Text boxes, the number of rows/columns is inferred")
+    ctx.take_screenshot("Text boxes, the number of rows/columns is inferred")
+
+
+@screenshot_test
+def test_subimage(ctx: TestingContext):
+    term = ctx.term
+    term.send_command(
+        TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            format=tupimage.Format.PNG,
+        ).set_filename(ctx.get_wikipedia_png())
+    )
+    cmd = PutCommand(
+        image_id=1,
+        src_x=100,
+        src_y=50,
+        src_w=200,
+        src_h=100,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(cmd)
+    term.write("\n80 cols x 5 rows:\n")
+    term.send_command(cmd.clone_with(rows=5, cols=80))
+    term.write("\n4 rows and 6 cols:\n")
+    term.send_command(cmd.clone_with(rows=4))
+    term.move_cursor(up=3)
+    term.send_command(cmd.clone_with(cols=6))
+    ctx.take_screenshot("Same subimage of wikipedia, different sizes")
+
+
+@screenshot_test
+def test_subimage_no_size(ctx: TestingContext):
+    term = ctx.term
+    term.send_command(
+        TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            format=tupimage.Format.PNG,
+        ).set_filename(ctx.get_wikipedia_png())
+    )
+    cmd = PutCommand(
+        image_id=1,
+        src_x=300,
+        src_y=300,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(cmd)
+    term.write("\n80 cols x 5 rows:\n")
+    term.send_command(cmd.clone_with(rows=5, cols=80))
+    term.write("\n4 rows and 6 cols:\n")
+    term.send_command(cmd.clone_with(rows=4))
+    term.move_cursor(up=3)
+    term.send_command(cmd.clone_with(cols=6))
+    ctx.take_screenshot("Same subimage of wikipedia, different sizes")
+
+
+@screenshot_test
+def test_subimage_slice_horizontally(ctx: TestingContext):
+    term = ctx.term
+    for file in [
+        ctx.get_wikipedia_png(),
+        ctx.get_tux_png(),
+        ctx.get_small_arrow_png(),
+    ]:
+        term.reset()
+        term.send_command(
+            TransmitCommand(
+                image_id=1,
+                medium=tupimage.TransmissionMedium.FILE,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.PNG,
+            ).set_filename(file)
+        )
+        cmd = PutCommand(
+            image_id=1, rows=2, quiet=tupimage.Quietness.QUIET_UNLESS_ERROR
+        )
+        _, height = ctx.get_image_size(file)
+        slice_h = (height + 9) // 10
+        for i in range(0, 10):
+            term.send_command(cmd.clone_with(src_y=i * slice_h, src_h=slice_h))
+            term.write("\n")
+        ctx.take_screenshot(
+            "An image sliced horizontally, should look fine as a whole"
+        )
+
+
+@screenshot_test
+def test_subimage_slice_vertically(ctx: TestingContext):
+    term = ctx.term
+    for file in [
+        ctx.get_wikipedia_png(),
+        ctx.get_tux_png(),
+        ctx.get_small_arrow_png(),
+    ]:
+        term.reset()
+        term.send_command(
+            TransmitCommand(
+                image_id=1,
+                medium=tupimage.TransmissionMedium.FILE,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.PNG,
+            ).set_filename(file)
+        )
+        cmd = PutCommand(
+            image_id=1, cols=2, quiet=tupimage.Quietness.QUIET_UNLESS_ERROR
+        )
+        width, _ = ctx.get_image_size(file)
+        slice_w = (width + 9) // 10
+        for i in range(0, 10):
+            term.send_command(cmd.clone_with(src_x=i * slice_w, src_w=slice_w))
+            term.move_cursor_abs(row=0)
+        ctx.take_screenshot(
+            "An image sliced vertically, should look fine as a whole"
+        )

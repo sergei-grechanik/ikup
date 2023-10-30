@@ -111,7 +111,7 @@ def test_response_ok_put(ctx: TestingContext, placement_id=None):
     term.send_command(
         cmd.clone_with(image_id=42)
         .set_filename(ctx.get_tux_png())
-        .set_placement(rows=10, columns=20, placement_id=placement_id)
+        .set_placement(rows=10, cols=20, placement_id=placement_id)
     )
     term.move_cursor(up=9)
     response = term.receive_response(timeout=3)
@@ -123,7 +123,7 @@ def test_response_ok_put(ctx: TestingContext, placement_id=None):
     term.send_command(
         cmd.clone_with(image_number=12345)
         .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20, placement_id=placement_id)
+        .set_placement(rows=10, cols=20, placement_id=placement_id)
     )
     term.write("\n")
     response = term.receive_response(timeout=3)
@@ -144,7 +144,7 @@ def test_response_ok_put(ctx: TestingContext, placement_id=None):
         PutCommand(
             image_id=42,
             rows=5,
-            columns=10,
+            cols=10,
             quiet=tupimage.Quietness.VERBOSE,
             placement_id=placement_id,
         )
@@ -160,7 +160,7 @@ def test_response_ok_put(ctx: TestingContext, placement_id=None):
         PutCommand(
             image_number=12345,
             rows=5,
-            columns=10,
+            cols=10,
             quiet=tupimage.Quietness.VERBOSE,
             placement_id=placement_id,
         )
@@ -190,7 +190,7 @@ def test_response_ok_direct_transmit_and_put(
         format=tupimage.Format.PNG,
         image_id=100,
     )
-    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     with open(ctx.get_wikipedia_png(), "rb") as f:
         cmd.set_data(f.read())
     cmds = list(cmd.split(term.autosplit_max_size))
@@ -221,7 +221,7 @@ def test_response_ok_direct_transmit_and_put(
         format=tupimage.Format.PNG,
         image_number=12345,
     )
-    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     with open(ctx.get_tux_png(), "rb") as f:
         cmd.set_data(f.read())
     cmds = list(cmd.split(term.autosplit_max_size))
@@ -351,7 +351,7 @@ def test_response_error_transmit_and_put(
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     # Image id.
     term.write("Image id is specified, file doesn't exist\n")
     term.send_command(
@@ -425,7 +425,7 @@ def test_response_error_direct_transmit_and_put(
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(rows=10, columns=20, placement_id=placement_id)
+    cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     # Fake non-png data.
     data = ctx.to_rgb(ctx.generate_image(100, 100))
     # Image id.

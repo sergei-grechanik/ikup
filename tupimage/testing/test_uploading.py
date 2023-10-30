@@ -23,7 +23,7 @@ def test_uploading_direct_png(ctx: TestingContext):
         PutCommand(
             image_id=100,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -36,7 +36,7 @@ def test_uploading_direct_png(ctx: TestingContext):
         PutCommand(
             image_id=200,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -61,7 +61,7 @@ def test_uploading_direct_random_png(ctx: TestingContext):
         PutCommand(
             image_id=100,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -74,7 +74,7 @@ def test_uploading_direct_random_png(ctx: TestingContext):
         PutCommand(
             image_id=200,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -107,7 +107,7 @@ def test_uploading_direct_rgb(ctx: TestingContext):
                 PutCommand(
                     image_id=1,
                     rows=10,
-                    columns=20,
+                    cols=20,
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
@@ -125,7 +125,7 @@ def test_uploading_direct_rgb(ctx: TestingContext):
                 PutCommand(
                     image_id=2,
                     rows=10,
-                    columns=20,
+                    cols=20,
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
@@ -146,7 +146,7 @@ def test_image_number(ctx: TestingContext):
     term.send_command(
         cmd.clone_with(image_number=42)
         .set_filename(ctx.get_wikipedia_png())
-        .set_placement(rows=10, columns=20)
+        .set_placement(rows=10, cols=20)
     )
     term.write("\n")
     ctx.take_screenshot(
@@ -160,7 +160,7 @@ def test_image_number(ctx: TestingContext):
         PutCommand(
             image_number=43,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -179,7 +179,7 @@ def test_image_number_multiple(ctx: TestingContext):
     )
     put_cmd = PutCommand(
         rows=10,
-        columns=20,
+        cols=20,
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
     )
     files = [
@@ -211,7 +211,7 @@ def test_image_number_multiple(ctx: TestingContext):
             )
         for idx, filename in enumerate(files):
             term.send_command(
-                put_cmd.clone_with(rows=5, columns=10, image_number=idx + 1)
+                put_cmd.clone_with(rows=5, cols=10, image_number=idx + 1)
             )
             term.move_cursor(up=4)
     ctx.take_screenshot(
@@ -250,7 +250,7 @@ def test_stress_many_small_images(
                 PutCommand(
                     image_id=image_id,
                     rows=1,
-                    columns=1,
+                    cols=1,
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                     do_not_move_cursor=True,
                 )

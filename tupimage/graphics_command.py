@@ -1,5 +1,4 @@
 import base64
-import copy
 import io
 import dataclasses
 from dataclasses import dataclass
@@ -83,10 +82,7 @@ class GraphicsCommand:
             return bio.getvalue()
 
     def clone_with(self, **kwargs):
-        clone = copy.copy(self)
-        for k, v in kwargs.items():
-            setattr(clone, k, v)
-        return clone
+        return dataclasses.replace(self, **kwargs)
 
 
 def kv_tuple_to_stream(tup, stream: BinaryIO):
@@ -112,16 +108,24 @@ class PlacementData:
     placement_id: Optional[int] = None
     virtual: Optional[bool] = None
     rows: Optional[int] = None
-    columns: Optional[int] = None
+    cols: Optional[int] = None
     do_not_move_cursor: Optional[bool] = None
-    # TODO: x, y, w, h, z, X, Y
+    src_x: Optional[int] = None
+    src_y: Optional[int] = None
+    src_w: Optional[int] = None
+    src_h: Optional[int] = None
+    # TODO: z, X, Y
 
     def to_tuple(self):
         return (
             (b"p", self.placement_id),
             (b"U", self.virtual),
             (b"r", self.rows),
-            (b"c", self.columns),
+            (b"c", self.cols),
+            (b"x", self.src_x),
+            (b"y", self.src_y),
+            (b"w", self.src_w),
+            (b"h", self.src_h),
             (b"C", self.do_not_move_cursor),
         )
 

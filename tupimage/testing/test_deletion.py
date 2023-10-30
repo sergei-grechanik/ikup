@@ -24,7 +24,7 @@ def test_delete_image(ctx: TestingContext):
         PutCommand(
             image_id=12345,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
@@ -43,7 +43,7 @@ def test_delete_image(ctx: TestingContext):
         PutCommand(
             image_id=12345,
             rows=10,
-            columns=20,
+            cols=20,
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )

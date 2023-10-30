@@ -115,7 +115,7 @@ class GraphicsTerminal:
             placement_id = 0
         term_cols, term_rows = self.get_size()
         cur_x, cur_y = self.get_cursor_position_tracked()
-        cols = min(put_command.columns, term_cols - cur_x)
+        cols = min(put_command.cols, term_cols - cur_x)
         rows = put_command.rows
         if term_rows - cur_y < rows:
             if put_command.do_not_move_cursor:

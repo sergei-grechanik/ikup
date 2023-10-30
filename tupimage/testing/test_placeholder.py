@@ -18,7 +18,7 @@ def test_placeholder_image_ids(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(virtual=True, rows=2, columns=5)
+    cmd.set_placement(virtual=True, rows=2, cols=5)
     image_ids = []
     byte_values = [0, 255]
     for b2 in byte_values:
@@ -91,7 +91,7 @@ def test_placeholder_full_width(ctx: TestingContext):
             image_id=image_id,
         )
         cmd.set_filename(ctx.get_ruler_png())
-        cmd.set_placement(virtual=True, rows=3, columns=80)
+        cmd.set_placement(virtual=True, rows=3, cols=80)
         term.send_command(cmd)
         for othercol_level in [
             DiacriticLevel.NONE,
@@ -125,7 +125,7 @@ def test_placeholder_vertical_stripes(ctx: TestingContext):
             image_id=image_id,
         )
         cmd.set_filename(ctx.get_ruler_png())
-        cmd.set_placement(virtual=True, rows=3, columns=80)
+        cmd.set_placement(virtual=True, rows=3, cols=80)
         term.send_command(cmd)
 
         def formatting(col, row):
@@ -158,7 +158,7 @@ def test_placeholder_vertical_stripes(ctx: TestingContext):
         cmd = (
             cmd.clone_with(image_id=42)
             .set_filename(ctx.get_column_png())
-            .set_placement(virtual=True, rows=18, columns=8)
+            .set_placement(virtual=True, rows=18, cols=8)
         )
         term.send_command(cmd)
         ImagePlaceholder(
@@ -183,7 +183,7 @@ def test_placeholder_max_columns(ctx: TestingContext):
             format=tupimage.Format.PNG,
             image_id=image_id,
         )
-        cmd.set_placement(virtual=True, rows=12, columns=columns)
+        cmd.set_placement(virtual=True, rows=12, cols=columns)
         text = "\n".join(
             ",".join(str(i) for i in range(122)) for _ in range(12)
         )
@@ -241,7 +241,7 @@ def test_placeholder_max_rows(ctx: TestingContext):
             format=tupimage.Format.PNG,
             image_id=image_id,
         )
-        cmd.set_placement(virtual=True, rows=rows, columns=columns)
+        cmd.set_placement(virtual=True, rows=rows, cols=columns)
         text = "\n".join(str(i) for i in range(rows // 2))
         cmd.set_data(ctx.to_png(ctx.text_to_image(text)))
         term.send_command(cmd)
