@@ -452,14 +452,14 @@ def test_no_columns(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    cmd.set_placement(rows=10)
-    term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
-    term.move_cursor(up=9)
+    cmd.set_placement(rows=7)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_small_arrow_png()))
+    term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
     term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
     ctx.take_screenshot(
-        "Tux, wiki, and then dice on the next line. The number of columns is"
+        "Small arrow, wiki, and dice. 7 rows each, the number of columns is"
         " inferred"
     )
 
@@ -473,15 +473,14 @@ def test_no_rows(ctx: TestingContext):
         format=tupimage.Format.PNG,
     )
     cmd.set_placement(cols=20)
-    term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
-    pos = term.get_cursor_position()
+    term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
     term.move_cursor_abs(row=0)
     term.send_command(cmd.clone_with().set_filename(ctx.get_wikipedia_png()))
-    term.move_cursor_abs(pos=pos)
-    term.write("\n")
-    term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
+    term.move_cursor_abs(row=0)
+    term.send_command(cmd.clone_with().set_filename(ctx.get_small_arrow_png()))
+    term.write(" ")
     ctx.take_screenshot(
-        "Tux, wiki, and then dice on the next line. The number of rows is"
+        "Dice, wiki, and small arrow. 20 columns each, the number of rows is"
         " inferred"
     )
 
@@ -599,7 +598,7 @@ def test_subimage_slice_horizontally(ctx: TestingContext):
             term.send_command(cmd.clone_with(src_y=i * slice_h, src_h=slice_h))
             term.write("\n")
         ctx.take_screenshot(
-            "An image sliced horizontally, should look fine as a whole"
+            "An image sliced horizontally, may be stretched, but without gaps"
         )
 
 
@@ -607,7 +606,7 @@ def test_subimage_slice_horizontally(ctx: TestingContext):
 def test_subimage_slice_vertically(ctx: TestingContext):
     term = ctx.term
     for file in [
-        ctx.get_wikipedia_png(),
+        ctx.get_ruler_png(),
         ctx.get_tux_png(),
         ctx.get_small_arrow_png(),
     ]:
@@ -629,5 +628,5 @@ def test_subimage_slice_vertically(ctx: TestingContext):
             term.send_command(cmd.clone_with(src_x=i * slice_w, src_w=slice_w))
             term.move_cursor_abs(row=0)
         ctx.take_screenshot(
-            "An image sliced vertically, should look fine as a whole"
+            "An image sliced vertically, may be stretched, but without gaps"
         )

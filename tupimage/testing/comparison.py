@@ -80,7 +80,7 @@ class ComparisonReport:
                 html += f"<p>{screenshot.description}</p>\n"
                 if screenshot.description != screenshot.ref_description:
                     html += f"<p><b>Reference has a different description</b>:"
-                    html += " {screenshot.ref_description}</p>\n"
+                    html += f" {screenshot.ref_description}</p>\n"
                 html += f'<img src="{screenshot.filename}">\n'
                 html += f'<img src="{screenshot.diffmap_filename}">\n'
                 html += f'<img src="{screenshot.ref_filename}">\n'
