@@ -1,7 +1,7 @@
 import datetime
 from fnmatch import fnmatch
 from typing import List
-import click
+import argparse
 import os
 
 import tupimage
@@ -17,17 +17,17 @@ from tupimage.testing import (
 )
 
 
-def validate_size(ctx, param, value: str):
+def validate_size(value: str):
     split_value = value.split("x")
     if len(split_value) != 2:
-        raise click.BadParameter("Size must be specified as WxH")
+        raise argparse.ArgumentTypeError("Size must be specified as WxH")
     try:
         width = int(split_value[0])
         height = int(split_value[1])
     except ValueError:
-        raise click.BadParameter("Size must be integer")
+        raise argparse.ArgumentTypeError("Size must be integer")
     if width < 1 or height < 1:
-        raise click.BadParameter("Size must be positive")
+        raise argparse.ArgumentTypeError("Size must be positive")
     return (width, height)
 
 
@@ -39,55 +39,34 @@ def is_test_enabled(funcname, tests: List[str]):
     return False
 
 
-@click.group()
-def main():
-    pass
+def list_tests(args):
+    if not args.tests:
+        args.tests = ["*"]
+    for name, func in TestingContext.all_tests:
+        if is_test_enabled(name, args.tests):
+            print(name)
 
 
-@main.command()
-@click.option("--term-size", default="80x24", callback=validate_size, type=str)
-@click.option(
-    "--cell-size",
-    "--screenshot-cell-size",
-    default="4x8",
-    callback=validate_size,
-    type=str,
-)
-@click.option("--ignore-size", is_flag=True)
-@click.option("--output-dir", "--output", "-o", default=None, type=str)
-@click.option("--data-dir", default=None, type=str)
-@click.option("--pause", is_flag=True)
-@click.option("--list", "--ls", "-l", is_flag=True)
-@click.argument("tests", nargs=-1, type=str)
-def run(
-    term_size,
-    cell_size,
-    ignore_size,
-    output_dir,
-    data_dir,
-    pause,
-    list,
-    tests,
-):
+def run(args):
     term = GraphicsTerminal()
     term.detect_tmux()
     real_term_size = term.get_size()
     real_cell_size = term.get_cell_size()
-    if not ignore_size:
+    if not args.ignore_size:
         if (
-            real_term_size[0] != term_size[0]
-            or real_term_size[1] != term_size[1]
+            real_term_size[0] != args.term_size[0]
+            or real_term_size[1] != args.term_size[1]
         ):
             raise RuntimeError(
                 "The actual terminal size"
                 f" ({real_term_size[0]}x{real_term_size[1]}) does not match the"
-                f" expected size ({term_size[0]}x{term_size[1]})"
+                f" expected size ({args.term_size[0]}x{args.term_size[1]})"
             )
         if (
             not real_cell_size
             or abs(
                 real_cell_size[0] / real_cell_size[1]
-                - cell_size[0] / cell_size[1]
+                - args.cell_size[0] / args.cell_size[1]
             )
             > 0.01
         ):
@@ -95,70 +74,99 @@ def run(
                 "The actual terminal cell proportions"
                 f" ({real_cell_size[0]}x{real_cell_size[1]}) do not match the"
                 " expected cell size proportions"
-                f" ({cell_size[0]}x{cell_size[1]})"
+                f" ({args.cell_size[0]}x{args.cell_size[1]})"
             )
-    if output_dir is None:
+    if args.output_dir is None:
         now = datetime.datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
         os.makedirs(".tupimage-testing", exist_ok=True)
         output_dir_name = (
             "output-"
-            f"{term_size[0]}x{term_size[1]}-"
-            f"{cell_size[0]}x{cell_size[1]}-{date_time_string}"
+            f"{args.term_size[0]}x{args.term_size[1]}-"
+            f"{args.cell_size[0]}x{args.cell_size[1]}-{date_time_string}"
         )
         latest_link = ".tupimage-testing/latest"
         if os.path.lexists(latest_link) and os.path.islink(latest_link):
             os.remove(latest_link)
         if not os.path.lexists(latest_link):
             os.symlink(output_dir_name, latest_link)
-        output_dir = f".tupimage-testing/{output_dir_name}"
-    if os.path.exists(output_dir) and os.listdir(output_dir):
+        args.output_dir = f".tupimage-testing/{output_dir_name}"
+    if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         raise RuntimeError(
-            f"Output directory {output_dir} already exists and is not empty."
+            f"Output directory {args.output_dir} already exists and is not"
+            " empty."
         )
-    if data_dir is None:
-        data_dir = f".tupimage-testing/data"
+    if args.data_dir is None:
+        args.data_dir = f".tupimage-testing/data"
     ctx = TestingContext(
         term,
-        output_dir=output_dir,
-        data_dir=data_dir,
-        term_size=term_size,
-        screenshot_cell_size=cell_size,
-        pause_after_screenshot=pause,
+        output_dir=args.output_dir,
+        data_dir=args.data_dir,
+        term_size=args.term_size,
+        screenshot_cell_size=args.cell_size,
+        pause_after_screenshot=args.pause,
     )
-    if not tests:
-        tests = ["*"]
+    if not args.tests:
+        args.tests = ["*"]
     ran_any_tests = False
     with ctx.term.guard_tty_settings():
         ctx.term.set_immediate_input_noecho()
         for name, func in TestingContext.all_tests:
-            if is_test_enabled(name, tests):
-                if list:
-                    print(name)
-                else:
-                    ran_any_tests = True
-                    func(ctx)
-    if not list:
-        ctx.term.reset()
-        if ran_any_tests:
-            ctx.print_results()
-        else:
-            print("No tests were run.")
+            if is_test_enabled(name, args.tests):
+                ran_any_tests = True
+                func(ctx)
+    ctx.term.reset()
+    if ran_any_tests:
+        ctx.print_results()
+    else:
+        print("No tests were run.")
 
 
-@main.command()
-@click.option("--output", "-o", type=str)
-@click.argument("test_output", type=str)
-@click.argument("reference", type=str)
-def compare(test_output, reference, output):
-    outdir = os.path.dirname(output)
+def compare(args):
+    outdir = os.path.dirname(args.output)
     if outdir:
         os.chdir(outdir)
     report = tupimage.testing.create_screenshot_comparison_report(
-        test_output, reference
+        args.test_output, args.reference
     )
-    with open(output, "w") as f:
+    with open(args.output, "w") as f:
         f.write(report.to_html())
+
+
+def main():
+    parser = argparse.ArgumentParser(description="")
+    subparsers = parser.add_subparsers(dest="command")
+
+    parser_run = subparsers.add_parser("run", help="Run tests.")
+    parser_run.add_argument("--term-size", default="80x24", type=validate_size)
+    parser_run.add_argument("--cell-size", default="4x8", type=validate_size)
+    parser_run.add_argument("--ignore-size", action="store_true")
+    parser_run.add_argument("--output-dir", "-o", default=None, type=str)
+    parser_run.add_argument("--data-dir", default=None, type=str)
+    parser_run.add_argument("--pause", action="store_true")
+    parser_run.add_argument("tests", nargs="*", type=str)
+    parser_run.set_defaults(func=run)
+
+    parser_run = subparsers.add_parser("list", help="List tests.")
+    parser_run.add_argument("tests", nargs="*", type=str)
+    parser_run.set_defaults(func=list_tests)
+
+    parser_compare = subparsers.add_parser(
+        "compare", help="Compare two test outputs and create a report."
+    )
+    parser_compare.add_argument("--output", "-o", type=str)
+    parser_compare.add_argument("test_output", type=str)
+    parser_compare.add_argument("reference", type=str)
+    parser_compare.set_defaults(func=compare)
+
+    # Parse the arguments
+    args = parser.parse_args()
+
+    # Execute the function associated with the chosen subcommand
+    if hasattr(args, "func"):
+        args.func(args)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
