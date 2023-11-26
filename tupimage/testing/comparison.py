@@ -103,6 +103,8 @@ def get_output_dir_and_json(path: str) -> Tuple[str, List[dict]]:
     if not isinstance(json_data, list):
         json_data = [json_data]
     for test in json_data:
+        if test["name"].startswith("test_"):
+            test["name"] = test["name"][5:]
         for screenshot in test["screenshots"]:
             screenshot["filename"] = os.path.join(
                 directory, screenshot["filename"]
