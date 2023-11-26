@@ -7,7 +7,7 @@ import time
 
 
 @screenshot_test
-def test_uploading_direct_png(ctx: TestingContext):
+def uploading_direct_png(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -45,7 +45,7 @@ def test_uploading_direct_png(ctx: TestingContext):
 
 
 @screenshot_test
-def test_uploading_direct_random_png(ctx: TestingContext):
+def uploading_direct_random_png(ctx: TestingContext):
     term = ctx.term
     np.random.seed(42)
     cmd = TransmitCommand(
@@ -83,7 +83,7 @@ def test_uploading_direct_random_png(ctx: TestingContext):
 
 
 @screenshot_test
-def test_uploading_direct_rgb(ctx: TestingContext):
+def uploading_direct_rgb(ctx: TestingContext):
     term = ctx.term
     for compress in [False, True]:
         for bits in [24, 32]:
@@ -136,7 +136,7 @@ def test_uploading_direct_rgb(ctx: TestingContext):
 
 
 @screenshot_test
-def test_image_number(ctx: TestingContext):
+def image_number(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -170,7 +170,7 @@ def test_image_number(ctx: TestingContext):
 
 
 @screenshot_test
-def test_image_number_multiple(ctx: TestingContext):
+def image_number_multiple(ctx: TestingContext):
     term = ctx.term
     transmit_cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -222,9 +222,7 @@ def test_image_number_multiple(ctx: TestingContext):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_stress_many_small_images(
-    ctx: TestingContext, placeholder: bool = False
-):
+def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,

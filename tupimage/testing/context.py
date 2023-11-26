@@ -50,6 +50,7 @@ class TestManager:
 
 
 class TestingContext:
+    __test__ = False
     all_tests: List[Tuple[str, Callable[["TestingContext"], None]]] = []
 
     def __init__(

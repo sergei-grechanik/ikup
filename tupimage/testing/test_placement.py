@@ -5,7 +5,7 @@ from tupimage.testing import TestingContext, screenshot_test
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_display_movecursor(ctx: TestingContext, placeholder: bool = False):
+def display_movecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -36,7 +36,7 @@ def test_display_movecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
+def display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -85,7 +85,7 @@ def test_display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_multisize(ctx: TestingContext, placeholder: bool = False):
+def multisize(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -118,7 +118,7 @@ def test_multisize(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_oob(ctx: TestingContext, placeholder: bool = False):
+def oob(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -141,7 +141,7 @@ def test_oob(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_oob_down(ctx: TestingContext, placeholder: bool = False):
+def oob_down(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -168,7 +168,7 @@ def test_oob_down(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
+def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -197,7 +197,7 @@ def test_oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_scrolling(ctx: TestingContext, placeholder: bool = False):
+def scrolling(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -266,7 +266,7 @@ def test_scrolling(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_numbers(ctx: TestingContext, placeholder: bool = False):
+def numbers(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -303,7 +303,7 @@ def test_numbers(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_image_ids(ctx: TestingContext, placeholder: bool = False):
+def image_ids(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -347,7 +347,7 @@ def test_image_ids(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
+def placement_ids(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -393,7 +393,7 @@ def test_placement_ids(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def test_display_overwrite_with_spaces(
+def display_overwrite_with_spaces(
     ctx: TestingContext, placeholder: bool = False
 ):
     term = ctx.term.clone_with(force_placeholders=placeholder)
@@ -428,7 +428,7 @@ def test_display_overwrite_with_spaces(
 
 
 @screenshot_test
-def test_no_id_no_number(ctx: TestingContext):
+def no_id_no_number(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -445,7 +445,7 @@ def test_no_id_no_number(ctx: TestingContext):
 
 
 @screenshot_test
-def test_no_columns(ctx: TestingContext):
+def no_columns(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -465,7 +465,7 @@ def test_no_columns(ctx: TestingContext):
 
 
 @screenshot_test
-def test_no_rows(ctx: TestingContext):
+def no_rows(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -486,7 +486,7 @@ def test_no_rows(ctx: TestingContext):
 
 
 @screenshot_test
-def test_no_size(ctx: TestingContext):
+def no_size(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.DIRECT,
@@ -517,7 +517,7 @@ def test_no_size(ctx: TestingContext):
 
 
 @screenshot_test
-def test_subimage(ctx: TestingContext):
+def subimage(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -546,7 +546,7 @@ def test_subimage(ctx: TestingContext):
 
 
 @screenshot_test
-def test_subimage_no_size(ctx: TestingContext):
+def subimage_no_size(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -573,7 +573,7 @@ def test_subimage_no_size(ctx: TestingContext):
 
 
 @screenshot_test
-def test_subimage_slice_horizontally(ctx: TestingContext):
+def subimage_slice_horizontally(ctx: TestingContext):
     term = ctx.term
     for file in [
         ctx.get_wikipedia_png(),
@@ -603,7 +603,7 @@ def test_subimage_slice_horizontally(ctx: TestingContext):
 
 
 @screenshot_test
-def test_subimage_slice_vertically(ctx: TestingContext):
+def subimage_slice_vertically(ctx: TestingContext):
     term = ctx.term
     for file in [
         ctx.get_ruler_png(),

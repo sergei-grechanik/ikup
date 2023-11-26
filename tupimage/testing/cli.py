@@ -6,6 +6,7 @@ import os
 
 import tupimage
 from tupimage import GraphicsTerminal
+from tupimage.utils import validate_size
 from tupimage.testing import (
     TestingContext,
     test_basics,
@@ -15,20 +16,6 @@ from tupimage.testing import (
     test_deletion,
     test_placeholder,
 )
-
-
-def validate_size(value: str):
-    split_value = value.split("x")
-    if len(split_value) != 2:
-        raise argparse.ArgumentTypeError("Size must be specified as WxH")
-    try:
-        width = int(split_value[0])
-        height = int(split_value[1])
-    except ValueError:
-        raise argparse.ArgumentTypeError("Size must be integer")
-    if width < 1 or height < 1:
-        raise argparse.ArgumentTypeError("Size must be positive")
-    return (width, height)
 
 
 def is_test_enabled(funcname, tests: List[str]):
@@ -147,9 +134,9 @@ def main():
     parser_run.add_argument("tests", nargs="*", type=str)
     parser_run.set_defaults(func=run)
 
-    parser_run = subparsers.add_parser("list", help="List tests.")
-    parser_run.add_argument("tests", nargs="*", type=str)
-    parser_run.set_defaults(func=list_tests)
+    parser_list = subparsers.add_parser("list", help="List tests.")
+    parser_list.add_argument("tests", nargs="*", type=str)
+    parser_list.set_defaults(func=list_tests)
 
     parser_compare = subparsers.add_parser(
         "compare", help="Compare two test outputs and create a report."

@@ -10,7 +10,7 @@ import numpy as np
 
 
 @screenshot_test
-def test_delete_image_with_data(ctx: TestingContext):
+def delete_image_with_data(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -57,7 +57,7 @@ def test_delete_image_with_data(ctx: TestingContext):
 
 
 @screenshot_test
-def test_delete_image_preserve_data(ctx: TestingContext):
+def delete_image_preserve_data(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -99,7 +99,7 @@ def test_delete_image_preserve_data(ctx: TestingContext):
 
 
 @screenshot_test
-def test_delete_image_with_data_two_placements(ctx: TestingContext):
+def delete_image_with_data_two_placements(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -189,7 +189,7 @@ def test_delete_image_with_data_two_placements(ctx: TestingContext):
 
 
 @screenshot_test
-def test_delete_image_by_number(ctx: TestingContext):
+def delete_image_by_number(ctx: TestingContext):
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -285,7 +285,7 @@ def test_delete_image_by_number(ctx: TestingContext):
 
 
 @screenshot_test
-def test_delete_all(ctx: TestingContext):
+def delete_all(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
