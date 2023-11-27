@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Iterator, List
 import secrets
 import sqlite3
@@ -199,6 +199,19 @@ class ImageInfo:
     atime: Optional[datetime] = None
 
 
+@dataclass
+class UploadInfo:
+    id: int
+    path: str
+    parameters: str
+    mtime: Optional[datetime]
+    upload_time: Optional[datetime]
+    terminal: str
+    size: int
+    bytes_ago: int
+    uploads_ago: int
+
+
 class IDManager:
     def __init__(self, database_file: str, max_ids_per_subspace: int = 1024):
         self.conn = sqlite3.connect(database_file, isolation_level=None)
@@ -208,7 +221,8 @@ class IDManager:
         # Make sure we have tables for all ID namespaces.
         for id_features in IDFeatures.all_values():
             namespace = id_features.namespace_name()
-            self.cursor.execute(f"""CREATE TABLE IF NOT EXISTS {namespace} (
+            self.cursor.execute(f"""
+                    CREATE TABLE IF NOT EXISTS {namespace} (
                         id INTEGER PRIMARY KEY,
                         path TEXT,
                         parameters TEXT,
@@ -226,7 +240,28 @@ class IDManager:
                     ON {namespace} (atime)
                 """
             )
+        # Make sure we have a table for recent uploads.
+        self.cursor.execute(f"""
+                CREATE TABLE IF NOT EXISTS upload (
+                    id INTEGER,
+                    path TEXT,
+                    parameters TEXT,
+                    mtime TIMESTAMP,
+                    size INTEGER,
+                    terminal TEXT,
+                    upload_time TIMESTAMP,
+                    PRIMARY KEY (id, terminal)
+                )
+            """)
+        self.cursor.execute(
+            f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
+                ON upload (upload_time)
+            """
+        )
         self.conn.commit()
+
+    def close(self):
+        self.conn.close()
 
     def get_info(self, id: int) -> Optional[ImageInfo]:
         id_features = IDFeatures.from_id(id)
@@ -496,5 +531,103 @@ class IDManager:
             ),
         )
 
-    def close(self):
-        self.conn.close()
+    def get_upload_info(self, id: int, terminal: str) -> Optional[UploadInfo]:
+        self.cursor.execute(
+            """
+            SELECT path, parameters, mtime, upload_time, size FROM upload
+            WHERE id=? AND terminal=?
+            """,
+            (id, terminal),
+        )
+        row = self.cursor.fetchone()
+        if not row:
+            return None
+        path, parameters, mtime_str, upload_time_str, size = row
+        self.cursor.execute(
+            """
+            SELECT COUNT(*), SUM(size) FROM upload
+            WHERE terminal = ? AND upload_time > ?
+            """,
+            (terminal, upload_time_str),
+        )
+        uploads_ago, bytes_ago = self.cursor.fetchone()
+        return UploadInfo(
+            id=id,
+            path=path,
+            parameters=parameters,
+            mtime=datetime.fromisoformat(mtime_str),
+            upload_time=datetime.fromisoformat(upload_time_str),
+            terminal=terminal,
+            size=size,
+            bytes_ago=size + (bytes_ago if bytes_ago else 0),
+            uploads_ago=1 + (uploads_ago if uploads_ago else 0),
+        )
+
+    def needs_uploading(
+        self,
+        id: int,
+        terminal: str,
+        max_uploads_ago: int = 1024,
+        max_bytes_ago: int = 30 * (2**20),
+        max_time_ago: timedelta = timedelta(hours=1),
+    ) -> bool:
+        info = self.get_info(id)
+        if info is None:
+            return False
+        upload_info = self.get_upload_info(id, terminal)
+        if upload_info is None:
+            return True
+        return (
+            upload_info.path != info.path
+            or upload_info.parameters != info.parameters
+            or upload_info.mtime != info.mtime
+            or upload_info.bytes_ago > max_bytes_ago
+            or upload_info.uploads_ago > max_uploads_ago
+            or datetime.now() - upload_info.upload_time > max_time_ago
+        )
+
+    def mark_uploaded(
+        self,
+        id: int,
+        terminal: str,
+        size: Optional[int] = None,
+        upload_time: Optional[datetime] = None,
+    ):
+        if upload_time is None:
+            upload_time = datetime.now()
+        info = self.get_info(id)
+        if info is None:
+            return
+        self.cursor.execute(
+            f"""INSERT INTO upload
+                (id, path, parameters, mtime, size, terminal, upload_time)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(id, terminal) DO UPDATE SET
+                    path=excluded.path, parameters=excluded.parameters,
+                    mtime=excluded.mtime, size=excluded.size,
+                    upload_time=excluded.upload_time
+            """,
+            (
+                id,
+                info.path,
+                info.parameters,
+                info.mtime.isoformat(),
+                size,
+                terminal,
+                upload_time.isoformat(),
+            ),
+        )
+
+    def cleanup_uploads(
+        self,
+        max_uploads_ago: int = 1024,
+        max_bytes_ago: int = 30 * (2**20),
+        max_time_ago: timedelta = timedelta(hours=1),
+    ):
+        self.cursor.execute(
+            """
+            DELETE FROM upload WHERE upload_time < ?
+            """,
+            (datetime.now() - max_time_ago,),
+        )
+        # TODO
