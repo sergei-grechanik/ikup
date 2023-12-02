@@ -126,14 +126,6 @@ def main():
     )
     parser_icat.set_defaults(func=icat)
 
-    parser_compare = subparsers.add_parser(
-        "compare", help="Compare two test outputs and create a report."
-    )
-    parser_compare.add_argument("--output", "-o", type=str)
-    parser_compare.add_argument("test_output", type=str)
-    parser_compare.add_argument("reference", type=str)
-    parser_compare.set_defaults(func=compare)
-
     # Parse the arguments
     args = parser.parse_args()
 
