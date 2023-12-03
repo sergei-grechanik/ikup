@@ -1,5 +1,9 @@
 tags
 .tupimage-testing
+/_*
+massif.out*
+gmon.out
+typescript
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
