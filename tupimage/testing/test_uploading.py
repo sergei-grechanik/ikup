@@ -4,6 +4,7 @@ from tupimage.testing import TestingContext, screenshot_test
 import os
 import numpy as np
 import time
+import tempfile
 
 
 @screenshot_test
@@ -42,6 +43,31 @@ def uploading_direct_png(ctx: TestingContext):
     )
     term.write("\n")
     ctx.take_screenshot("Wiki and tux, direct uploading.")
+
+
+@screenshot_test
+def uploading_direct_jpeg(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    print(f"size: {os.path.getsize(ctx.get_castle_jpg()) // 1024}K")
+    with open(ctx.get_castle_jpg(), "rb") as f:
+        data = f.read()
+    term.send_command(cmd.clone_with(image_id=100).set_data(data))
+    term.send_command(
+        PutCommand(
+            image_id=100,
+            rows=10,
+            cols=80,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    term.write("\n")
+    ctx.take_screenshot("Castle jpeg, direct uploading.")
 
 
 @screenshot_test
@@ -256,3 +282,66 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
     # Additional delay since the terminal may be slow to render all the images.
     time.sleep(1.5)
     ctx.take_screenshot("Many one-cell images of numbers")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def stress_large_images(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    with tempfile.NamedTemporaryFile("wb") as f:
+        # Generate an image of ~20MB (when represented as RGBA).
+        data = ctx.to_rgb(ctx.generate_image(10 * 500, 2 * 500), bits=32)
+        f.write(data)
+        f.flush()
+        cmd = TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            pix_width=10 * 500,
+            pix_height=2 * 500,
+            format=tupimage.Format.RGBA,
+        ).set_filename(f.name)
+        # Load and display the images. All images are the same but the terminal
+        # doesn't know that.
+        image_id = 0
+        for y in range(10):
+            for x in range(4):
+                image_id += 1
+                term.move_cursor_abs(row=y * 2, col=x * 20)
+                term.send_command(cmd.clone_with(image_id=image_id))
+                term.send_command(
+                    PutCommand(
+                        image_id=image_id,
+                        rows=2,
+                        cols=20,
+                        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                        do_not_move_cursor=True,
+                    )
+                )
+                # We add a delay so that the terminal has time to render the
+                # image before we load too many of them.
+                time.sleep(0.2)
+        ctx.take_screenshot(
+            "Large images (40 ~grey rectangles). We expect to see all of them."
+        )
+        # Now just display the same images.
+        term.reset()
+        image_id = 0
+        for y in range(10):
+            for x in range(4):
+                image_id += 1
+                term.move_cursor_abs(row=y * 2, col=x * 20)
+                # We are quiet even on error because kitty will delete old
+                # images together with metadata.
+                term.send_command(
+                    PutCommand(
+                        image_id=image_id,
+                        rows=2,
+                        cols=20,
+                        quiet=tupimage.Quietness.QUIET_ALWAYS,
+                        do_not_move_cursor=True,
+                    )
+                )
+        ctx.take_screenshot(
+            "Redisplayed large images. We expect that some of them are missing."
+        )

@@ -551,15 +551,26 @@ class ImagePlaceholder:
         stream: BinaryIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: Optional[Callable[[int, int], bytes]] = None,
+        use_save_cursor: bool = True,
     ):
         lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
+            if use_save_cursor and idx != len(lines) - 1:
+                # Save the cursor position at the beginning of the current row.
+                stream.write(b"\033[s")
             stream.write(line)
             if idx != len(lines) - 1:
-                stream.write(
-                    b"\033[%dD" % (self.end_column - self.start_column)
-                )
+                if use_save_cursor:
+                    # Restore the cursor to go back to the beginning of the row.
+                    stream.write(b"\033[u")
+                else:
+                    # Go to the beginning of the row by moving the cursor
+                    # relatively. This is unreliable if we touch the right
+                    # margin.
+                    stream.write(
+                        b"\033[%dD" % (self.end_column - self.start_column)
+                    )
                 # This sequence moves the cursor down, maybe creating a newline.
                 stream.write(b"\033D")
         stream.write(b"\033[0m")

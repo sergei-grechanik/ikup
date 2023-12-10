@@ -234,6 +234,13 @@ class GraphicsTerminal:
                     pass
             return res
 
+    def dump_unexpected_responses(self):
+        while True:
+            res = self.receive_response(timeout=0.01)
+            if not res.is_valid:
+                break
+            self.write(f"Unexpected response: {res.message}\n")
+
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
         with self.guard_tty_settings():
             self.set_immediate_input_noecho()
@@ -360,7 +367,7 @@ class GraphicsTerminal:
         right: Optional[int] = None,
         down: Optional[int] = None,
         left: Optional[int] = None,
-        up: Optional[int] = None
+        up: Optional[int] = None,
     ):
         if up is not None:
             if down is not None:
@@ -392,7 +399,7 @@ class GraphicsTerminal:
         *,
         row: Optional[int] = None,
         col: Optional[int] = None,
-        pos: Optional[Tuple[int, int]] = None
+        pos: Optional[Tuple[int, int]] = None,
     ):
         if pos is not None:
             if row is not None or col is not None:

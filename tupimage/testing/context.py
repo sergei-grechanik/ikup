@@ -232,6 +232,7 @@ class TestingContext:
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:
             raise RuntimeError("No test running")
+        self.term.dump_unexpected_responses()
         self.term.tty_out.flush()
         time.sleep(0.5)
         rel_filename = os.path.join(
