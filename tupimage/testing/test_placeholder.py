@@ -40,7 +40,7 @@ def placeholder_image_ids(ctx: TestingContext):
             )
         )
         placeholders.append(
-            ImagePlaceholder(image_id=image_id, end_column=5, end_row=2)
+            ImagePlaceholder(image_id=image_id, end_col=5, end_row=2)
         )
     term.write("\n")
     ctx.take_screenshot(f"Image ids we are going to use.")
@@ -106,7 +106,7 @@ def placeholder_full_width(ctx: TestingContext):
                 other_columns_diacritic_level=othercol_level
             )
             ImagePlaceholder(
-                image_id=image_id, end_column=80, end_row=3
+                image_id=image_id, end_col=80, end_row=3
             ).to_stream_at_cursor(term.tty_out, mode=mode)
         term.write(f"End")
         ctx.take_screenshot(f"Full-width rulers, image id = 0x{image_id:08x}")
@@ -146,7 +146,7 @@ def placeholder_vertical_stripes(ctx: TestingContext):
                 other_columns_diacritic_level=othercol_level
             )
             ImagePlaceholder(
-                image_id=image_id, end_column=80, end_row=3
+                image_id=image_id, end_col=80, end_row=3
             ).to_stream_at_cursor(
                 term.tty_out, mode=mode, formatting=formatting
             )
@@ -162,7 +162,7 @@ def placeholder_vertical_stripes(ctx: TestingContext):
         )
         term.send_command(cmd)
         ImagePlaceholder(
-            image_id=42, end_column=8, end_row=18
+            image_id=42, end_col=8, end_row=18
         ).to_stream_abs_position(term.tty_out, position=(36, 0), mode=mode)
         ctx.take_screenshot(
             f"Rulers with a column. The column may break the rulers on some"
@@ -207,14 +207,14 @@ def placeholder_max_columns(ctx: TestingContext):
                 )
                 ImagePlaceholder(
                     image_id=image_id,
-                    end_column=40,
+                    end_col=40,
                     start_row=row,
                     end_row=row + 1,
                 ).to_stream_at_cursor(term.tty_out, mode=mode)
                 ImagePlaceholder(
                     image_id=image_id,
-                    start_column=columns - 40,
-                    end_column=columns,
+                    start_col=columns - 40,
+                    end_col=columns,
                     start_row=row,
                     end_row=row + 1,
                 ).to_stream_at_cursor(term.tty_out, mode=mode)
@@ -262,7 +262,7 @@ def placeholder_max_rows(ctx: TestingContext):
                     )
                     ImagePlaceholder(
                         image_id=image_id,
-                        end_column=columns,
+                        end_col=columns,
                         start_row=start_row,
                         end_row=end_row,
                     ).to_stream_at_cursor(term.tty_out, mode=mode)
@@ -279,7 +279,7 @@ def placeholder_max_rows(ctx: TestingContext):
         for start_row in range(0, rows, 23):
             ImagePlaceholder(
                 image_id=image_id,
-                end_column=columns,
+                end_col=columns,
                 start_row=start_row,
                 end_row=start_row + 24,
             ).to_stream_at_cursor(term.tty_out)

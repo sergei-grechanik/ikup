@@ -368,9 +368,9 @@ class ImagePlaceholderMode:
 class ImagePlaceholder:
     image_id: int
     placement_id: int = 0
-    start_column: int = 0
+    start_col: int = 0
     start_row: int = 0
-    end_column: int = 0
+    end_col: int = 0
     end_row: int = 0
 
     def __post_init__(self):
@@ -386,19 +386,18 @@ class ImagePlaceholder:
                 "Placement ID must be a 24-bit unsigned integer, but it is"
                 " {self.placement_id}"
             )
-        if self.start_column < 0:
+        if self.start_col < 0:
             raise ValueError(
-                "Start column must be non-negative, but it is"
-                " {self.start_column}"
+                "Start column must be non-negative, but it is {self.start_col}"
             )
         if self.start_row < 0:
             raise ValueError(
                 "Start row must be non-negative, but it is {self.start_row}"
             )
-        if self.start_column >= self.end_column:
+        if self.start_col >= self.end_col:
             raise ValueError(
                 "Start column must be less than end column, but"
-                " {self.start_column} >= {self.end_column}"
+                " {self.start_col} >= {self.end_col}"
             )
         if self.start_row >= self.end_row:
             raise ValueError(
@@ -449,7 +448,7 @@ class ImagePlaceholder:
         image_id_4thbyte_diacritic = ROWCOLUMN_DIACRITICS_UTF8[image_id_4thbyte]
         firstcol_diacritic_count = mode.first_column_diacritic_level.value
         othercol_diacritic_count = mode.other_columns_diacritic_level.value
-        if self.start_column != 0:
+        if self.start_col != 0:
             firstcol_diacritic_count = max(firstcol_diacritic_count, 2)
         if image_id_4thbyte != 0:
             firstcol_diacritic_count = 3
@@ -476,7 +475,7 @@ class ImagePlaceholder:
             # If the row is over the limit, print spaces.
             if row >= len(ROWCOLUMN_DIACRITICS_UTF8):
                 line = b""
-                for col in range(self.start_column, self.end_column):
+                for col in range(self.start_col, self.end_col):
                     if formatting is not None:
                         line += formatting(col, row)
                     line += b" "
@@ -487,7 +486,7 @@ class ImagePlaceholder:
             line = line_formatting
             # Custom cell formatting.
             if formatting is not None:
-                line += formatting(self.start_column, row)
+                line += formatting(self.start_col, row)
             # The row diacritic.
             row_diacritic = ROWCOLUMN_DIACRITICS_UTF8[row]
             # Print the placeholder and diacritics for the first column.
@@ -495,11 +494,11 @@ class ImagePlaceholder:
             if firstcol_diacritic_count >= 1:
                 line += row_diacritic
                 if firstcol_diacritic_count >= 2:
-                    line += ROWCOLUMN_DIACRITICS_UTF8[self.start_column]
+                    line += ROWCOLUMN_DIACRITICS_UTF8[self.start_col]
                     if firstcol_diacritic_count >= 3:
                         line += image_id_4thbyte_diacritic
             # Print the placeholders with diacritics for other columns.
-            for col in range(self.start_column + 1, self.end_column):
+            for col in range(self.start_col + 1, self.end_col):
                 if formatting is not None:
                     line += formatting(col, row)
                 line += placeholder_bytes
@@ -568,9 +567,7 @@ class ImagePlaceholder:
                     # Go to the beginning of the row by moving the cursor
                     # relatively. This is unreliable if we touch the right
                     # margin.
-                    stream.write(
-                        b"\033[%dD" % (self.end_column - self.start_column)
-                    )
+                    stream.write(b"\033[%dD" % (self.end_col - self.start_col))
                 # This sequence moves the cursor down, maybe creating a newline.
                 stream.write(b"\033D")
         stream.write(b"\033[0m")

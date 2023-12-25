@@ -6,7 +6,7 @@ import termios
 import copy
 import random
 import time
-from typing import BinaryIO, Optional, Tuple, Union
+from typing import BinaryIO, Optional, Tuple, Union, List, Callable
 
 from tupimage import (
     GraphicsCommand,
@@ -105,6 +105,30 @@ class GraphicsTerminal:
         with self.guard_graphics_command():
             command.content_to_stream(self.tty_out)
 
+    def print_placeholder(
+        self,
+        image_id: int,
+        placement_id: int = 0,
+        start_col: int = 0,
+        start_row: int = 0,
+        end_col: int = 0,
+        end_row: int = 0,
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: Optional[Callable[[int, int], bytes]] = None,
+        use_save_cursor: bool = True,
+    ):
+        ImagePlaceholder(
+            image_id=image_id,
+            placement_id=placement_id,
+            end_col=end_col,
+            end_row=end_row,
+        ).to_stream_at_cursor(
+            self.tty_out,
+            mode=mode,
+            formatting=formatting,
+            use_save_cursor=use_save_cursor,
+        )
+
     def print_placeholder_for_put(
         self,
         put_command: PutCommand,
@@ -129,7 +153,7 @@ class GraphicsTerminal:
         placeholder = ImagePlaceholder(
             image_id=put_command.image_id,
             placement_id=placement_id,
-            end_column=cols,
+            end_col=cols,
             end_row=rows,
         )
         cur_x, cur_y = self.tracked_cursor_position
@@ -153,12 +177,14 @@ class GraphicsTerminal:
     ):
         if force_placeholders is None:
             force_placeholders = self.force_placeholders
+        need_to_print_placeholder = False
         if force_placeholders:
             if (
                 isinstance(command, TransmitCommand)
                 and command.placement is not None
                 and not command.placement.virtual
             ):
+                need_to_print_placeholder = True
                 command = command.clone_with()
                 command.placement.virtual = True
                 if command.placement.placement_id is None:
@@ -166,6 +192,7 @@ class GraphicsTerminal:
                         1, 2**24 - 1
                     )
             if isinstance(command, PutCommand) and not command.virtual:
+                need_to_print_placeholder = True
                 command = command.clone_with(virtual=True)
                 if command.placement_id is None:
                     command.placement_id = random.randint(1, 2**24 - 1)
@@ -174,7 +201,7 @@ class GraphicsTerminal:
                 self.send_command_raw(subcommand)
         else:
             self.send_command_raw(command)
-        if force_placeholders:
+        if need_to_print_placeholder:
             if (
                 isinstance(command, TransmitCommand)
                 and command.placement is not None
@@ -234,12 +261,16 @@ class GraphicsTerminal:
                     pass
             return res
 
-    def dump_unexpected_responses(self):
+    def receive_multiple_responses(
+        self, timeout: float = 0.01
+    ) -> List[GraphicsResponse]:
+        res = []
         while True:
-            res = self.receive_response(timeout=0.01)
-            if not res.is_valid:
+            r = self.receive_response(timeout=timeout)
+            if not r.is_valid:
                 break
-            self.write(f"Unexpected response: {res.message}\n")
+            res.append(r)
+        return res
 
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
         with self.guard_tty_settings():

@@ -102,7 +102,7 @@ def run(args):
             if is_test_enabled(name, args.tests):
                 ran_any_tests = True
                 func(ctx)
-                ctx.term.dump_unexpected_responses()
+                ctx.dump_unexpected_responses()
     ctx.term.reset()
     if ran_any_tests:
         ctx.print_results()

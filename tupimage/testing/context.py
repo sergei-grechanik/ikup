@@ -229,10 +229,19 @@ class TestingContext:
         data = self.to_rgb(img, bits=bits, compress=compress)
         return data, w, h
 
+    def dump_unexpected_responses(self):
+        resps = self.term.receive_multiple_responses()
+        if resps:
+            print(f"Received {len(resps)} unexpected responses:")
+            for resp in resps[:5]:
+                print(resp)
+            if len(resps) > 5:
+                print("...")
+
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:
             raise RuntimeError("No test running")
-        self.term.dump_unexpected_responses()
+        self.dump_unexpected_responses()
         self.term.tty_out.flush()
         time.sleep(0.5)
         rel_filename = os.path.join(

@@ -345,3 +345,98 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
         ctx.take_screenshot(
             "Redisplayed large images. We expect that some of them are missing."
         )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    # Create and upload lots of 1-pixel images.
+    total_count = 10000
+    for i in range(total_count):
+        data = ctx.to_rgb(ctx.generate_image(1, 1), bits=24)
+        term.send_command(
+            TransmitCommand(
+                image_id=i + 1,
+                medium=tupimage.TransmissionMedium.DIRECT,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                pix_width=1,
+                pix_height=1,
+                format=tupimage.Format.RGB,
+            ).set_data(data)
+        )
+        term.write(f"{i + 1}\r")
+    ctx.take_screenshot("Uploaded many one-pixel images")
+    # Now display them, but not all of them, use a step.
+    term.reset()
+    step = total_count / (80 * 23)
+    image_id = 1
+    for y in range(23):
+        for x in range(80):
+            term.move_cursor_abs(row=y, col=x)
+            term.send_command(
+                PutCommand(
+                    image_id=int(image_id),
+                    rows=1,
+                    cols=1,
+                    quiet=tupimage.Quietness.QUIET_ALWAYS,
+                    do_not_move_cursor=True,
+                )
+            )
+            image_id += step
+    ctx.take_screenshot(
+        "Displayed some one-pixel images, some will be missing."
+    )
+
+
+@screenshot_test
+def stress_too_many_placements(ctx: TestingContext):
+    term = ctx.term.clone_with(force_placeholders=True)
+    # Create and upload 1-pixel images and create placements for them.
+    total_image_count = 1000
+    placements_per_image = 20
+    for i in range(total_image_count):
+        data = ctx.to_rgb(ctx.generate_image(1, 1), bits=24)
+        term.send_command(
+            TransmitCommand(
+                image_id=i + 1,
+                medium=tupimage.TransmissionMedium.DIRECT,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                pix_width=1,
+                pix_height=1,
+                format=tupimage.Format.RGB,
+            ).set_data(data)
+        )
+    for j in range(placements_per_image):
+        for i in range(total_image_count):
+            term.write(f"img {i + 1} placement {j + 1}    \r")
+            term.send_command(
+                PutCommand(
+                    image_id=i + 1,
+                    placement_id=j + 1,
+                    virtual=True,
+                    rows=1,
+                    cols=1,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+    ctx.term.reset()
+    # Now display them, but not all of them, use a step.
+    step = total_image_count / (80 * 23 / 5)
+    image_id = 1
+    for y in range(23):
+        for x in range(80):
+            t = x + y * 80
+            placement_id = ((t % 5) + 1) * 4
+            image_id = int(step * ((t // 5) + 1))
+            term.move_cursor_abs(row=y, col=x)
+            term.print_placeholder(
+                image_id=image_id,
+                placement_id=placement_id,
+                end_row=1,
+                end_col=1,
+            )
+    ctx.take_screenshot(
+        "Attempting to display 5 different placements for some of the images."
+        " Many placements may be missing."
+    )

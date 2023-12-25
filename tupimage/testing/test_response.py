@@ -6,6 +6,7 @@ from tupimage import (
     GraphicsResponse,
 )
 from tupimage.testing import TestingContext, screenshot_test
+import time
 
 
 @screenshot_test
@@ -539,3 +540,32 @@ def response_error_syntax_image_id(ctx: TestingContext):
     ctx.write(f"Response message: {response.message}\n")
 
     ctx.take_screenshot("No assertion failures")
+
+
+@screenshot_test
+def stress_too_many_responses(ctx: TestingContext):
+    term = ctx.term.clone_with()
+    for i in range(0, 10000):
+        term.write(f"{i}\r")
+        term.send_command(
+            PutCommand(
+                image_id=i * 100,
+                rows=1,
+                cols=1,
+                quiet=tupimage.Quietness.VERBOSE,
+                do_not_move_cursor=True,
+            )
+        )
+    valid_responses = 0
+    while True:
+        responses = ctx.term.receive_multiple_responses()
+        valid_responses += len(responses)
+        if not responses:
+            break
+        time.sleep(0.1)
+    # Kitty will deliver all of them, st will drop most.
+    if valid_responses > 100:
+        ctx.write(f"Received > 100 valid responses\n")
+    else:
+        ctx.write(f"Received only {valid_responses} valid responses\n")
+    ctx.take_screenshot("Generated lots of responses and received them.")
