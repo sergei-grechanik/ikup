@@ -8,7 +8,7 @@ import tempfile
 
 
 @screenshot_test
-def uploading_direct_png(ctx: TestingContext):
+def direct_png(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -46,7 +46,7 @@ def uploading_direct_png(ctx: TestingContext):
 
 
 @screenshot_test
-def uploading_direct_jpeg(ctx: TestingContext):
+def direct_jpeg(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -71,7 +71,7 @@ def uploading_direct_jpeg(ctx: TestingContext):
 
 
 @screenshot_test
-def uploading_direct_random_png(ctx: TestingContext):
+def direct_random_png(ctx: TestingContext):
     term = ctx.term
     np.random.seed(42)
     cmd = TransmitCommand(
@@ -109,7 +109,7 @@ def uploading_direct_random_png(ctx: TestingContext):
 
 
 @screenshot_test
-def uploading_direct_rgb(ctx: TestingContext):
+def direct_rgb(ctx: TestingContext):
     term = ctx.term
     for compress in [False, True]:
         for bits in [24, 32]:

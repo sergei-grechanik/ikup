@@ -38,6 +38,17 @@ class TransmissionMedium(Enum):
     FILE = "f"
     TEMP_FILE = "t"
 
+    @staticmethod
+    def from_string(s: str) -> "TransmissionMedium":
+        if s == "d" or s == "direct" or s == "stream":
+            return TransmissionMedium.DIRECT
+        elif s == "f" or s == "file":
+            return TransmissionMedium.FILE
+        elif s == "t" or s == "temp" or s == "tempfile":
+            return TransmissionMedium.TEMP_FILE
+        else:
+            raise ValueError(f"Unsupported transmission medium: {s}")
+
     def __str__(self):
         return str(self.value)
 

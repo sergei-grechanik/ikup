@@ -282,9 +282,11 @@ class TestingContext:
 
 def screenshot_test(func=None, suffix: Optional[str] = None, params: dict = {}):
     def decorator(func):
-        name = func.__name__
+        name = func.__module__ + "." + func.__name__
         if suffix is not None:
             name += "_" + suffix
+        if name.startswith("tupimage.testing."):
+            name = name[len("tupimage.testing.") :]
 
         def wrapper(ctx):
             with ctx.test(name):

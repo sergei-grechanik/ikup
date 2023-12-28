@@ -1,4 +1,5 @@
 import argparse
+import tupimage
 from tupimage.utils import *
 
 
@@ -6,9 +7,18 @@ def icat(args):
     pass
 
 
+def dump_config(args):
+    tupiterm = tupimage.TupimageTerminal()
+    print(tupiterm._config.to_toml_string(), end="")
+
+
 def main():
     parser = argparse.ArgumentParser(description="")
     subparsers = parser.add_subparsers(dest="command")
+
+    parser_dump_config = subparsers.add_parser(
+        "dump-config", help="Dump the config state."
+    )
 
     parser_icat = subparsers.add_parser(
         "icat", help="A CLI compatible with the icat kitten."
@@ -130,8 +140,10 @@ def main():
     args = parser.parse_args()
 
     # Execute the function associated with the chosen subcommand
-    if hasattr(args, "func"):
-        args.func(args)
+    if args.command == "icat":
+        icat(args)
+    elif args.command == "dump-config":
+        dump_config(args)
     else:
         parser.print_help()
 

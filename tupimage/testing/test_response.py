@@ -10,7 +10,7 @@ import time
 
 
 @screenshot_test
-def response_ok_transmit(ctx: TestingContext):
+def ok_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -40,7 +40,7 @@ def response_ok_transmit(ctx: TestingContext):
 
 
 @screenshot_test
-def response_ok_direct_transmit(ctx: TestingContext):
+def ok_direct_transmit(ctx: TestingContext):
     term = ctx.term
     # Direct uploading.
     cmd = TransmitCommand(
@@ -101,7 +101,7 @@ def response_ok_direct_transmit(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def response_ok_put(ctx: TestingContext, placement_id=None):
+def ok_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -180,7 +180,7 @@ def response_ok_put(ctx: TestingContext, placement_id=None):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def response_ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
+def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     # Direct uploading + put.
     cmd = TransmitCommand(
@@ -250,7 +250,7 @@ def response_ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
 
 
 @screenshot_test
-def response_ok_two_responses(ctx: TestingContext):
+def ok_two_responses(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -272,7 +272,7 @@ def response_ok_two_responses(ctx: TestingContext):
 
 
 @screenshot_test
-def response_error_transmit(ctx: TestingContext):
+def error_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -320,7 +320,7 @@ def response_error_transmit(ctx: TestingContext):
 
 
 @screenshot_test
-def response_error_transmit_urandom(ctx: TestingContext):
+def error_transmit_urandom(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -341,7 +341,7 @@ def response_error_transmit_urandom(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def response_error_transmit_and_put(ctx: TestingContext, placement_id=None):
+def error_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.FILE,
@@ -380,7 +380,7 @@ def response_error_transmit_and_put(ctx: TestingContext, placement_id=None):
 
 
 @screenshot_test
-def response_error_direct_transmit(ctx: TestingContext):
+def error_direct_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.DIRECT,
@@ -413,9 +413,7 @@ def response_error_direct_transmit(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def response_error_direct_transmit_and_put(
-    ctx: TestingContext, placement_id=None
-):
+def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.DIRECT,
@@ -454,7 +452,7 @@ def response_error_direct_transmit_and_put(
 
 
 @screenshot_test
-def response_error_syntax_no_response(ctx: TestingContext):
+def error_syntax_no_response(ctx: TestingContext):
     term = ctx.term
 
     ctx.write("Empty command. No response is expected.")
@@ -501,7 +499,7 @@ def response_error_syntax_no_response(ctx: TestingContext):
 
 
 @screenshot_test
-def response_error_syntax_image_id(ctx: TestingContext):
+def error_syntax_image_id(ctx: TestingContext):
     term = ctx.term
 
     ctx.write("Empty command modulo image id.")

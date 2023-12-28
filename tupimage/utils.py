@@ -4,14 +4,16 @@ import argparse
 def validate_size(value: str):
     split_value = value.split("x")
     if len(split_value) != 2:
-        raise argparse.ArgumentTypeError("Size must be specified as WxH")
+        raise argparse.ArgumentTypeError(
+            f"Size must be specified as WxH: {value}"
+        )
     try:
         width = int(split_value[0])
         height = int(split_value[1])
     except ValueError:
-        raise argparse.ArgumentTypeError("Size must be integer")
+        raise argparse.ArgumentTypeError(f"Size must be integer: {value}")
     if width < 1 or height < 1:
-        raise argparse.ArgumentTypeError("Size must be positive")
+        raise argparse.ArgumentTypeError(f"Size must be positive: {value}")
     return (width, height)
 
 

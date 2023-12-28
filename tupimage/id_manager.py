@@ -25,8 +25,50 @@ def _randbits(bits: int, nonzero: bool) -> int:
 
 @dataclass(frozen=True)
 class IDSubspace:
+    """A subspace of ids, defined by a fixed number of certain bits.
+
+    All image IDs may be broken down into multiple non-intersecting subspaces if
+    we fix certain bits to a constant value. This class represents such a
+    subspace with `fixed_bits` fixed bits and `value` as the value of those
+    bits.
+
+    All subspaces with the same number of fixed bits are disjoint, but
+    subspaces with different numbers of fixed bits are nested inside each other.
+    For example, `IDSubspace(3, value=6)` (6 is '110' in binary) is a subspace
+    of `IDSubspace(2, value=2)` (2 is '10' in binary). `IDSubspace(3, value=2)`
+    is also a subspace of `IDSubspace(2, value=2)`.
+
+    Note that the fixed bits are not necessarily the least significant bits of
+    the ID. The exact fixed bits depend on the IDFeatures space.
+
+    Attributes:
+        fixed_bits: The number of fixed bits. Must be between 0 and 6.
+        value: The value of the fixed bits. Must be between 0 and 2**fixed_bits.
+    """
+
     fixed_bits: int = 0
     value: int = 0
+
+    @staticmethod
+    def from_string(s: str) -> "IDSubspace":
+        """Parses an IDSubspace from a string.
+
+        The string must a binary representation of `value` with the number of
+        bits inferred from the length of the string, e.g. "0110" for
+        `IDSubspace(4, value=6)`.
+        """
+        if not s:
+            return IDSubspace()
+        return IDSubspace(len(s), int(s, 2))
+
+    def to_string(self) -> str:
+        """Returns a binary representation of `value` with the number of bits
+        inferred from the length of the string, e.g. "0110" for
+        `IDSubspace(4, value=6)`.
+        """
+        if self.fixed_bits == 0:
+            return ""
+        return f"{self.value:0{self.fixed_bits}b}"
 
     def __post_init__(self):
         if self.fixed_bits < 0 or self.fixed_bits > 6:
@@ -62,6 +104,22 @@ class IDSubspace:
 
 @dataclass(frozen=True)
 class IDFeatures:
+    """The features that can be used to represent an image ID.
+
+    When displaying an image using Unicode placeholders, the image ID may be
+    represented with the fg color (24 or 8 bits) and the 3rd diacritic (8 bits).
+    Some applications may not support all of the features, so all IDs are broken
+    down into non-intersecting IDFeatures spaces, each space contains only IDs
+    that can be represented with the given features.
+
+    Note that since we want the IDFeatures spaces to be disjoint, certain bytes
+    of the IDs belonging to bigger subspaces may be required to be non-zero.
+
+    Attributes:
+        color_bits: The number of color bits. Must be 0, 8 or 24.
+        use_3rd_diacritic: Whether to use the 3rd diacritic.
+    """
+
     color_bits: int = 24
     use_3rd_diacritic: bool = True
 
@@ -79,6 +137,7 @@ class IDFeatures:
 
     @staticmethod
     def from_id(id: int) -> "IDFeatures":
+        """Get the IDFeatures space an image ID belongs to."""
         if id <= 0 or id > 0xFFFFFFFF:
             raise ValueError(f"Invalid id, must be non-zero 32-bit: {id}")
         use_3rd_diacritic = (id & 0xFF000000) != 0
@@ -91,9 +150,12 @@ class IDFeatures:
         return IDFeatures(color_bits, use_3rd_diacritic)
 
     def num_bits(self) -> int:
+        """Get the number of bits of an ID that may be nonzero in this space."""
         return (8 if self.use_3rd_diacritic else 0) + self.color_bits
 
     def namespace_name(self) -> str:
+        """Get the name of this IDFeatures space that can be used as an
+        identifier or a file name."""
         if self.use_3rd_diacritic:
             return f"ids_{self.num_bits()}bit_3rd_diacritic"
         else:
@@ -103,11 +165,15 @@ class IDFeatures:
         return self.from_id(id) == self
 
     def contains_and_in_subspace(self, id: int, subspace: IDSubspace) -> bool:
+        """Returns true if the id is in this space and also in the given
+        subspace."""
         return self.contains(id) and (
             id & self.subspace_mask(subspace)
         ) == self.subspace_masked_value(subspace)
 
     def gen_random_id(self, subspace: IDSubspace = IDSubspace()) -> int:
+        """Generates a random id in this space that also belongs to the given
+        subspace."""
         # We want to use every feature available to us, making id namespaces
         # disjoint.
 
@@ -134,6 +200,8 @@ class IDFeatures:
         return (byte_3 << 24) | (byte_1_2 << 8) | byte_0
 
     def all_ids(self, subspace: IDSubspace = IDSubspace()) -> Iterator[int]:
+        """Generates all ids in this space that also belong to the given
+        subspace."""
         if self.color_bits == 0:
             for b in subspace._all_nonzero_bytes():
                 yield b << 24
@@ -154,6 +222,9 @@ class IDFeatures:
                     yield (byte3 << 24) | (byte12 << 8) | byte0
 
     def subspace_size(self, subspace: IDSubspace = IDSubspace()) -> int:
+        """Returns the number of ids in this space that also belong to the given
+        subspace. This function takes into account that some bytes must not be
+        zero."""
         num_zero_ids = 1 if subspace.value == 0 else 0
         if self.color_bits == 0:
             return (1 << (8 - subspace.fixed_bits)) - num_zero_ids
@@ -170,12 +241,17 @@ class IDFeatures:
         return byte3_count * byte12_count * byte0_count
 
     def subspace_mask(self, subspace: IDSubspace) -> int:
+        """Returns a mask that can be used to select all ids in this space that
+        also belong to the given subspace. The mask mask is one for the
+        positions of fixed bits."""
         if self.color_bits == 0:
             return subspace._mask() << 24
         else:
             return subspace._mask()
 
     def subspace_masked_value(self, subspace: IDSubspace) -> int:
+        """Returns the value of the fixed bits of the given subspace, shifted to
+        the correct position."""
         if self.color_bits == 0:
             return subspace.value << 24
         else:
@@ -183,6 +259,7 @@ class IDFeatures:
 
     @staticmethod
     def all_values() -> Iterator["IDFeatures"]:
+        """Generates all IDFeatures spaces."""
         for use_3rd_diacritic in [True, False]:
             for color_bits in [0, 8, 24]:
                 if color_bits == 0 and not use_3rd_diacritic:
@@ -193,7 +270,7 @@ class IDFeatures:
 @dataclass
 class ImageInfo:
     path: str
-    parameters: str = ""
+    params: str = ""
     mtime: Optional[datetime] = None
     id: Optional[int] = None
     atime: Optional[datetime] = None
@@ -203,7 +280,7 @@ class ImageInfo:
 class UploadInfo:
     id: int
     path: str
-    parameters: str
+    params: str
     mtime: Optional[datetime]
     upload_time: Optional[datetime]
     terminal: str
@@ -213,7 +290,7 @@ class UploadInfo:
 
 
 class IDManager:
-    def __init__(self, database_file: str, max_ids_per_subspace: int = 1024):
+    def __init__(self, database_file: str, *, max_ids_per_subspace: int = 1024):
         self.conn = sqlite3.connect(database_file, isolation_level=None)
         self.cursor = self.conn.cursor()
         self.max_ids_per_subspace: int = max_ids_per_subspace
@@ -225,14 +302,14 @@ class IDManager:
                     CREATE TABLE IF NOT EXISTS {namespace} (
                         id INTEGER PRIMARY KEY,
                         path TEXT,
-                        parameters TEXT,
+                        params TEXT,
                         mtime TIMESTAMP,
                         atime TIMESTAMP
                     )
                 """)
             self.cursor.execute(
                 f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
-                    ON {namespace} (path, parameters)
+                    ON {namespace} (path, params)
                 """
             )
             self.cursor.execute(
@@ -245,7 +322,7 @@ class IDManager:
                 CREATE TABLE IF NOT EXISTS upload (
                     id INTEGER,
                     path TEXT,
-                    parameters TEXT,
+                    params TEXT,
                     mtime TIMESTAMP,
                     size INTEGER,
                     terminal TEXT,
@@ -267,7 +344,7 @@ class IDManager:
         id_features = IDFeatures.from_id(id)
         namespace = id_features.namespace_name()
         self.cursor.execute(
-            f"""SELECT path, parameters, mtime, atime FROM {namespace}
+            f"""SELECT path, params, mtime, atime FROM {namespace}
                 WHERE id=?
             """,
             (id,),
@@ -275,11 +352,11 @@ class IDManager:
         row = self.cursor.fetchone()
         if not row:
             return None
-        path, parameters, mtime, atime = row
+        path, params, mtime, atime = row
         return ImageInfo(
             id=id,
             path=path,
-            parameters=parameters,
+            params=params,
             mtime=datetime.fromisoformat(mtime),
             atime=datetime.fromisoformat(atime),
         )
@@ -289,7 +366,7 @@ class IDManager:
     ) -> List[ImageInfo]:
         namespace = id_features.namespace_name()
         self.cursor.execute(
-            f"""SELECT id, path, parameters, mtime, atime FROM {namespace}
+            f"""SELECT id, path, params, mtime, atime FROM {namespace}
                 WHERE id & ? = ? ORDER BY atime DESC
             """,
             (
@@ -301,7 +378,7 @@ class IDManager:
             ImageInfo(
                 id=row[0],
                 path=row[1],
-                parameters=row[2],
+                params=row[2],
                 mtime=datetime.fromisoformat(row[3]),
                 atime=datetime.fromisoformat(row[4]),
             )
@@ -325,7 +402,8 @@ class IDManager:
         self,
         id: int,
         path: str,
-        parameters: str = "",
+        *,
+        params: str = "",
         mtime: Optional[datetime] = None,
         atime: Optional[datetime] = None,
     ):
@@ -340,13 +418,13 @@ class IDManager:
             atime = datetime.now()
         # Upsert the row.
         self.cursor.execute(
-            f"""INSERT INTO {namespace} (id, path, parameters, mtime, atime)
+            f"""INSERT INTO {namespace} (id, path, params, mtime, atime)
                 VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
-                    path=excluded.path, parameters=excluded.parameters,
+                    path=excluded.path, params=excluded.params,
                     mtime=excluded.mtime, atime=excluded.atime
             """,
-            (id, path, parameters, mtime.isoformat(), atime.isoformat()),
+            (id, path, params, mtime.isoformat(), atime.isoformat()),
         )
 
     def del_id(self, id: int):
@@ -360,7 +438,8 @@ class IDManager:
         self,
         path: str,
         id_features: IDFeatures,
-        parameters: str = "",
+        *,
+        params: str = "",
         mtime: Optional[datetime] = None,
         subspace: IDSubspace = IDSubspace(),
     ) -> int:
@@ -378,15 +457,15 @@ class IDManager:
 
         with self.conn:
             self.conn.execute("BEGIN")
-            # Find the row with the given `path`, `parameters`, `mtime` and id
+            # Find the row with the given `path`, `params`, `mtime` and id
             # subspace.
             self.cursor.execute(
                 f"""SELECT id FROM {namespace}
-                    WHERE path=? AND parameters=? AND mtime=? AND id & ? = ?
+                    WHERE path=? AND params=? AND mtime=? AND id & ? = ?
                 """,
                 (
                     path,
-                    parameters,
+                    params,
                     mtime.isoformat(),
                     id_features.subspace_mask(subspace),
                     id_features.subspace_masked_value(subspace),
@@ -424,7 +503,7 @@ class IDManager:
                     self.set_id(
                         id,
                         path=path,
-                        parameters=parameters,
+                        params=params,
                         mtime=mtime,
                         atime=atime,
                     )
@@ -454,7 +533,7 @@ class IDManager:
                 self.set_id(
                     id,
                     path=path,
-                    parameters=parameters,
+                    params=params,
                     mtime=mtime,
                     atime=atime,
                 )
@@ -481,7 +560,7 @@ class IDManager:
                     self.set_id(
                         id,
                         path=path,
-                        parameters=parameters,
+                        params=params,
                         mtime=mtime,
                         atime=atime,
                     )
@@ -534,7 +613,7 @@ class IDManager:
     def get_upload_info(self, id: int, terminal: str) -> Optional[UploadInfo]:
         self.cursor.execute(
             """
-            SELECT path, parameters, mtime, upload_time, size FROM upload
+            SELECT path, params, mtime, upload_time, size FROM upload
             WHERE id=? AND terminal=?
             """,
             (id, terminal),
@@ -542,7 +621,7 @@ class IDManager:
         row = self.cursor.fetchone()
         if not row:
             return None
-        path, parameters, mtime_str, upload_time_str, size = row
+        path, params, mtime_str, upload_time_str, size = row
         self.cursor.execute(
             """
             SELECT COUNT(*), SUM(size) FROM upload
@@ -554,7 +633,7 @@ class IDManager:
         return UploadInfo(
             id=id,
             path=path,
-            parameters=parameters,
+            params=params,
             mtime=datetime.fromisoformat(mtime_str),
             upload_time=datetime.fromisoformat(upload_time_str),
             terminal=terminal,
@@ -567,8 +646,9 @@ class IDManager:
         self,
         id: int,
         terminal: str,
+        *,
         max_uploads_ago: int = 1024,
-        max_bytes_ago: int = 30 * (2**20),
+        max_bytes_ago: int = 20 * (2**20),
         max_time_ago: timedelta = timedelta(hours=1),
     ) -> bool:
         info = self.get_info(id)
@@ -579,7 +659,7 @@ class IDManager:
             return True
         return (
             upload_info.path != info.path
-            or upload_info.parameters != info.parameters
+            or upload_info.params != info.params
             or upload_info.mtime != info.mtime
             or upload_info.bytes_ago > max_bytes_ago
             or upload_info.uploads_ago > max_uploads_ago
@@ -590,6 +670,7 @@ class IDManager:
         self,
         id: int,
         terminal: str,
+        *,
         size: Optional[int] = None,
         upload_time: Optional[datetime] = None,
     ):
@@ -600,17 +681,17 @@ class IDManager:
             return
         self.cursor.execute(
             f"""INSERT INTO upload
-                (id, path, parameters, mtime, size, terminal, upload_time)
+                (id, path, params, mtime, size, terminal, upload_time)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id, terminal) DO UPDATE SET
-                    path=excluded.path, parameters=excluded.parameters,
+                    path=excluded.path, params=excluded.params,
                     mtime=excluded.mtime, size=excluded.size,
                     upload_time=excluded.upload_time
             """,
             (
                 id,
                 info.path,
-                info.parameters,
+                info.params,
                 info.mtime.isoformat(),
                 size,
                 terminal,
@@ -620,14 +701,13 @@ class IDManager:
 
     def cleanup_uploads(
         self,
-        max_uploads_ago: int = 1024,
-        max_bytes_ago: int = 30 * (2**20),
-        max_time_ago: timedelta = timedelta(hours=1),
+        max_uploads: int = 1024,
     ):
         self.cursor.execute(
-            """
-            DELETE FROM upload WHERE upload_time < ?
+            f"""DELETE FROM upload WHERE (id, terminal) NOT IN (
+                    SELECT id, terminal FROM upload
+                    ORDER BY upload_time DESC LIMIT ?
+                )
             """,
-            (datetime.now() - max_time_ago,),
+            (max_uploads,),
         )
-        # TODO

@@ -48,9 +48,15 @@ class GraphicsTerminal:
         tty_in: Optional[BinaryIO] = None,
         autosplit_max_size: int = 2816,
         force_placeholders: bool = False,
+        num_tmux_layers: int = 0,
     ):
-        self.num_tmux_layers: int = 0
-        if tty_out is None and tty_filename is None:
+        self.num_tmux_layers: int = num_tmux_layers
+        if tty_filename is not None:
+            if tty_out is not None or tty_in is not None:
+                raise ValueError(
+                    "Cannot specify both tty_filename and tty_out/tty_in"
+                )
+        if tty_out is None and tty_in is None and tty_filename is None:
             tty_filename = "/dev/tty"
         self.tty_in: Optional[BinaryIO] = tty_in
         self.tty_out: BinaryIO = tty_out
@@ -382,6 +388,7 @@ class GraphicsTerminal:
         self,
         x: int,
         y: int,
+        *,
         columns: Optional[int] = None,
         lines: Optional[int] = None,
     ):
@@ -428,8 +435,8 @@ class GraphicsTerminal:
     def move_cursor_abs(
         self,
         *,
-        row: Optional[int] = None,
         col: Optional[int] = None,
+        row: Optional[int] = None,
         pos: Optional[Tuple[int, int]] = None,
     ):
         if pos is not None:

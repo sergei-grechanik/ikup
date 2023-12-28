@@ -11,7 +11,7 @@ from tupimage.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def placeholder_image_ids(ctx: TestingContext):
+def image_ids(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         medium=tupimage.TransmissionMedium.DIRECT,
@@ -80,7 +80,7 @@ def placeholder_image_ids(ctx: TestingContext):
 
 
 @screenshot_test
-def placeholder_full_width(ctx: TestingContext):
+def full_width(ctx: TestingContext):
     term = ctx.term
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
@@ -114,7 +114,7 @@ def placeholder_full_width(ctx: TestingContext):
 
 
 @screenshot_test
-def placeholder_vertical_stripes(ctx: TestingContext):
+def vertical_stripes(ctx: TestingContext):
     term = ctx.term
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
@@ -172,7 +172,7 @@ def placeholder_vertical_stripes(ctx: TestingContext):
 
 
 @screenshot_test
-def placeholder_max_columns(ctx: TestingContext):
+def max_columns(ctx: TestingContext):
     term = ctx.term
     columns = len(tupimage.ROWCOLUMN_DIACRITICS) + 3
     for image_id in [0x123456, 0x12345678]:
@@ -229,7 +229,7 @@ def placeholder_max_columns(ctx: TestingContext):
 
 
 @screenshot_test
-def placeholder_max_rows(ctx: TestingContext):
+def max_rows(ctx: TestingContext):
     term = ctx.term
     rows = len(tupimage.ROWCOLUMN_DIACRITICS)
     columns = 6

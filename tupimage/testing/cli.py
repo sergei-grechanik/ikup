@@ -15,6 +15,7 @@ from tupimage.testing import (
     test_response,
     test_deletion,
     test_placeholder,
+    test_tupimage_terminal,
 )
 
 

@@ -12,6 +12,17 @@ def test_id_subspace_init_correct(fixed_bits):
         subsp = IDSubspace(fixed_bits, val)
         assert subsp.fixed_bits == fixed_bits
         assert subsp.value == val
+        assert subsp.from_string(subsp.to_string()) == subsp
+
+
+def test_id_subspace_from_string():
+    assert IDSubspace.from_string("") == IDSubspace()
+    assert IDSubspace.from_string("0") == IDSubspace(1, value=0)
+    assert IDSubspace.from_string("1") == IDSubspace(1, value=1)
+    assert IDSubspace.from_string("00") == IDSubspace(2, value=0)
+    assert IDSubspace.from_string("01") == IDSubspace(2, value=1)
+    assert IDSubspace.from_string("10") == IDSubspace(2, value=2)
+    assert IDSubspace.from_string("11") == IDSubspace(2, value=3)
 
 
 @pytest.mark.parametrize("fixed_bits", range(7))
@@ -328,14 +339,14 @@ def test_id_manager_uploads():
         id = idman.get_id(
             path=path,
             mtime=mtime,
-            parameters="params",
+            params="params",
             id_features=IDFeatures(),
         )
         for term in terminals:
             assert idman.needs_uploading(id, term)
             assert idman.get_upload_info(id, term) is None
             if random.random() < 0.5:
-                idman.mark_uploaded(id, term, size)
+                idman.mark_uploaded(id, term, size=size)
                 assert not idman.needs_uploading(id, term)
                 info = idman.get_upload_info(id, term)
                 term_to_infos[term].append(info)
@@ -347,7 +358,7 @@ def test_id_manager_uploads():
                 assert info.mtime == mtime
                 assert info.id == id
                 assert info.terminal == term
-                assert info.parameters == "params"
+                assert info.params == "params"
                 assert info.bytes_ago == size
                 assert info.uploads_ago == 1
     # Compute bytes_ago and uploads_ago in python and compare to the results we
@@ -403,3 +414,13 @@ def test_id_manager_uploads_example():
     assert idman.get_upload_info(id2, "term1").uploads_ago == 4
     assert idman.get_upload_info(id2, "term2").bytes_ago == 900
     assert idman.get_upload_info(id2, "term2").uploads_ago == 3
+    # Do a cleanup.
+    idman.cleanup_uploads(max_uploads=3)
+    assert idman.get_upload_info(id1, "term1") is not None
+    assert idman.get_upload_info(id4, "term2") is not None
+    assert idman.get_upload_info(id4, "term1") is not None
+    assert idman.get_upload_info(id3, "term1") is None
+    assert idman.get_upload_info(id3, "term2") is None
+    assert idman.get_upload_info(id2, "term1") is None
+    assert idman.get_upload_info(id2, "term1") is None
+    assert idman.get_upload_info(id1, "term2") is None

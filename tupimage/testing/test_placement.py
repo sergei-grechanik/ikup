@@ -5,7 +5,7 @@ from tupimage.testing import TestingContext, screenshot_test
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def display_movecursor(ctx: TestingContext, placeholder: bool = False):
+def movecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -36,7 +36,7 @@ def display_movecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def display_nomovecursor(ctx: TestingContext, placeholder: bool = False):
+def nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -393,9 +393,7 @@ def placement_ids(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def display_overwrite_with_spaces(
-    ctx: TestingContext, placeholder: bool = False
-):
+def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
