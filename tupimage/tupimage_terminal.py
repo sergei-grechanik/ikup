@@ -11,6 +11,7 @@ import subprocess
 import re
 import tempfile
 import zlib
+import io
 from PIL import Image
 from PIL import ImageColor
 from dataclasses import dataclass
@@ -121,8 +122,8 @@ class TupimageConfig:
     check_response: Optional[bool] = False
     check_response_timeout: Optional[float] = 3.0
     redetect_terminal: Optional[bool] = True
-    stream_max_size: Optional[int] = 2 * 1024 * 1024
-    file_max_size: Optional[int] = 10 * 1024 * 1024
+    stream_max_size: Optional[int] = 1 * 1024 * 1024
+    file_max_size: Optional[int] = 2 * 1024 * 1024
 
     # Image display options.
     less_diacritics: Optional[bool] = False
@@ -771,26 +772,19 @@ class TupimageTerminal:
                 self._transmit_file(f.name, inst, TransmissionMedium.TEMP_FILE)
                 return size
         elif upload_method == TransmissionMedium.DIRECT:
-            if image_object.mode == "RGB":
-                bits = 24
-            elif image_object.mode == "RGBA":
-                bits = 32
-            else:
-                image_object = image_object.convert("RGBA")
-                bits = 32
-            data = zlib.compress(image_object.tobytes())
+            bytesio = io.BytesIO()
+            image_object.save(bytesio, format="PNG")
             self.term.send_command(
                 TransmitCommand(
                     image_id=inst.id,
                     medium=TransmissionMedium.DIRECT,
                     quiet=tupimage.Quietness.QUIET_ALWAYS,
-                    format=tupimage.Format.from_bits(bits),
+                    format=tupimage.Format.PNG,
                     pix_width=image_object.width,
                     pix_height=image_object.height,
-                    compression=tupimage.Compression.ZLIB,
                 )
                 .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
-                .set_data(data)
+                .set_data(bytesio)
             )
 
     def _transmit_file(

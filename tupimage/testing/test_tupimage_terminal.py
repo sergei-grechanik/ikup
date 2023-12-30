@@ -1,7 +1,7 @@
 import tupimage
 from tupimage import TupimageTerminal
 from tupimage.testing import TestingContext, screenshot_test
-from PIL import Image
+from PIL import Image, ImageOps
 
 
 @screenshot_test
@@ -25,7 +25,7 @@ def upload_and_display_from_file(ctx: TestingContext):
             tupiterm.term.move_cursor(down=7)
             if id_color_bits != 0:
                 tupiterm.term.write("\n")
-        print(f" (method={method})", end="", flush=True)
+        print(f" (method={method}, from file)", end="", flush=True)
         ctx.take_screenshot(
             "Wikipedias and tuxes, using different ID settings,"
             f" method={method}"
@@ -35,8 +35,8 @@ def upload_and_display_from_file(ctx: TestingContext):
 @screenshot_test
 def upload_and_display_from_image(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
-    img1 = Image.open(ctx.get_wikipedia_png())
-    img2 = Image.open(ctx.get_tux_png())
+    img1 = ImageOps.flip(Image.open(ctx.get_wikipedia_png()))
+    img2 = ImageOps.flip(Image.open(ctx.get_tux_png()))
     for method in ["file", "direct"]:
         tupiterm.term.reset()
         tupiterm.upload_method = method
@@ -55,9 +55,9 @@ def upload_and_display_from_image(ctx: TestingContext):
             tupiterm.term.move_cursor(down=7)
             if id_color_bits != 0:
                 tupiterm.term.write("\n")
-        print(f" (method={method})", end="", flush=True)
+        print(f" (method={method}, from Image objects)", end="", flush=True)
         ctx.take_screenshot(
-            "Wikipedias and tuxes, using different ID settings,"
+            "Wikipedias and tuxes flipped, using different ID settings,"
             f" method={method}"
         )
 
@@ -66,7 +66,7 @@ def upload_and_display_from_image(ctx: TestingContext):
 def upload_and_display_jpeg(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
     img1 = ctx.get_castle_jpg()
-    img2 = Image.open(ctx.get_castle_jpg())
+    img2 = ImageOps.flip(Image.open(ctx.get_castle_jpg()))
     for method in ["file", "direct"]:
         tupiterm.term.reset()
         tupiterm.upload_method = method
@@ -84,7 +84,7 @@ def upload_and_display_jpeg(ctx: TestingContext):
                 tupiterm.term.write("\n")
         print(f" (jpeg, method={method})", end="", flush=True)
         ctx.take_screenshot(
-            "Jpeg castles using different ID settings, method={method}"
+            f"Jpeg castles using different ID settings, method={method}"
         )
 
 
@@ -93,7 +93,7 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
     tupiterm.supported_formats = ["png"]
     img1 = ctx.get_castle_jpg()
-    img2 = Image.open(ctx.get_castle_jpg())
+    img2 = ImageOps.flip(Image.open(ctx.get_castle_jpg()))
     for method in ["file", "direct"]:
         tupiterm.term.reset()
         tupiterm.upload_method = method
@@ -111,6 +111,6 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
                 tupiterm.term.write("\n")
         print(f" (jpeg->png, method={method})", end="", flush=True)
         ctx.take_screenshot(
-            "Jpeg castles using different ID settings, method={method}, jpegs"
+            f"Jpeg castles using different ID settings, method={method}, jpegs"
             " are supposed to be converted"
         )
