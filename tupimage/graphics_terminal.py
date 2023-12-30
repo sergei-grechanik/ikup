@@ -15,7 +15,11 @@ from tupimage import (
     PlacementData,
     PutCommand,
 )
-from tupimage.placeholder import ImagePlaceholderMode, ImagePlaceholder
+from tupimage.placeholder import (
+    ImagePlaceholderMode,
+    ImagePlaceholder,
+    AdditionalFormatting,
+)
 
 
 class TtySettingsGuard:
@@ -120,7 +124,7 @@ class GraphicsTerminal:
         end_col: int = 0,
         end_row: int = 0,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
     ):
         ImagePlaceholder(

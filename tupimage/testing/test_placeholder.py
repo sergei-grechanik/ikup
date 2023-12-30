@@ -148,7 +148,9 @@ def vertical_stripes(ctx: TestingContext):
             ImagePlaceholder(
                 image_id=image_id, end_col=80, end_row=3
             ).to_stream_at_cursor(
-                term.tty_out, mode=mode, formatting=formatting
+                term.tty_out,
+                mode=mode,
+                formatting=tupimage.CellFormatting(formatting),
             )
             term.write(f"\n")
         ctx.take_screenshot(

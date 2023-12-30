@@ -12,6 +12,7 @@ import re
 import tempfile
 import zlib
 from PIL import Image
+from PIL import ImageColor
 from dataclasses import dataclass
 from typing import BinaryIO, Optional, Tuple, Union, List, Callable, Literal
 
@@ -32,32 +33,106 @@ from tupimage import (
 )
 
 
+@dataclass(frozen=True)
+class ClipRectangle:
+    start_col: int = 0
+    start_row: int = 0
+    end_col: Optional[int] = 0
+    end_row: Optional[int] = 0
+
+    @staticmethod
+    def whole_window() -> "ClipRectangle":
+        return ClipRectangle()
+
+    def __init__(
+        self,
+        start_col: int = 0,
+        start_row: int = 0,
+        *,
+        end_col: Optional[int] = None,
+        end_row: Optional[int] = None,
+        cols: Optional[int] = None,
+        rows: Optional[int] = None,
+    ):
+        self.start_col = start_col
+        self.start_row = start_row
+        if end_col is not None and cols is not None:
+            raise ValueError("Cannot specify both end_col and cols")
+        if end_row is not None and rows is not None:
+            raise ValueError("Cannot specify both end_row and rows")
+        if end_col is not None:
+            self.end_col = end_col
+        elif cols is not None:
+            self.end_col = self.start_col + cols
+        if end_row is not None:
+            self.end_row = end_row
+        elif rows is not None:
+            self.end_row = self.start_row + rows
+        if self.end_col < self.start_col:
+            raise ValueError(
+                f"end_col ({self.end_col}) must be >= start_col"
+                f" ({self.start_col})"
+            )
+        if self.end_row < self.start_row:
+            raise ValueError(
+                f"end_row ({self.end_row}) must be >= start_row"
+                f" ({self.start_row})"
+            )
+        if self.start_col < 0:
+            raise ValueError(f"start_col ({self.start_col}) must be >= 0")
+        if self.start_row < 0:
+            raise ValueError(f"start_row ({self.start_row}) must be >= 0")
+
+
+@dataclass
+class NoClipping:
+    pass
+
+
+BackgroundLike = Union[tupimage.AdditionalFormatting, str, int, None]
+FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
+
+
 @dataclass
 class TupimageConfig:
-    max_payload_size: Optional[int] = 2816
-    unicode_placeholders: Optional[bool] = True
-    num_tmux_layers: Union[int, Literal["auto"], None] = "auto"
+    # Id allocation options.
     id_subspace: Union[IDSubspace, str, None] = IDSubspace()
     id_color_bits: Literal[0, 8, 24, None] = 24
     id_use_3rd_diacritic: Optional[bool] = True
+    max_ids_per_subspace: Optional[int] = 1024
+    id_database_dir: Optional[str] = ""
+
+    # Image geometry options.
     cell_size: Union[Tuple[int, int], str, Literal["auto"], None] = "auto"
     default_cell_size: Union[Tuple[int, int], str, None] = (8, 16)
-    less_diacritics: Optional[bool] = False
-    placeholder_char: Optional[str] = tupimage.PLACEHOLDER_CHAR
-    max_ids_per_subspace: Optional[int] = 1024
+    scale: Optional[float] = 1.0
+    max_rows: Union[int, Literal["auto"], None] = "auto"
+    max_cols: Union[int, Literal["auto"], None] = "auto"
+
+    # Uploading options
+    max_payload_size: Optional[int] = 2816
+    num_tmux_layers: Union[int, Literal["auto"], None] = "auto"
     reupload_max_uploads_ago: Optional[int] = 1024
-    reupload_max_bytes_ago: Optional[int] = 20 * (2**20)
+    reupload_max_bytes_ago: Optional[int] = 20 * 1024 * 1024
     reupload_max_seconds_ago: Optional[int] = 3600
     force_reupload: Optional[bool] = False
     supported_formats: Union[List[str], Literal["auto"], None] = "auto"
     upload_method: Union[TransmissionMedium, str, None] = "auto"
-    ignore_unknown_attributes: Optional[bool] = False
-    id_database_dir: Optional[str] = ""
     check_response: Optional[bool] = False
     check_response_timeout: Optional[float] = 3.0
-    scale: Optional[float] = 1.0
-    max_rows: Union[int, Literal["auto"], None] = "auto"
-    max_cols: Union[int, Literal["auto"], None] = "auto"
+    redetect_terminal: Optional[bool] = True
+    stream_max_size: Optional[int] = 2 * 1024 * 1024
+    file_max_size: Optional[int] = 10 * 1024 * 1024
+
+    # Image display options.
+    less_diacritics: Optional[bool] = False
+    placeholder_char: Optional[str] = tupimage.PLACEHOLDER_CHAR
+    final_cursor_pos: Optional[FinalCursorPos] = "bottom-right"
+    background: BackgroundLike = "none"
+    clip: Union[ClipRectangle, NoClipping, None] = NoClipping()
+
+    # General options.
+    ignore_unknown_attributes: Optional[bool] = False
 
     def to_toml_string(self) -> str:
         dic = dataclasses.asdict(self)
@@ -166,53 +241,6 @@ class TupimageConfig:
             return isinstance(value, type)
 
 
-@dataclass(frozen=True)
-class ClipRectangle:
-    start_col: int = 0
-    start_row: int = 0
-    end_col: Optional[int] = 0
-    end_row: Optional[int] = 0
-
-    def __init__(
-        self,
-        start_col: int = 0,
-        start_row: int = 0,
-        *,
-        end_col: Optional[int] = None,
-        end_row: Optional[int] = None,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-    ):
-        self.start_col = start_col
-        self.start_row = start_row
-        if end_col is not None and cols is not None:
-            raise ValueError("Cannot specify both end_col and cols")
-        if end_row is not None and rows is not None:
-            raise ValueError("Cannot specify both end_row and rows")
-        if end_col is not None:
-            self.end_col = end_col
-        elif cols is not None:
-            self.end_col = self.start_col + cols
-        if end_row is not None:
-            self.end_row = end_row
-        elif rows is not None:
-            self.end_row = self.start_row + rows
-        if self.end_col < self.start_col:
-            raise ValueError(
-                f"end_col ({self.end_col}) must be >= start_col"
-                f" ({self.start_col})"
-            )
-        if self.end_row < self.start_row:
-            raise ValueError(
-                f"end_row ({self.end_row}) must be >= start_row"
-                f" ({self.start_row})"
-            )
-        if self.start_col < 0:
-            raise ValueError(f"start_col ({self.start_col}) must be >= 0")
-        if self.start_row < 0:
-            raise ValueError(f"start_row ({self.start_row}) must be >= 0")
-
-
 @dataclass
 class ImageInstance:
     path: str
@@ -251,6 +279,17 @@ ImageOrFilename = Union[Image.Image, str]
 ImageLike = Union[ImageOrFilename, ImageInstance]
 
 
+def _config_property(name):
+    def getter(obj):
+        return getattr(obj._config, name)
+
+    def setter(obj, new_value):
+        setattr(obj._config, name, new_value)
+        obj._config.verify_and_normalize()
+
+    return property(getter, setter)
+
+
 class TupimageTerminal:
     def __init__(
         self,
@@ -262,9 +301,6 @@ class TupimageTerminal:
         session_id: Optional[str] = None,
         terminal_id: Optional[str] = None,
         terminal_name: Optional[str] = None,
-        redetect_terminal: bool = True,
-        formatting: Optional[Callable[[int, int], bytes]] = None,
-        clip_rect: Optional[ClipRectangle] = None,
         config: Optional[Union[TupimageConfig, str]] = None,
         **kwargs,
     ):
@@ -280,7 +316,7 @@ class TupimageTerminal:
                 else:
                     config = TupimageConfig()
         if isinstance(config, str):
-            if str == "NONE":
+            if config == "DEFAULT":
                 config = TupimageConfig()
             else:
                 config = TupimageConfig().override_from_toml_file(config)
@@ -301,13 +337,9 @@ class TupimageTerminal:
 
         self._config = config
 
-        self.default_formatting = formatting
-        self.default_clip_rect = clip_rect
-
-        self.manually_specified_terminal_name = terminal_name
-        self.manually_specified_terminal_id = terminal_id
-        self.manually_specified_session_id = session_id
-        self.redetect_terminal = redetect_terminal
+        self.override_terminal_name = terminal_name
+        self.override_terminal_id = terminal_id
+        self.override_session_id = session_id
 
         self.detect_terminal()
 
@@ -321,43 +353,29 @@ class TupimageTerminal:
 
         if id_database is None:
             os.makedirs(os.path.dirname(config.id_database_dir), exist_ok=True)
-            id_database = f"{config.id_database_dir}/{self.session_id}.sqlite"
+            id_database = f"{config.id_database_dir}/{self._session_id}.sqlite"
 
         self.id_manager = IDManager(
             database_file=id_database,
             max_ids_per_subspace=config.max_ids_per_subspace,
         )
 
-    def set(
-        self,
-        *,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
-        scale: Optional[float] = None,
-        id_color_bits: Optional[int] = None,
-        id_use_3rd_diacritic: Optional[bool] = None,
-        id_subspace: Union[IDSubspace, str, None] = None,
-        check_response: Optional[bool] = None,
-        upload_method: Union[TransmissionMedium, str, None] = None,
-        force_reupload: Optional[bool] = None,
-        less_diacritics: Optional[bool] = None,
-        formatting: Optional[Callable[[int, int], bytes]] = None,
-        clip_rect: Optional[ClipRectangle] = None,
-    ):
-        self._config.override_from_kwargs(
-            max_cols=max_cols,
-            max_rows=max_rows,
-            scale=scale,
-            id_color_bits=id_color_bits,
-            id_use_3rd_diacritic=id_use_3rd_diacritic,
-            id_subspace=id_subspace,
-            check_response=check_response,
-            upload_method=upload_method,
-            force_reupload=force_reupload,
-            less_diacritics=less_diacritics,
-        )
-        self.default_formatting = formatting
-        self.default_clip_rect = clip_rect
+    max_cold = _config_property("max_cols")
+    max_rows = _config_property("max_rows")
+    scale = _config_property("scale")
+    id_color_bits = _config_property("id_color_bits")
+    id_use_3rd_diacritic = _config_property("id_use_3rd_diacritic")
+    id_subspace = _config_property("id_subspace")
+    check_response = _config_property("check_response")
+    check_response_timeout = _config_property("check_response_timeout")
+    upload_method = _config_property("upload_method")
+    force_reupload = _config_property("force_reupload")
+    less_diacritics = _config_property("less_diacritics")
+    redetect_terminal = _config_property("less_diacritics")
+    background = _config_property("background")
+    final_cursor_pos = _config_property("final_cursor_pos")
+    clip = _config_property("clip")
+    supported_formats = _config_property("supported_formats")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -372,32 +390,32 @@ class TupimageTerminal:
         return re.sub(r"[^a-zA-Z0-9_-]", "_", string)
 
     def detect_terminal(self):
-        self.terminal_name = self.manually_specified_terminal_name
-        self.terminal_id = self.manually_specified_terminal_id
-        self.session_id = self.manually_specified_session_id
+        self._terminal_name = self.override_terminal_name
+        self._terminal_id = self.override_terminal_id
+        self._session_id = self.override_session_id
         if self._config.num_tmux_layers == 0:
-            if self.terminal_name is None:
-                self.terminal_name = os.environ.get("TERM", "unknown-terminal")
-            if self.terminal_id is None:
-                self.terminal_id = (
-                    self.terminal_name
+            if self._terminal_name is None:
+                self._terminal_name = os.environ.get("TERM", "unknown-terminal")
+            if self._terminal_id is None:
+                self._terminal_id = (
+                    self._terminal_name
                     + "-"
                     + os.environ.get("WINDOWID", "unknown-window")
                 )
-            if self.session_id is None:
-                self.session_id = self.terminal_id
+            if self._session_id is None:
+                self._session_id = self._terminal_id
         else:
             data = self._tmux_display_message(
                 "#{client_termname}||||#{client_pid}||||#{session_id}"
             ).split("||||")
-            if self.terminal_name is None:
-                self.terminal_name = data[0]
-            if self.terminal_id is None:
-                self.terminal_id = f"tmux-client-{data[0]}-{data[1]}"
-            if self.session_id is None:
-                self.session_id = f"tmux-{data[2]}"
-        self.terminal_id = self._remove_bad_chars(self.terminal_id)
-        self.session_id = self._remove_bad_chars(self.session_id)
+            if self._terminal_name is None:
+                self._terminal_name = data[0]
+            if self._terminal_id is None:
+                self._terminal_id = f"tmux-client-{data[0]}-{data[1]}"
+            if self._session_id is None:
+                self._session_id = f"tmux-{data[2]}"
+        self._terminal_id = self._remove_bad_chars(self._terminal_id)
+        self._session_id = self._remove_bad_chars(self._session_id)
 
     def get_cell_size(self) -> Tuple[int, int]:
         if self._config.cell_size == "auto":
@@ -642,11 +660,11 @@ class TupimageTerminal:
         )
         if force_reupload is None:
             force_reupload = self._config.force_reupload
-        if self.redetect_terminal:
+        if self._config.redetect_terminal:
             self.detect_terminal()
         if force_reupload or self.id_manager.needs_uploading(
             inst.id,
-            self.terminal_id,
+            self._terminal_id,
             max_uploads_ago=max_uploads_ago,
             max_bytes_ago=max_bytes_ago,
             max_time_ago=max_time_ago,
@@ -654,19 +672,32 @@ class TupimageTerminal:
             size = self._upload(
                 inst, check_response=check_response, upload_method=upload_method
             )
-            self.id_manager.mark_uploaded(inst.id, self.terminal_id, size=size)
+            self.id_manager.mark_uploaded(inst.id, self._terminal_id, size=size)
         return inst
 
-    def _is_format_supported(self, format: str) -> bool:
+    def _is_format_supported(self, format: Optional[str]) -> bool:
+        if format is None:
+            return False
         if self._config.supported_formats == "auto":
             formats = ["png"]
-            if self.terminal_name.startswith("st"):
+            if self._terminal_name.startswith("st"):
                 formats.append("jpeg")
             return format.lower() in formats
         else:
             return format.lower() in [
                 f.lower() for f in self._config.supported_formats
             ]
+
+    def get_max_upload_size(self, upload_method: TransmissionMedium) -> int:
+        if upload_method in [
+            TransmissionMedium.FILE,
+            TransmissionMedium.TEMP_FILE,
+        ]:
+            return self._config.file_max_size
+        elif upload_method == TransmissionMedium.DIRECT:
+            return self._config.stream_max_size
+        else:
+            raise ValueError(f"Unsupported upload method: {upload_method}")
 
     def _upload(
         self,
@@ -692,6 +723,13 @@ class TupimageTerminal:
         ]:
             raise ValueError(f"Unsupported upload method: {upload_method}")
 
+        if check_response:
+            raise NotImplementedError(
+                "Checking the response is not yet implemented"
+            )
+
+        max_upload_size = self.get_max_upload_size(upload_method)
+
         if inst.image is None:
             if not inst.is_file_available():
                 raise FileNotFoundError(
@@ -700,12 +738,22 @@ class TupimageTerminal:
                 )
             image_object = Image.open(inst.path)
             if self._is_format_supported(image_object.format):
-                image_object.close()
                 size = os.path.getsize(inst.path)
-                self._transmit_file(inst.path, inst, upload_method)
-                return size
+                if size <= max_upload_size:
+                    image_object.close()
+                    self._transmit_file(inst.path, inst, upload_method)
+                    return size
         else:
             image_object = inst.image
+
+        bits = 24 if image_object.mode == "RGB" else 32
+        width, height = image_object.size
+        image_bytes = width * height * (bits / 8)
+        if image_bytes > max_upload_size:
+            ratio = math.sqrt(max_upload_size / image_bytes)
+            width = max(1, math.floor(width * ratio))
+            height = max(1, math.floor(height * ratio))
+            image_object = image_object.resize((width, height))
 
         if upload_method == TransmissionMedium.FILE:
             with tempfile.NamedTemporaryFile("wb", delete=False) as f:
@@ -737,6 +785,9 @@ class TupimageTerminal:
                     medium=TransmissionMedium.DIRECT,
                     quiet=tupimage.Quietness.QUIET_ALWAYS,
                     format=tupimage.Format.from_bits(bits),
+                    pix_width=image_object.width,
+                    pix_height=image_object.height,
+                    compression=tupimage.Compression.ZLIB,
                 )
                 .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
                 .set_data(data)
@@ -792,11 +843,10 @@ class TupimageTerminal:
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
         less_diacritics: Optional[bool] = None,
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        background: Optional[Callable[[int, int], bytes]] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
-        clip: bool = False,
-        clip_rect: Optional[ClipRectangle] = None,
-        final_cursor_pos: Optional[str] = None,
+        clip: Union[ClipRectangle, NoClipping] = None,
+        final_cursor_pos: Optional[FinalCursorPos] = None,
     ) -> ImagePlaceholder:
         inst = self.upload(
             image,
@@ -816,10 +866,9 @@ class TupimageTerminal:
         return self.display(
             inst,
             less_diacritics=less_diacritics,
-            formatting=formatting,
+            background=background,
             abs_pos=abs_pos,
             clip=clip,
-            clip_rect=clip_rect,
             final_cursor_pos=final_cursor_pos,
         )
 
@@ -847,17 +896,31 @@ class TupimageTerminal:
             placeholder_char=self._config.placeholder_char,
         )
 
+    def get_formatting(
+        self, background: BackgroundLike
+    ) -> tupimage.AdditionalFormatting:
+        if background is None:
+            background = self._config.background
+        if isinstance(background, str):
+            if background.lower() == "none":
+                return None
+            else:
+                rgb = ImageColor.getrgb(background)
+                return b"\033[48;2;%d;%d;%dm" % rgb
+        if isinstance(background, int):
+            return b"\033[48;5;%dm" % background
+        return background
+
     def display(
         self,
         id: Union[int, ImageInstance, ImagePlaceholder],
         cols: Optional[int] = None,
         rows: Optional[int] = None,
         less_diacritics: Optional[bool] = None,
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        background: BackgroundLike = None,
         abs_pos: Optional[Tuple[int, int]] = None,
-        clip: bool = False,
-        clip_rect: Optional[ClipRectangle] = None,
-        final_cursor_pos: Optional[str] = None,
+        clip: Union[ClipRectangle, NoClipping] = None,
+        final_cursor_pos: Optional[FinalCursorPos] = None,
     ) -> ImagePlaceholder:
         if isinstance(id, ImagePlaceholder):
             if cols is not None or rows is not None:
@@ -878,14 +941,12 @@ class TupimageTerminal:
             id, less_diacritics=less_diacritics
         )
 
-        if formatting is None:
-            formatting = self.default_formatting
-        if clip_rect is None:
-            clip_rect = self.default_clip_rect
+        formatting = self.get_formatting(background)
 
-        clip = clip or clip_rect is not None
+        if clip is None:
+            clip = self._config.clip
 
-        if not clip:
+        if clip == NoClipping():
             if abs_pos is None:
                 id.to_stream_at_cursor(
                     self.term.tty_out, mode=mode, formatting=formatting
@@ -908,13 +969,11 @@ class TupimageTerminal:
 
         if abs_pos is None:
             abs_pos = self.term.get_cursor_position()
-        if clip_rect is None:
-            clip_rect = ClipRectangle(end_col=None, end_row=None)
-        if clip_rect.end_col is None or clip_rect.end_row is None:
+        if clip.end_col is None or clip.end_row is None:
             term_cols, term_rows = self.term.get_size()
-            clip_rect = clip_rect.clone_with(
-                end_col=clip_rect.end_col or term_cols,
-                end_row=clip_rect.end_row or term_rows,
+            clip = clip.clone_with(
+                end_col=clip.end_col or term_cols,
+                end_row=clip.end_row or term_rows,
             )
 
         pos_col = abs_pos[0]
@@ -924,16 +983,16 @@ class TupimageTerminal:
         end_col = id.end_col
         end_row = id.end_row
 
-        if pos_col < clip_rect.start_col:
-            start_col += clip_rect.start_col - pos_col
-            pos_col = clip_rect.start_col
-        if pos_row < clip_rect.start_row:
-            start_row += clip_rect.start_row - pos_row
-            pos_row = clip_rect.start_row
-        if pos_col + end_col - start_col > clip_rect.end_col:
-            end_col = clip_rect.end_col - pos_col + start_col
-        if pos_row + end_row - start_row > clip_rect.end_row:
-            end_row = clip_rect.end_row - pos_row + start_row
+        if pos_col < clip.start_col:
+            start_col += clip.start_col - pos_col
+            pos_col = clip.start_col
+        if pos_row < clip.start_row:
+            start_row += clip.start_row - pos_row
+            pos_row = clip.start_row
+        if pos_col + end_col - start_col > clip.end_col:
+            end_col = clip.end_col - pos_col + start_col
+        if pos_row + end_row - start_row > clip.end_row:
+            end_row = clip.end_row - pos_row + start_row
 
         if end_col <= start_col or end_row <= start_row:
             return id
@@ -956,9 +1015,12 @@ class TupimageTerminal:
         return id
 
     def _move_cursor_to_final_position(
-        self, cols: int, rows: int, final_cursor_pos: Optional[str]
+        self, cols: int, rows: int, final_cursor_pos: Optional[FinalCursorPos]
     ):
-        if final_cursor_pos is None or final_cursor_pos == "bottom-right":
+        if final_cursor_pos is None:
+            final_cursor_pos = self._config.final_cursor_pos
+
+        if final_cursor_pos == "bottom-right":
             return
         elif final_cursor_pos == "top-right":
             self.term.move_cursor(up=rows - 1)
@@ -968,3 +1030,5 @@ class TupimageTerminal:
             self.term.move_cursor(left=cols)
             # This sequence moves the cursor down, maybe creating a newline.
             self.term.write(b"\033D")
+        else:
+            raise ValueError(f"Invalid final_cursor_pos: {final_cursor_pos}")

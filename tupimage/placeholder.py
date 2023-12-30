@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Tuple, List, Optional, Callable
+from typing import BinaryIO, Tuple, List, Optional, Callable, Union
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 
@@ -365,6 +365,19 @@ class ImagePlaceholderMode:
 
 
 @dataclass(frozen=True)
+class CellFormatting:
+    func: Callable[[int, int], bytes]
+
+
+@dataclass(frozen=True)
+class RowFormatting:
+    func: Callable[[int], bytes]
+
+
+AdditionalFormatting = Union[CellFormatting, RowFormatting, bytes, None]
+
+
+@dataclass(frozen=True)
 class ImagePlaceholder:
     image_id: int
     placement_id: int = 0
@@ -411,20 +424,37 @@ class ImagePlaceholder:
     def to_lines(
         self,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        formatting: AdditionalFormatting = None,
         no_escape: bool = False,
     ) -> List[bytes]:
         placeholder_bytes = mode.placeholder_char.encode("utf-8")
 
-        line_formatting = b""
+        # Custom formatting.
+        cell_formatting = None
+        row_formatting = None
+        if formatting is None:
+            pass
+        elif isinstance(formatting, bytes):
+            row_formatting = lambda row: formatting
+        elif isinstance(formatting, CellFormatting):
+            cell_formatting = formatting.func
+        elif isinstance(formatting, RowFormatting):
+            row_formatting = formatting.func
+        else:
+            raise TypeError(
+                "formatting must be None, a bytes, a CellFormatting or a"
+                f" RowFormatting: {formatting}"
+            )
+
+        line_id_colors = b""
         # Encode first 24 bits of IDs in the fg and underline colors.
         if not no_escape:
             if mode.allow_256colors_for_image_id and (
                 self.image_id & 0xFFFF00 == 0
             ):
-                line_formatting += b"\033[38;5;%dm" % (self.image_id & 0xFF)
+                line_id_colors += b"\033[38;5;%dm" % (self.image_id & 0xFF)
             else:
-                line_formatting += b"\033[38;2;%d;%d;%dm" % (
+                line_id_colors += b"\033[38;2;%d;%d;%dm" % (
                     (self.image_id >> 16) & 0xFF,
                     (self.image_id >> 8) & 0xFF,
                     self.image_id & 0xFF,
@@ -433,11 +463,11 @@ class ImagePlaceholder:
                 if mode.allow_256colors_for_placement_id and (
                     self.placement_id & 0xFFFF00 == 0
                 ):
-                    line_formatting += b"\033[58;5;%dm" % (
+                    line_id_colors += b"\033[58;5;%dm" % (
                         self.placement_id & 0xFF
                     )
                 else:
-                    line_formatting += b"\033[58;2;%d;%d;%dm" % (
+                    line_id_colors += b"\033[58;2;%d;%d;%dm" % (
                         (self.placement_id >> 16) & 0xFF,
                         (self.placement_id >> 8) & 0xFF,
                         self.placement_id & 0xFF,
@@ -472,21 +502,23 @@ class ImagePlaceholder:
         result = []
         # Print the placeholder.
         for row in range(self.start_row, self.end_row):
+            line = b""
+            # Start the line with the custom row formatting.
+            if row_formatting is not None:
+                line += row_formatting(row)
             # If the row is over the limit, print spaces.
             if row >= len(ROWCOLUMN_DIACRITICS_UTF8):
-                line = b""
                 for col in range(self.start_col, self.end_col):
-                    if formatting is not None:
-                        line += formatting(col, row)
+                    if cell_formatting is not None:
+                        line += cell_formatting(col, row)
                     line += b" "
                 result.append(line)
-                break
                 continue
-            # Line formatting encoding colors for IDs.
-            line = line_formatting
+            # Insert fg and underline colors encoding IDs.
+            line += line_id_colors
             # Custom cell formatting.
-            if formatting is not None:
-                line += formatting(self.start_col, row)
+            if cell_formatting is not None:
+                line += cell_formatting(self.start_col, row)
             # The row diacritic.
             row_diacritic = ROWCOLUMN_DIACRITICS_UTF8[row]
             # Print the placeholder and diacritics for the first column.
@@ -499,8 +531,8 @@ class ImagePlaceholder:
                         line += image_id_4thbyte_diacritic
             # Print the placeholders with diacritics for other columns.
             for col in range(self.start_col + 1, self.end_col):
-                if formatting is not None:
-                    line += formatting(col, row)
+                if cell_formatting is not None:
+                    line += cell_formatting(col, row)
                 line += placeholder_bytes
                 if othercol_diacritic_count >= 1:
                     line += row_diacritic
@@ -517,10 +549,10 @@ class ImagePlaceholder:
         self,
         stream: BinaryIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        formatting: AdditionalFormatting = None,
         no_escape: bool = False,
     ):
-        lines = self.to_lines(mode, no_escape=no_escape)
+        lines = self.to_lines(mode, formatting, no_escape=no_escape)
         if not no_escape:
             stream.write(b"\033[0m")
         for line in lines:
@@ -534,7 +566,7 @@ class ImagePlaceholder:
         stream: BinaryIO,
         position: Tuple[int, int],
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        formatting: AdditionalFormatting = None,
     ):
         lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
@@ -549,7 +581,7 @@ class ImagePlaceholder:
         self,
         stream: BinaryIO,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
-        formatting: Optional[Callable[[int, int], bytes]] = None,
+        formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
     ):
         lines = self.to_lines(mode, formatting)
