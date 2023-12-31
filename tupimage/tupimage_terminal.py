@@ -377,6 +377,8 @@ class TupimageTerminal:
     final_cursor_pos = _config_property("final_cursor_pos")
     clip = _config_property("clip")
     supported_formats = _config_property("supported_formats")
+    stream_max_size = _config_property("stream_max_size")
+    file_max_size = _config_property("file_max_size")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -457,8 +459,12 @@ class TupimageTerminal:
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
     ) -> Tuple[int, int]:
-        if cols is None and rows is None:
+        if cols is not None and rows is not None:
             return cols, rows
+        if cols is not None and cols <= 0:
+            raise ValueError(f"cols must be positive: {cols}")
+        if rows is not None and rows <= 0:
+            raise ValueError(f"rows must be positive: {rows}")
         max_cols, max_rows = self.get_max_cols_and_rows(
             max_cols=max_cols, max_rows=max_rows
         )
@@ -554,10 +560,10 @@ class TupimageTerminal:
         id_color_bits: Optional[int] = None,
         id_use_3rd_diacritic: Optional[bool] = None,
     ) -> IDFeatures:
-        id_color_bits = id_color_bits or self._config.id_color_bits
-        id_use_3rd_diacritic = (
-            id_use_3rd_diacritic or self._config.id_use_3rd_diacritic
-        )
+        if id_color_bits is None:
+            id_color_bits = self._config.id_color_bits
+        if id_use_3rd_diacritic is None:
+            id_use_3rd_diacritic = self._config.id_use_3rd_diacritic
         return IDFeatures(
             color_bits=id_color_bits,
             use_3rd_diacritic=id_use_3rd_diacritic,
@@ -774,6 +780,7 @@ class TupimageTerminal:
         elif upload_method == TransmissionMedium.DIRECT:
             bytesio = io.BytesIO()
             image_object.save(bytesio, format="PNG")
+            size = bytesio.tell()
             self.term.send_command(
                 TransmitCommand(
                     image_id=inst.id,
@@ -786,6 +793,7 @@ class TupimageTerminal:
                 .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
                 .set_data(bytesio)
             )
+            return size
 
     def _transmit_file(
         self,

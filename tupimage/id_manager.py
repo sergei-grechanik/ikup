@@ -149,7 +149,7 @@ class IDFeatures:
                 color_bits = 8
         return IDFeatures(color_bits, use_3rd_diacritic)
 
-    def num_bits(self) -> int:
+    def num_nonzero_bits(self) -> int:
         """Get the number of bits of an ID that may be nonzero in this space."""
         return (8 if self.use_3rd_diacritic else 0) + self.color_bits
 
@@ -157,9 +157,9 @@ class IDFeatures:
         """Get the name of this IDFeatures space that can be used as an
         identifier or a file name."""
         if self.use_3rd_diacritic:
-            return f"ids_{self.num_bits()}bit_3rd_diacritic"
+            return f"ids_{self.num_nonzero_bits()}bit_3rd_diacritic"
         else:
-            return f"ids_{self.num_bits()}bit"
+            return f"ids_{self.num_nonzero_bits()}bit"
 
     def contains(self, id: int) -> bool:
         return self.from_id(id) == self
@@ -301,10 +301,10 @@ class IDManager:
             self.cursor.execute(f"""
                     CREATE TABLE IF NOT EXISTS {namespace} (
                         id INTEGER PRIMARY KEY,
-                        path TEXT,
-                        params TEXT,
-                        mtime TIMESTAMP,
-                        atime TIMESTAMP
+                        path TEXT NOT NULL,
+                        params TEXT NOT NULL,
+                        mtime TIMESTAMP NOT NULL,
+                        atime TIMESTAMP NOT NULL
                     )
                 """)
             self.cursor.execute(
@@ -320,13 +320,13 @@ class IDManager:
         # Make sure we have a table for recent uploads.
         self.cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS upload (
-                    id INTEGER,
-                    path TEXT,
-                    params TEXT,
-                    mtime TIMESTAMP,
-                    size INTEGER,
-                    terminal TEXT,
-                    upload_time TIMESTAMP,
+                    id INTEGER NOT NULL,
+                    path TEXT NOT NULL,
+                    params TEXT NOT NULL,
+                    mtime TIMESTAMP NOT NULL,
+                    size INTEGER NOT NULL,
+                    terminal TEXT NOT NULL,
+                    upload_time TIMESTAMP NOT NULL,
                     PRIMARY KEY (id, terminal)
                 )
             """)
@@ -486,7 +486,7 @@ class IDManager:
 
             # If the subspace is small enough, we will select all the rows and
             # identify unused IDs.
-            if subspace_size <= min(256, self.max_ids_per_subspace):
+            if subspace_size <= min(1024, self.max_ids_per_subspace):
                 # First check the count of rows in the subspace. If the subspace
                 # is full, select the oldest row and update it.
                 if self.count(id_features, subspace) >= subspace_size:
@@ -622,6 +622,8 @@ class IDManager:
         if not row:
             return None
         path, params, mtime_str, upload_time_str, size = row
+        if size is None:
+            size = 0
         self.cursor.execute(
             """
             SELECT COUNT(*), SUM(size) FROM upload
@@ -671,7 +673,7 @@ class IDManager:
         id: int,
         terminal: str,
         *,
-        size: Optional[int] = None,
+        size: int,
         upload_time: Optional[datetime] = None,
     ):
         if upload_time is None:
