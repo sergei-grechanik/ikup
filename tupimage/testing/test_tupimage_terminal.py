@@ -1,8 +1,10 @@
+import time
+
+from PIL import Image, ImageOps
+
 import tupimage
 from tupimage import TupimageTerminal
 from tupimage.testing import TestingContext, screenshot_test
-from PIL import Image, ImageOps
-import time
 
 
 @screenshot_test

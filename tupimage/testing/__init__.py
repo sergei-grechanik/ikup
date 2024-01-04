@@ -1,2 +1,2 @@
-from .context import *
 from .comparison import *
+from .context import *

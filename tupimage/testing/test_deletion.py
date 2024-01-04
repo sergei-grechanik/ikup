@@ -1,12 +1,13 @@
+import numpy as np
+
 import tupimage
 from tupimage import (
+    DeleteCommand,
     GraphicsTerminal,
     PutCommand,
     TransmitCommand,
-    DeleteCommand,
 )
 from tupimage.testing import TestingContext, screenshot_test
-import numpy as np
 
 
 @screenshot_test

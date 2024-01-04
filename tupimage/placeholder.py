@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Tuple, List, Optional, Callable, Union
+from typing import BinaryIO, Callable, List, Tuple, Union
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 

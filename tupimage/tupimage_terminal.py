@@ -1,36 +1,36 @@
-import toml
 import dataclasses
-import typing
-import platformdirs
-import os
 import datetime
-import math
-import json
 import hashlib
-import subprocess
-import re
-import tempfile
-import zlib
 import io
-from PIL import Image
-from PIL import ImageColor
+import json
+import math
+import os
+import re
+import subprocess
+import tempfile
+import typing
+import zlib
 from dataclasses import dataclass
-from typing import BinaryIO, Optional, Tuple, Union, List, Callable, Literal
+from typing import BinaryIO, Callable, List, Literal, Optional, Tuple, Union
+
+import platformdirs
+import toml
+from PIL import Image, ImageColor
 
 import tupimage
 from tupimage import (
     GraphicsCommand,
     GraphicsResponse,
-    TransmitCommand,
-    PlacementData,
-    PutCommand,
     GraphicsTerminal,
-    ImagePlaceholderMode,
-    ImagePlaceholder,
-    IDSubspace,
     IDFeatures,
     IDManager,
+    IDSubspace,
+    ImagePlaceholder,
+    ImagePlaceholderMode,
+    PlacementData,
+    PutCommand,
     TransmissionMedium,
+    TransmitCommand,
 )
 
 
@@ -763,7 +763,9 @@ class TupimageTerminal:
             image_object = image_object.resize((width, height))
 
         if upload_method == TransmissionMedium.FILE:
-            with tempfile.NamedTemporaryFile("wb", delete=False, prefix="tty-graphics-protocol-") as f:
+            with tempfile.NamedTemporaryFile(
+                "wb", delete=False, prefix="tty-graphics-protocol-"
+            ) as f:
                 image_object.save(
                     f,
                     format=(

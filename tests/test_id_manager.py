@@ -1,8 +1,10 @@
-import pytest
-from tupimage.id_manager import *
-from itertools import islice
-from datetime import datetime, timedelta
 import random
+from datetime import datetime, timedelta
+from itertools import islice
+
+import pytest
+
+from tupimage.id_manager import *
 
 
 @pytest.mark.parametrize("fixed_bits", range(7))

@@ -1,12 +1,13 @@
+import time
+
 import tupimage
 from tupimage import (
+    GraphicsResponse,
     GraphicsTerminal,
     PutCommand,
     TransmitCommand,
-    GraphicsResponse,
 )
 from tupimage.testing import TestingContext, screenshot_test
-import time
 
 
 @screenshot_test

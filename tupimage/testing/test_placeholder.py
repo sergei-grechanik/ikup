@@ -1,11 +1,11 @@
 import tupimage
 from tupimage import (
-    GraphicsTerminal,
-    PutCommand,
-    TransmitCommand,
     DiacriticLevel,
+    GraphicsTerminal,
     ImagePlaceholder,
     ImagePlaceholderMode,
+    PutCommand,
+    TransmitCommand,
 )
 from tupimage.testing import TestingContext, screenshot_test
 

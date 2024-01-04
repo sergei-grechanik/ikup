@@ -1,22 +1,22 @@
+import argparse
 import datetime
+import os
 from fnmatch import fnmatch
 from typing import List
-import argparse
-import os
 
 import tupimage
 from tupimage import GraphicsTerminal
-from tupimage.utils import validate_size
 from tupimage.testing import (
     TestingContext,
     test_basics,
-    test_placement,
-    test_uploading,
-    test_response,
     test_deletion,
     test_placeholder,
+    test_placement,
+    test_response,
     test_tupimage_terminal,
+    test_uploading,
 )
+from tupimage.utils import validate_size
 
 
 def is_test_enabled(funcname, tests: List[str]):

@@ -1,11 +1,13 @@
+import os
+import shutil
+import tempfile
+import time
+
+import numpy as np
+
 import tupimage
 from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
-import os
-import numpy as np
-import time
-import tempfile
-import shutil
 
 
 @screenshot_test
@@ -13,18 +15,24 @@ def tempfile_png(ctx: TestingContext):
     term = ctx.term
     f, filename = tempfile.mkstemp(prefix="tty-graphics-protocol")
     shutil.copyfile(ctx.get_wikipedia_png(), filename)
-    cmd = TransmitCommand(
-        image_id=1,
-        medium=tupimage.TransmissionMedium.TEMP_FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
-    ).set_filename(filename).set_placement(
-        rows=10,
-        cols=20,
+    cmd = (
+        TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.TEMP_FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            format=tupimage.Format.PNG,
+        )
+        .set_filename(filename)
+        .set_placement(
+            rows=10,
+            cols=20,
+        )
     )
     term.send_command(cmd)
     time.sleep(0.2)
-    ctx.assert_true(not os.path.exists(filename), f"File {filename} must not exist.")
+    ctx.assert_true(
+        not os.path.exists(filename), f"File {filename} must not exist."
+    )
     ctx.take_screenshot("Wikipedia logo, temporary file uploading.")
 
 

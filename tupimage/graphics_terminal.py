@@ -1,24 +1,24 @@
+import copy
 import fcntl
 import os
+import random
 import select
 import struct
 import termios
-import copy
-import random
 import time
-from typing import BinaryIO, Optional, Tuple, Union, List, Callable
+from typing import BinaryIO, List, Optional, Tuple, Union
 
 from tupimage import (
     GraphicsCommand,
     GraphicsResponse,
-    TransmitCommand,
     PlacementData,
     PutCommand,
+    TransmitCommand,
 )
 from tupimage.placeholder import (
-    ImagePlaceholderMode,
-    ImagePlaceholder,
     AdditionalFormatting,
+    ImagePlaceholder,
+    ImagePlaceholderMode,
 )
 
 

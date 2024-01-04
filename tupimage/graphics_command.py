@@ -1,9 +1,9 @@
 import base64
-import io
 import dataclasses
+import io
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Optional, Union, Iterator, Dict
+from typing import BinaryIO, Dict, Iterator, Optional, Union
 
 
 class Quietness(Enum):

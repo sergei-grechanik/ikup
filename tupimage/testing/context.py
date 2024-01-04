@@ -1,15 +1,16 @@
+import colorsys
+import io
+import json
 import os
 import subprocess
 import termios
 import time
 import urllib.request
-from typing import Callable, List, Optional, Tuple, Union
-from PIL import Image, ImageDraw
-import numpy as np
-import io
 import zlib
-import colorsys
-import json
+from typing import Callable, List, Optional, Tuple, Union
+
+import numpy as np
+from PIL import Image, ImageDraw
 
 from tupimage import GraphicsTerminal
 
