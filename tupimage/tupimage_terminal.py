@@ -763,7 +763,7 @@ class TupimageTerminal:
             image_object = image_object.resize((width, height))
 
         if upload_method == TransmissionMedium.FILE:
-            with tempfile.NamedTemporaryFile("wb", delete=False) as f:
+            with tempfile.NamedTemporaryFile("wb", delete=False, prefix="tty-graphics-protocol-") as f:
                 image_object.save(
                     f,
                     format=(

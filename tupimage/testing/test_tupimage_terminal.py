@@ -2,6 +2,7 @@ import tupimage
 from tupimage import TupimageTerminal
 from tupimage.testing import TestingContext, screenshot_test
 from PIL import Image, ImageOps
+import time
 
 
 @screenshot_test
@@ -191,4 +192,6 @@ def specify_num_rows(ctx: TestingContext):
         tupiterm.upload_and_display(
             ctx.get_column_png(), rows=rows, final_cursor_pos="bottom-left"
         )
+    # This test seems to be flaky, so let's wait a bit.
+    time.sleep(0.5)
     ctx.take_screenshot("The number of rows is specified")
