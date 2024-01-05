@@ -6,17 +6,21 @@ from typing import List
 
 import tupimage
 from tupimage import GraphicsTerminal
+from tupimage.testing import TestingContext
+from tupimage.utils import validate_size
+
+# isort: off
 from tupimage.testing import (
-    TestingContext,
     test_basics,
+    test_placement,
+    test_uploading,
+    test_response,
     test_deletion,
     test_placeholder,
-    test_placement,
-    test_response,
     test_tupimage_terminal,
-    test_uploading,
 )
-from tupimage.utils import validate_size
+
+# isort: on
 
 
 def is_test_enabled(funcname, tests: List[str]):

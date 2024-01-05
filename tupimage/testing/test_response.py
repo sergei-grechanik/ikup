@@ -1,12 +1,7 @@
 import time
 
 import tupimage
-from tupimage import (
-    GraphicsResponse,
-    GraphicsTerminal,
-    PutCommand,
-    TransmitCommand,
-)
+from tupimage import GraphicsResponse, GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
 
 
