@@ -628,3 +628,128 @@ def subimage_slice_vertically(ctx: TestingContext):
         ctx.take_screenshot(
             "An image sliced vertically, may be stretched, but without gaps"
         )
+
+
+@screenshot_test
+def subimage_oob(ctx: TestingContext):
+    term = ctx.term
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    ).set_filename(ctx.get_small_arrow_png())
+    term.send_command(trcmd)
+    putcmd = PutCommand(
+        image_id=1,
+        src_x=0,
+        src_y=0,
+        src_w=100,
+        src_h=100,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(putcmd)
+    term.write(". <- bottom-right corner")
+    ctx.take_screenshot(
+        "Small arrow, subimage, w and h are way out of bounds, but we expect"
+        " them to be truncated and there will not be much empty space"
+    )
+    term.reset()
+    term.send_command(trcmd)
+    term.send_command(putcmd.clone_with(rows=10, cols=20))
+    term.write(". <- bottom-right corner")
+    ctx.take_screenshot(
+        "Small arrow, subimage, w and h are way out of bounds. rows and columns"
+        " are explicitly specified, the behavior is the same"
+    )
+
+
+@screenshot_test
+def subimage_thin(ctx: TestingContext):
+    term = ctx.term
+    term.send_command(
+        TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            format=tupimage.Format.PNG,
+        ).set_filename(ctx.get_wikipedia_png())
+    )
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=200,
+            src_h=3,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    term.write("1\n")
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=200,
+            src_h=3,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    term.write("2\n")
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=200,
+            src_h=3,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    term.write("3\n")
+    ctx.take_screenshot(
+        "A very thin vertical slice of wiki repeated 3 times. Note the"
+        " alignment."
+    )
+    term.reset()
+    term.write("123\n")
+    term.send_command(
+        TransmitCommand(
+            image_id=1,
+            medium=tupimage.TransmissionMedium.FILE,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            format=tupimage.Format.PNG,
+        ).set_filename(ctx.get_wikipedia_png())
+    )
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=100,
+            src_x=200,
+            src_w=2,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor(right=1)
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=100,
+            src_x=200,
+            src_w=2,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor(right=1)
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            src_y=100,
+            src_x=200,
+            src_w=2,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor(right=1)
+    ctx.take_screenshot(
+        "A very thin vertical slice of wiki repeated 3 times. Note the"
+        " alignment."
+    )
