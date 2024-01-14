@@ -753,3 +753,83 @@ def subimage_thin(ctx: TestingContext):
         "A very thin vertical slice of wiki repeated 3 times. Note the"
         " alignment."
     )
+
+
+@screenshot_test
+def subimage_oob_xy(ctx: TestingContext):
+    term = ctx.term
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    ).set_filename(ctx.get_small_arrow_png())
+    term.send_command(trcmd)
+    putcmd = PutCommand(
+        image_id=1,
+        src_x=150,
+        src_y=150,
+        src_w=100,
+        src_h=100,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(putcmd)
+    term.write(". <- bottom-right corner")
+    ctx.take_screenshot(
+        "Both x and y are oob. Most probably the image will be empty, but most"
+        " importantly the terminal shouldn't crash or hang."
+    )
+
+
+@screenshot_test
+def subimage_negative_xy(ctx: TestingContext):
+    term = ctx.term
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    ).set_filename(ctx.get_small_arrow_png())
+    term.send_command(trcmd)
+    putcmd = PutCommand(
+        image_id=1,
+        src_x=-100,
+        src_y=-100,
+        src_w=200,
+        src_h=200,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(putcmd)
+    term.write(". <- bottom-right corner")
+    ctx.take_screenshot(
+        "Both x and y are negative. The image may be empty or just the image"
+        " without additional margins, but most importantly the terminal"
+        " shouldn't crash or hang."
+    )
+
+
+@screenshot_test
+def subimage_negative_wh(ctx: TestingContext):
+    term = ctx.term
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    ).set_filename(ctx.get_small_arrow_png())
+    term.send_command(trcmd)
+    putcmd = PutCommand(
+        image_id=1,
+        src_x=10,
+        src_y=10,
+        src_w=-9,
+        src_h=-9,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+    )
+    term.send_command(putcmd)
+    term.write(". <- bottom-right corner")
+    ctx.take_screenshot(
+        "Both w and h are negative. The image may be empty or display some part"
+        " of the image, but most importantly the terminal shouldn't crash or"
+        " hang."
+    )
