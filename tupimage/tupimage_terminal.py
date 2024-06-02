@@ -952,8 +952,8 @@ class TupimageTerminal:
 
         if clip == NoClipping():
             if abs_pos is None:
-                id.to_stream_at_cursor(
-                    self.term.tty_out, mode=mode, formatting=formatting
+                self.term.print_placeholder(
+                    placeholder=id, mode=mode, formatting=formatting
                 )
             else:
                 if abs_pos[0] < 0 or abs_pos[1] < 0:
@@ -961,8 +961,11 @@ class TupimageTerminal:
                         "Absolute position must be non-negative (unless"
                         f" clipping is enabled): {abs_pos}"
                     )
-                id.to_stream_abs_position(
-                    self.term.tty_out, abs_pos, mode=mode, formatting=formatting
+                self.term.print_placeholder(
+                    placeholder=id,
+                    pos=abs_pos,
+                    mode=mode,
+                    formatting=formatting,
                 )
             self._move_cursor_to_final_position(
                 id.end_col - id.start_col,
@@ -1001,15 +1004,13 @@ class TupimageTerminal:
         if end_col <= start_col or end_row <= start_row:
             return id
 
-        ImagePlaceholder(
-            id.id,
+        self.term.print_placeholder(
+            image_id=id.id,
             start_col=start_col,
             start_row=start_row,
             end_col=end_col,
             end_row=end_row,
-        ).to_stream_abs_position(
-            self.term.tty_out,
-            (pos_col, pos_row),
+            pos=(pos_col, pos_row),
             mode=mode,
             formatting=formatting,
         )

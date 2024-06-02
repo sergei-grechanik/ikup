@@ -1,7 +1,7 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Callable, List, Tuple, Union
+from typing import BinaryIO, Callable, List, Optional, Tuple, Union
 
 PLACEHOLDER_CHAR = "\U0010eeee"
 
@@ -377,16 +377,18 @@ class RowFormatting:
 AdditionalFormatting = Union[CellFormatting, RowFormatting, bytes, None]
 
 
-@dataclass(frozen=True)
+@dataclass
 class ImagePlaceholder:
-    image_id: int
+    image_id: int = 0
     placement_id: int = 0
     start_col: int = 0
     start_row: int = 0
     end_col: int = 0
     end_row: int = 0
 
-    def __post_init__(self):
+    def validate(self):
+        if self.image_id == 0:
+            raise ValueError("Image ID cannot be zero")
         if self.image_id < 0 or self.image_id > 0xFFFFFFFF:
             raise ValueError(
                 "Image ID must be a 32-bit unsigned integer, but it is"
@@ -427,6 +429,7 @@ class ImagePlaceholder:
         formatting: AdditionalFormatting = None,
         no_escape: bool = False,
     ) -> List[bytes]:
+        self.validate()
         placeholder_bytes = mode.placeholder_char.encode("utf-8")
 
         # Custom formatting.
@@ -564,16 +567,14 @@ class ImagePlaceholder:
     def to_stream_abs_position(
         self,
         stream: BinaryIO,
-        position: Tuple[int, int],
+        pos: Tuple[int, int],
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
     ):
         lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
-            stream.write(
-                b"\033[%d;%dH" % (position[1] + idx + 1, position[0] + 1)
-            )
+            stream.write(b"\033[%d;%dH" % (pos[1] + idx + 1, pos[0] + 1))
             stream.write(line)
         stream.write(b"\033[0m")
 
@@ -603,3 +604,16 @@ class ImagePlaceholder:
                 # This sequence moves the cursor down, maybe creating a newline.
                 stream.write(b"\033D")
         stream.write(b"\033[0m")
+
+    def to_stream(
+        self,
+        stream: BinaryIO,
+        pos: Optional[Tuple[int, int]] = None,
+        mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: AdditionalFormatting = None,
+        use_save_cursor: bool = True,
+    ):
+        if pos is not None:
+            self.to_stream_abs_position(stream, pos, mode, formatting)
+        else:
+            self.to_stream_at_cursor(stream, mode, formatting, use_save_cursor)

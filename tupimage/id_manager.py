@@ -298,7 +298,8 @@ class IDManager:
         # Make sure we have tables for all ID namespaces.
         for id_features in IDFeatures.all_values():
             namespace = id_features.namespace_name()
-            self.cursor.execute(f"""
+            self.cursor.execute(
+                f"""
                     CREATE TABLE IF NOT EXISTS {namespace} (
                         id INTEGER PRIMARY KEY,
                         path TEXT NOT NULL,
@@ -306,7 +307,8 @@ class IDManager:
                         mtime TIMESTAMP NOT NULL,
                         atime TIMESTAMP NOT NULL
                     )
-                """)
+                """
+            )
             self.cursor.execute(
                 f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
                     ON {namespace} (path, params)
@@ -318,7 +320,8 @@ class IDManager:
                 """
             )
         # Make sure we have a table for recent uploads.
-        self.cursor.execute(f"""
+        self.cursor.execute(
+            f"""
                 CREATE TABLE IF NOT EXISTS upload (
                     id INTEGER NOT NULL,
                     path TEXT NOT NULL,
@@ -329,7 +332,8 @@ class IDManager:
                     upload_time TIMESTAMP NOT NULL,
                     PRIMARY KEY (id, terminal)
                 )
-            """)
+            """
+        )
         self.cursor.execute(
             f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
                 ON upload (upload_time)

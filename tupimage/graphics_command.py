@@ -227,6 +227,10 @@ class TransmitCommand(GraphicsCommand):
         self.data = data
         return self
 
+    def set_data_from_file(self, filename: str) -> "TransmitCommand":
+        self.data = open(filename, "rb")
+        return self
+
     def set_placement(self, **kwargs) -> "TransmitCommand":
         self.placement = PlacementData(**kwargs)
         return self

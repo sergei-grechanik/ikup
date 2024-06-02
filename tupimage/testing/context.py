@@ -141,6 +141,9 @@ class TestingContext:
         self.current_test_data = {"name": name, "screenshots": []}
         self.screenshot_index = 0
         self.report_file.write(f"<h2>{name}</h2>\n")
+        if self.term.shellscript_out is not None:
+            self.term.shellscript_out.write(f"\n\n# {name}")
+            self.term.shellscript_out.write(" {{{\n\n")
         self.term.reset()
 
     def _end_test(self):
@@ -154,6 +157,8 @@ class TestingContext:
             lst.append(self.current_test_data)
             f.seek(0)
             json.dump(lst, f, indent=4)
+        if self.term.shellscript_out is not None:
+            self.term.shellscript_out.write("# End of test }}}\n")
 
     def get_image_size(self, filename: str) -> Tuple[int, int]:
         img = Image.open(filename)
@@ -245,6 +250,9 @@ class TestingContext:
         self.dump_unexpected_responses()
         self.term.tty_out.flush()
         time.sleep(0.5)
+        if self.term.shellscript_out is not None:
+            self.term.shellscript_out.write(f"\n# Screenshot: {description}\n")
+            self.term.shellscript_out.write("sleep 0.5\n\n")
         rel_filename = os.path.join(
             self.test_name,
             f"screenshot-{self.screenshot_index}.png",

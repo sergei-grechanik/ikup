@@ -1,12 +1,14 @@
+import base64
 import copy
 import fcntl
+import io
 import os
 import random
 import select
 import struct
 import termios
 import time
-from typing import BinaryIO, List, Optional, Tuple, Union
+from typing import BinaryIO, List, Optional, TextIO, Tuple, Union
 
 from tupimage import (
     GraphicsCommand,
@@ -44,6 +46,96 @@ class GraphicsCommandGuard:
         self.term.end_graphics_command()
 
 
+class ShellScriptBinaryIOHelper(BinaryIO):
+    def __init__(self, shellscript_out: TextIO):
+        self.shellscript_out: TextIO = shellscript_out
+        self.pending: bytes = b""
+
+    @staticmethod
+    def _escape_bytes(data: bytes) -> str:
+        escaped = []
+        for byte in data:
+            c = chr(byte)
+            if 32 <= byte <= 126 and c not in "\\%'":
+                # Printable ASCII char.
+                escaped.append(chr(byte))
+            elif c == "\n":
+                escaped.append("\\n")
+            elif c == "\\":
+                escaped.append("\\\\")
+            elif c == "%":
+                escaped.append("%%")
+            else:
+                escaped.append("\\{:03o}".format(byte))
+        return "".join(escaped)
+
+    @staticmethod
+    def write_to_shellscript(
+        shellscript_out: TextIO, data: bytes, comment: str = ""
+    ):
+        if comment:
+            shellscript_out.write(
+                "printf '" + ShellScriptBinaryIOHelper._escape_bytes(data) + "'"
+            )
+            shellscript_out.write(f" # {comment}\n")
+            return
+        parts = data.split(b"\n")
+        for part in parts[:-1]:
+            if not part:
+                shellscript_out.write("printf '\\n'\n")
+                continue
+            shellscript_out.write(
+                "printf '"
+                + ShellScriptBinaryIOHelper._escape_bytes(part)
+                + "\\n'\n"
+            )
+        if parts[-1]:
+            shellscript_out.write(
+                "printf '"
+                + ShellScriptBinaryIOHelper._escape_bytes(parts[-1])
+                + "'\n"
+            )
+        shellscript_out.flush()
+
+    def write_pending(self):
+        if self.pending:
+            ShellScriptBinaryIOHelper.write_to_shellscript(
+                self.shellscript_out, self.pending
+            )
+            self.pending = b""
+
+    def write(self, data: Union[bytes, bytearray]):
+        data = bytes(data)
+        if self._try_write_base64(data):
+            return
+        if len(self.pending) + len(data) > 80:
+            self.write_pending()
+            self.pending = data
+        else:
+            self.pending += data
+
+    def _try_write_base64(self, data: bytes) -> bool:
+        if len(data) > 172 or len(data) < 2:
+            return False
+        try:
+            decoded = base64.b64decode(data, validate=True)
+            escaped = ShellScriptBinaryIOHelper._escape_bytes(decoded)
+            # Avoid too many special characters in the decoded string.
+            if len(escaped) > len(decoded) * 1.05:
+                return False
+            self.write_pending()
+            self.shellscript_out.write(f"printf '{escaped}' | base64\n")
+            return True
+        except:
+            return False
+
+    def __enter__(self) -> "ShellScriptBinaryIOHelper":
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.write_pending()
+
+
 class GraphicsTerminal:
     def __init__(
         self,
@@ -53,6 +145,7 @@ class GraphicsTerminal:
         autosplit_max_size: int = 2816,
         force_placeholders: bool = False,
         num_tmux_layers: int = 0,
+        shellscript_out: Optional[TextIO] = None,
     ):
         self.num_tmux_layers: int = num_tmux_layers
         if tty_filename is not None:
@@ -72,6 +165,7 @@ class GraphicsTerminal:
         self.force_placeholders: bool = force_placeholders
         self.old_term_settings = []
         self.tracked_cursor_position: Optional[Tuple[int, int]] = None
+        self.shellscript_out: Optional[TextIO] = shellscript_out
 
     def clone_with(
         self,
@@ -89,23 +183,30 @@ class GraphicsTerminal:
             res.num_tmux_layers = num_tmux_layers
         return res
 
+    def _write(self, data: bytes, comment: str = ""):
+        self.tty_out.write(data)
+        if self.shellscript_out is not None:
+            ShellScriptBinaryIOHelper.write_to_shellscript(
+                self.shellscript_out, data, comment
+            )
+
     def write(self, string: Union[str, bytes]):
         if isinstance(string, str):
             string = string.encode("utf-8")
-        self.tty_out.write(string)
+        self._write(string)
         self.tracked_cursor_position = None
 
     def start_graphics_command(self):
         string = b"\033_G"
         for i in range(self.num_tmux_layers):
             string = b"\033Ptmux;" + string.replace(b"\033", b"\033\033")
-        self.tty_out.write(string)
+        self._write(string)
 
     def end_graphics_command(self):
         string = b"\033\\"
         for i in range(self.num_tmux_layers):
             string = string.replace(b"\033", b"\033\033") + b"\033\\"
-        self.tty_out.write(string)
+        self._write(string)
         self.tty_out.flush()
 
     def guard_graphics_command(self) -> GraphicsCommandGuard:
@@ -114,30 +215,56 @@ class GraphicsTerminal:
     def send_command_raw(self, command: GraphicsCommand):
         with self.guard_graphics_command():
             command.content_to_stream(self.tty_out)
+            if self.shellscript_out is not None:
+                with ShellScriptBinaryIOHelper(self.shellscript_out) as bio:
+                    command.content_to_stream(bio)
 
     def print_placeholder(
         self,
-        image_id: int,
-        placement_id: int = 0,
-        start_col: int = 0,
-        start_row: int = 0,
-        end_col: int = 0,
-        end_row: int = 0,
+        placeholder: ImagePlaceholder = None,
+        image_id: int = None,
+        placement_id: int = None,
+        start_col: int = None,
+        start_row: int = None,
+        end_col: int = None,
+        end_row: int = None,
+        pos: Optional[Tuple[int, int]] = None,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
     ):
-        ImagePlaceholder(
-            image_id=image_id,
-            placement_id=placement_id,
-            end_col=end_col,
-            end_row=end_row,
-        ).to_stream_at_cursor(
+        if placeholder is None:
+            placeholder = ImagePlaceholder()
+        if image_id is not None:
+            placeholder.image_id = image_id
+        if placement_id is not None:
+            placeholder.placement_id = placement_id
+        if start_col is not None:
+            placeholder.start_col = start_col
+        if start_row is not None:
+            placeholder.start_row = start_row
+        if end_col is not None:
+            placeholder.end_col = end_col
+        if end_row is not None:
+            placeholder.end_row = end_row
+        placeholder.to_stream(
             self.tty_out,
+            pos=pos,
             mode=mode,
             formatting=formatting,
             use_save_cursor=use_save_cursor,
         )
+        if self.shellscript_out:
+            self.shellscript_out.write(f"# Placeholder {placeholder}\n")
+            with ShellScriptBinaryIOHelper(self.shellscript_out) as bio:
+                placeholder.to_stream(
+                    bio,
+                    pos=pos,
+                    mode=mode,
+                    formatting=formatting,
+                    use_save_cursor=use_save_cursor,
+                )
+            self.shellscript_out.write("\n")
 
     def print_placeholder_for_put(
         self,
@@ -156,7 +283,10 @@ class GraphicsTerminal:
                 rows = term_rows - cur_y
             else:
                 newlines = rows - (term_rows - cur_y)
-                self.tty_out.write(b"\033[%dS" % newlines)
+                self._write(
+                    b"\033[%dS" % newlines,
+                    comment=f"Move cursor down by {newlines}",
+                )
                 self.move_cursor(up=newlines)
         if cols <= 0 or rows <= 0:
             return
@@ -168,12 +298,12 @@ class GraphicsTerminal:
         )
         cur_x, cur_y = self.tracked_cursor_position
         self.tracked_cursor_position = None
-        placeholder.to_stream_at_cursor(self.tty_out, mode=mode)
+        self.print_placeholder(placeholder, mode=mode)
         if put_command.do_not_move_cursor:
             self.move_cursor_abs(col=cur_x, row=cur_y)
         elif cur_x + cols >= term_cols:
             # Newline
-            self.tty_out.write(b"\033E")
+            self._write(b"\033E", comment="Move cursor to start of next line")
             self.set_tracked_cursor_position(0, cur_y + rows)
         else:
             self.set_tracked_cursor_position(cur_x + cols, cur_y + rows - 1)
@@ -285,6 +415,8 @@ class GraphicsTerminal:
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
         with self.guard_tty_settings():
             self.set_immediate_input_noecho()
+            # Don't use self._write here since we don't want to record this in
+            # the generated shell script.
             self.tty_out.write(b"\033[6n")
             buffer = b""
             end_time = time.time() + timeout
@@ -354,7 +486,7 @@ class GraphicsTerminal:
             self.num_tmux_layers = 0
 
     def reset(self):
-        self.tty_out.write(b"\033c")
+        self._write(b"\033c", comment="Reset terminal")
         self.tty_out.flush()
         self.tracked_cursor_position = (0, 0)
 
@@ -421,14 +553,23 @@ class GraphicsTerminal:
             right = -left
         if down:
             if down > 0:
-                self.tty_out.write(b"\033[%dB" % down)
+                self._write(
+                    b"\033[%dB" % down, comment=f"Move cursor down by {down}"
+                )
             else:
-                self.tty_out.write(b"\033[%dA" % -down)
+                self._write(
+                    b"\033[%dA" % -down, comment=f"Move cursor up by {-down}"
+                )
         if right:
             if right > 0:
-                self.tty_out.write(b"\033[%dC" % right)
+                self._write(
+                    b"\033[%dC" % right, comment=f"Move cursor right by {right}"
+                )
             else:
-                self.tty_out.write(b"\033[%dD" % -right)
+                self._write(
+                    b"\033[%dD" % -right,
+                    comment=f"Move cursor left by {-right}",
+                )
         self.tty_out.flush()
         if self.tracked_cursor_position is not None:
             self.set_tracked_cursor_position(
@@ -448,9 +589,13 @@ class GraphicsTerminal:
                 raise ValueError("Cannot specify both pos and row/col")
             col, row = pos
         if row is not None:
-            self.tty_out.write(b"\033[%dd" % (row + 1))
+            self._write(
+                b"\033[%dd" % (row + 1), comment=f"Move cursor to row {row}"
+            )
         if col is not None:
-            self.tty_out.write(b"\033[%dG" % (col + 1))
+            self._write(
+                b"\033[%dG" % (col + 1), comment=f"Move cursor to column {col}"
+            )
         self.tty_out.flush()
         if self.tracked_cursor_position is not None:
             self.set_tracked_cursor_position(
@@ -464,16 +609,19 @@ class GraphicsTerminal:
             )
 
     def set_margins(self, top: int, bottom: int):
-        self.tty_out.write(b"\033[%d;%dr" % (top + 1, bottom + 1))
+        self._write(
+            b"\033[%d;%dr" % (top + 1, bottom + 1),
+            comment=f"Set margins to {top}-{bottom}",
+        )
         self.tty_out.flush()
         self.tracked_cursor_position = None
 
     def scroll_down(self, lines: int = 1):
-        self.tty_out.write(b"\033[%dS" % lines)
+        self._write(b"\033[%dS" % lines, comment=f"Scroll down by {lines}")
         self.tty_out.flush()
         self.tracked_cursor_position = None
 
     def scroll_up(self, lines: int = 1):
-        self.tty_out.write(b"\033[%dT" % lines)
+        self._write(b"\033[%dT" % lines, comment=f"Scroll up by {lines}")
         self.tty_out.flush()
         self.tracked_cursor_position = None

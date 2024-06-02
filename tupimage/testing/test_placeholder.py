@@ -63,12 +63,12 @@ def image_ids(ctx: TestingContext):
                 total_size += size
             term.write(f"\nTotal: {total_size} bytes\n")
             for p in placeholders:
-                p.to_stream_at_cursor(term.tty_out, mode=mode)
+                term.print_placeholder(p, mode=mode)
                 term.move_cursor(up=1)
             term.move_cursor(down=1)
             term.write("\n")
             for p in reversed(placeholders):
-                p.to_stream_at_cursor(term.tty_out, mode=mode)
+                term.print_placeholder(p, mode=mode)
                 term.move_cursor(up=1)
             term.move_cursor(down=1)
             term.write("\n")
@@ -105,9 +105,9 @@ def full_width(ctx: TestingContext):
             mode = ImagePlaceholderMode(
                 other_columns_diacritic_level=othercol_level
             )
-            ImagePlaceholder(
-                image_id=image_id, end_col=80, end_row=3
-            ).to_stream_at_cursor(term.tty_out, mode=mode)
+            term.print_placeholder(
+                image_id=image_id, end_col=80, end_row=3, mode=mode
+            )
         term.write(f"End")
         ctx.take_screenshot(f"Full-width rulers, image id = 0x{image_id:08x}")
         term.reset()
@@ -163,9 +163,9 @@ def vertical_stripes(ctx: TestingContext):
             .set_placement(virtual=True, rows=18, cols=8)
         )
         term.send_command(cmd)
-        ImagePlaceholder(
-            image_id=42, end_col=8, end_row=18
-        ).to_stream_abs_position(term.tty_out, position=(36, 0), mode=mode)
+        term.print_placeholder(
+            image_id=42, end_col=8, end_row=18, pos=(36, 0), mode=mode
+        )
         ctx.take_screenshot(
             f"Rulers with a column. The column may break the rulers on some"
             f" terminals."
@@ -207,19 +207,21 @@ def max_columns(ctx: TestingContext):
                     first_column_diacritic_level=firstcol_level,
                     other_columns_diacritic_level=othercol_level,
                 )
-                ImagePlaceholder(
+                term.print_placeholder(
                     image_id=image_id,
                     end_col=40,
                     start_row=row,
                     end_row=row + 1,
-                ).to_stream_at_cursor(term.tty_out, mode=mode)
-                ImagePlaceholder(
+                    mode=mode,
+                )
+                term.print_placeholder(
                     image_id=image_id,
                     start_col=columns - 40,
                     end_col=columns,
                     start_row=row,
                     end_row=row + 1,
-                ).to_stream_at_cursor(term.tty_out, mode=mode)
+                    mode=mode,
+                )
                 row += 1
         term.write("\n")
         ctx.take_screenshot(
@@ -262,12 +264,13 @@ def max_rows(ctx: TestingContext):
                         first_column_diacritic_level=firstcol_level,
                         other_columns_diacritic_level=othercol_level,
                     )
-                    ImagePlaceholder(
+                    term.print_placeholder(
                         image_id=image_id,
                         end_col=columns,
                         start_row=start_row,
                         end_row=end_row,
-                    ).to_stream_at_cursor(term.tty_out, mode=mode)
+                        mode=mode,
+                    )
                     term.move_cursor(up=9)
             term.move_cursor(down=9)
             term.write("\n")
@@ -279,12 +282,12 @@ def max_rows(ctx: TestingContext):
         term.reset()
         # Show all parts of the image
         for start_row in range(0, rows, 23):
-            ImagePlaceholder(
+            term.print_placeholder(
                 image_id=image_id,
                 end_col=columns,
                 start_row=start_row,
                 end_row=start_row + 24,
-            ).to_stream_at_cursor(term.tty_out)
+            )
             term.move_cursor(up=23)
         ctx.take_screenshot(
             f"All parts of the tall image, image id = 0x{image_id:08x}."

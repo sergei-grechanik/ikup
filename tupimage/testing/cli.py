@@ -44,6 +44,9 @@ def run(args):
     term.detect_tmux()
     real_term_size = term.get_size()
     real_cell_size = term.get_cell_size()
+    if args.dump_shell_script:
+        term.shellscript_out = open(args.dump_shell_script, "w")
+        term.shellscript_out.write("#!/bin/sh\n\n")
     if not args.ignore_size:
         if (
             real_term_size[0] != args.term_size[0]
@@ -137,6 +140,9 @@ def main():
     parser_run.add_argument("--output-dir", "-o", default=None, type=str)
     parser_run.add_argument("--data-dir", default=None, type=str)
     parser_run.add_argument("--pause", action="store_true")
+    parser_run.add_argument(
+        "--dump-shell-script", "--sh", default=None, type=str
+    )
     parser_run.add_argument("tests", nargs="*", type=str)
     parser_run.set_defaults(func=run)
 
