@@ -236,7 +236,7 @@ def max_columns(ctx: TestingContext):
 def max_rows(ctx: TestingContext):
     term = ctx.term
     rows = len(tupimage.ROWCOLUMN_DIACRITICS)
-    columns = 6
+    columns = 7
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
         cmd = TransmitCommand(
@@ -275,8 +275,8 @@ def max_rows(ctx: TestingContext):
             term.move_cursor(down=9)
             term.write("\n")
         ctx.take_screenshot(
-            "Tall image containing numbers, only the leftmost (~0-19) and"
-            " rightmost (~109-121) parts are shown, image id ="
+            "Tall image containing numbers, only the top (~0-4) and"
+            " the bottom (~143-147) parts are shown, image id ="
             f" 0x{image_id:08x}."
         )
         term.reset()
@@ -284,12 +284,12 @@ def max_rows(ctx: TestingContext):
         for start_row in range(0, rows, 23):
             term.print_placeholder(
                 image_id=image_id,
-                end_col=columns,
+                end_col=6,
                 start_row=start_row,
                 end_row=start_row + 24,
             )
             term.move_cursor(up=23)
         ctx.take_screenshot(
-            f"All parts of the tall image, image id = 0x{image_id:08x}."
+            f"All parts of the tall image, image id = 0x{image_id:08x}. Columns are slightly cropped"
         )
         term.reset()

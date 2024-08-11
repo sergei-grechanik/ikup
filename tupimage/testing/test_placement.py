@@ -1,3 +1,5 @@
+import math
+
 import tupimage
 from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
@@ -833,3 +835,54 @@ def subimage_negative_wh(ctx: TestingContext):
         " of the image, but most importantly the terminal shouldn't crash or"
         " hang."
     )
+
+
+@screenshot_test
+def alpha(ctx: TestingContext):
+    term = ctx.term
+    for color in [
+        (0, 0, 0),
+        (255, 255, 255),
+        (255, 0, 0),
+        (0, 255, 0),
+        (0, 0, 255),
+    ]:
+        term.send_command(
+            TransmitCommand(
+                image_id=1,
+                medium=tupimage.TransmissionMedium.DIRECT,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.PNG,
+            ).set_data(ctx.to_png(ctx.alpha_test_image(320, 160, color)))
+        )
+        for y in range(3):
+            term.write(f"\033[49m")
+            term.write(" " * 80 + "\n")
+        for y in range(4):
+            term.write(f"\033[48;2;0;0;0m")
+            term.write(" " * 80 + "\n")
+        for y in range(4):
+            term.write(f"\033[48;2;255;255;255m")
+            term.write(" " * 80 + "\n")
+        for y in range(3):
+            term.write(f"\033[48;2;255;0;0m")
+            term.write(" " * 80 + "\n")
+        for y in range(3):
+            term.write(f"\033[48;2;0;255;0m")
+            term.write(" " * 80 + "\n")
+        for y in range(3):
+            term.write(f"\033[48;2;0;0;255m")
+            term.write(" " * 80 + "\n")
+        term.move_cursor(up=20)
+        term.send_command(
+            PutCommand(
+                image_id=1,
+                rows=20,
+                cols=80,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            )
+        )
+        ctx.take_screenshot(
+            f"Rainbow background and a gradient going from transparent to solid, color {color}"
+        )
+        term.reset()

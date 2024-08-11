@@ -10,7 +10,7 @@ import zlib
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 from tupimage import GraphicsTerminal
 
@@ -62,6 +62,8 @@ class TestingContext:
         term_size: Tuple[int, int] = (80, 24),
         screenshot_cell_size: Tuple[int, int] = (4, 8),
         pause_after_screenshot: bool = False,
+        take_screenshots: bool = True,
+        reset_before_test: bool = True,
     ):
         self.term: GraphicsTerminal = term
         self.output_dir: str = output_dir
@@ -74,6 +76,8 @@ class TestingContext:
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
         self.pause_after_screenshot = pause_after_screenshot
+        self.take_screenshots: bool = take_screenshots
+        self.reset_before_test: bool = reset_before_test
         self.init_image_downloaders()
 
     def image_downloader(
@@ -144,7 +148,8 @@ class TestingContext:
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n\n# {name}")
             self.term.shellscript_out.write(" {{{\n\n")
-        self.term.reset()
+        if self.reset_before_test:
+            self.term.reset()
 
     def _end_test(self):
         self.test_name = None
@@ -164,16 +169,26 @@ class TestingContext:
         img = Image.open(filename)
         return img.size
 
-    def generate_image(self, width: int, height: int) -> bytes:
+    def generate_image(self, width: int, height: int) -> Image:
         #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))
         #  np.stack((xx, yy), axis=-1)
         data = np.random.random_sample(size=(height, width, 3))
         img = Image.fromarray((data * 255).astype(np.uint8), "RGB")
         return img
 
+    def alpha_test_image(
+        self, width: int, height: int, color: Tuple[int, int, int]
+    ) -> Image:
+        img = Image.new("RGBA", (width, height))
+        d = ImageDraw.Draw(img)
+        for x in range(width):
+            alpha = int(x / width * 255)
+            d.line([(x, 0), (x, height)], fill=color + (alpha,))
+        return img
+
     def text_to_image(
         self, text: str, pad: int = 2, colorize_by_id: Optional[int] = None
-    ) -> bytes:
+    ) -> Image:
         bg_color = "black"
         if colorize_by_id is not None:
             byte4 = (colorize_by_id & 0xFF000000) >> 24
@@ -185,12 +200,13 @@ class TestingContext:
             bg_color = tuple(int(c * 255) for c in bg_color)
         img = Image.new("RGB", (1, 1))
         d = ImageDraw.Draw(img)
-        width, height = d.textsize(text)
+        font = ImageFont.truetype("DejaVuSansMono.ttf", 16)
+        _, _, width, height = d.textbbox((0, 0), text, font=font)
         img = Image.new(
             "RGB", (width + pad * 2, height + pad * 2), color=bg_color
         )
         d = ImageDraw.Draw(img)
-        d.text((pad, pad), text, fill="white")
+        d.text((pad, pad), text, fill="white", font=font)
         d.rectangle(
             [(0, 0), (width + pad * 2 - 1, height + pad * 2 - 1)],
             outline="grey",
@@ -249,7 +265,6 @@ class TestingContext:
             raise RuntimeError("No test running")
         self.dump_unexpected_responses()
         self.term.tty_out.flush()
-        time.sleep(0.5)
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n# Screenshot: {description}\n")
             self.term.shellscript_out.write("sleep 0.5\n\n")
@@ -258,16 +273,20 @@ class TestingContext:
             f"screenshot-{self.screenshot_index}.png",
         )
         filename = os.path.join(self.output_dir, rel_filename)
-        take_screenshot(
-            filename, width=self.screenshot_width, height=self.screenshot_height
-        )
-        self.current_test_data["screenshots"].append(
-            {
-                "filename": rel_filename,
-                "index": self.screenshot_index,
-                "description": description or "",
-            }
-        )
+        if self.take_screenshots:
+            time.sleep(0.5)
+            take_screenshot(
+                filename,
+                width=self.screenshot_width,
+                height=self.screenshot_height,
+            )
+            self.current_test_data["screenshots"].append(
+                {
+                    "filename": rel_filename,
+                    "index": self.screenshot_index,
+                    "description": description or "",
+                }
+            )
         self.screenshot_index += 1
         if self.pause_after_screenshot:
             key = self.term.wait_keypress()

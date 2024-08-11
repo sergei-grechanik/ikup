@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import typing
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import BinaryIO, Callable, List, Literal, Optional, Tuple, Union
 
 import platformdirs
@@ -85,7 +85,7 @@ class ClipRectangle:
             raise ValueError(f"start_row ({self.start_row}) must be >= 0")
 
 
-@dataclass
+@dataclass(frozen=True)
 class NoClipping:
     pass
 

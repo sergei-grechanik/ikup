@@ -100,6 +100,8 @@ def run(args):
         term_size=args.term_size,
         screenshot_cell_size=args.cell_size,
         pause_after_screenshot=args.pause,
+        take_screenshots=not args.no_screenshots,
+        reset_before_test=not args.no_reset,
     )
     if not args.tests:
         args.tests = ["*"]
@@ -111,7 +113,8 @@ def run(args):
                 ran_any_tests = True
                 func(ctx)
                 ctx.dump_unexpected_responses()
-    ctx.term.reset()
+    if not args.no_reset:
+        ctx.term.reset()
     if ran_any_tests:
         ctx.print_results()
     else:
@@ -140,6 +143,8 @@ def main():
     parser_run.add_argument("--output-dir", "-o", default=None, type=str)
     parser_run.add_argument("--data-dir", default=None, type=str)
     parser_run.add_argument("--pause", action="store_true")
+    parser_run.add_argument("--no-screenshots", action="store_true")
+    parser_run.add_argument("--no-reset", action="store_true")
     parser_run.add_argument(
         "--dump-shell-script", "--sh", default=None, type=str
     )
