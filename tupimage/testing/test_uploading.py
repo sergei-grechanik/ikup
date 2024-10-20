@@ -6,7 +6,7 @@ import time
 import numpy as np
 
 import tupimage
-from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
+from tupimage import GraphicsTerminal, PutCommand, TransmitCommand, DeleteCommand
 from tupimage.testing import TestingContext, screenshot_test
 
 
@@ -469,3 +469,59 @@ def stress_too_many_placements(ctx: TestingContext):
         "Attempting to display 5 different placements for some of the images."
         " Many placements may be missing."
     )
+
+
+@screenshot_test(suffix="nomore", params={"nomore": True})
+@screenshot_test
+def direct_interrupted(ctx: TestingContext, nomore: bool = False):
+    term = ctx.term
+
+    image_id = 125 if nomore else 126
+
+    # A command to upload and display an image using direct transmission.
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.DIRECT,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+        image_id=image_id,
+    )
+    cmd.set_placement(rows=10, cols=20)
+    with open(ctx.get_tux_png(), "rb") as f:
+        cmd.set_data(f.read())
+    cmds = list(cmd.split(term.autosplit_max_size))
+
+    # Send half of the commands.
+    half = len(cmds) // 2
+    for i in range(half):
+        term.send_command(cmds[i])
+    ctx.write("Sent half of the commands.\n")
+
+    if nomore:
+        # Send a "no more" command (m=0).
+        term.send_command(
+            TransmitCommand(
+                image_id=image_id,
+                quiet=tupimage.Quietness.QUIET_ALWAYS,
+                more=False,
+            )
+        )
+        ctx.write("Sent m=0 command.\n")
+        ctx.take_screenshot("After sending half of the commands and the m=0.")
+    else:
+        # Send a deletion command.
+        term.send_command(
+            DeleteCommand(
+                what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+                delete_data=True,
+                image_id=image_id,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            )
+        )
+        ctx.write("Sent deletion command.\n")
+        ctx.take_screenshot("After sending half of the commands and the deletion command.")
+
+    # Now send all the commands.
+    for chunk in cmds:
+        term.send_command(chunk)
+    ctx.write("\nSent all of the commands.\n")
+    ctx.take_screenshot("After sending all of the commands. Tux should be seen.")
