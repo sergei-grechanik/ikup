@@ -120,7 +120,7 @@ def test_id_features_init():
     ],
 )
 def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
-    """Partially test the correctness of IDFeatures.all_ids().""" ""
+    """Partially test the correctness of IDFeatures.all_ids()."""
     ids = []
     # We check only some prefix of all_ids.
     for id in islice(id_features.all_ids(subspace), 10000):
@@ -172,9 +172,7 @@ def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
         IDSubspace(4, 0),
     ],
 )
-def test_id_features_gen_random_id(
-    id_features: IDFeatures, subspace: IDSubspace
-):
+def test_id_features_gen_random_id(id_features: IDFeatures, subspace: IDSubspace):
     """Test random generation of ids in a subspace."""
     ids = set()
     for i in range(10000):
@@ -275,9 +273,7 @@ def test_id_manager_single_id():
 @pytest.mark.parametrize("fixed_bits", [0, 1, 4, 5, 6])
 def test_id_manager_disjoint_subspaces(id_features: IDFeatures, fixed_bits):
     """Generate many ids for disjoint subspaces in each id-feature space."""
-    subspaces = [
-        IDSubspace(fixed_bits, v) for v in range(min(10, 1 << fixed_bits))
-    ]
+    subspaces = [IDSubspace(fixed_bits, v) for v in range(min(10, 1 << fixed_bits))]
     # We will have 1100 distinct "image" paths, so some of the paths will be
     # repeated 2 or 3 times.
     num_distinct_paths = 1100
@@ -302,15 +298,11 @@ def test_id_manager_disjoint_subspaces(id_features: IDFeatures, fixed_bits):
                 assert info.id == id
                 assert info.path == path
                 assert info.mtime == mtime
-                assert abs(info.atime - datetime.now()) < timedelta(
-                    milliseconds=5
-                )
+                assert abs(info.atime - datetime.now()) < timedelta(milliseconds=5)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
         subspace_size = id_features.subspace_size(subspace)
-        stored_paths = [
-            info.path for info in idman.get_all(id_features, subspace)
-        ]
+        stored_paths = [info.path for info in idman.get_all(id_features, subspace)]
         stored_paths.reverse()
         original_paths = subspace_to_paths[subspace]
         assert len(stored_paths) <= num_distinct_paths

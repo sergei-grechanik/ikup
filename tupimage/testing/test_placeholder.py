@@ -39,9 +39,7 @@ def image_ids(ctx: TestingContext):
                 ctx.to_png(ctx.text_to_image(img_str, colorize_by_id=image_id))
             )
         )
-        placeholders.append(
-            ImagePlaceholder(image_id=image_id, end_col=5, end_row=2)
-        )
+        placeholders.append(ImagePlaceholder(image_id=image_id, end_col=5, end_row=2))
     term.write("\n")
     ctx.take_screenshot(f"Image ids we are going to use.")
     for firstcol_level in DiacriticLevel:
@@ -99,15 +97,9 @@ def full_width(ctx: TestingContext):
             DiacriticLevel.ROW_COLUMN,
             DiacriticLevel.ROW_COLUMN_ID4THBYTE,
         ]:
-            term.write(
-                f"Non-first column diacritic level: {othercol_level.name}\n"
-            )
-            mode = ImagePlaceholderMode(
-                other_columns_diacritic_level=othercol_level
-            )
-            term.print_placeholder(
-                image_id=image_id, end_col=80, end_row=3, mode=mode
-            )
+            term.write(f"Non-first column diacritic level: {othercol_level.name}\n")
+            mode = ImagePlaceholderMode(other_columns_diacritic_level=othercol_level)
+            term.print_placeholder(image_id=image_id, end_col=80, end_row=3, mode=mode)
         term.write(f"End")
         ctx.take_screenshot(f"Full-width rulers, image id = 0x{image_id:08x}")
         term.reset()
@@ -139,12 +131,8 @@ def vertical_stripes(ctx: TestingContext):
             DiacriticLevel.ROW_COLUMN,
             DiacriticLevel.ROW_COLUMN_ID4THBYTE,
         ]:
-            term.write(
-                f"Non-first column diacritic level: {othercol_level.name}\n"
-            )
-            mode = ImagePlaceholderMode(
-                other_columns_diacritic_level=othercol_level
-            )
+            term.write(f"Non-first column diacritic level: {othercol_level.name}\n")
+            mode = ImagePlaceholderMode(other_columns_diacritic_level=othercol_level)
             ImagePlaceholder(
                 image_id=image_id, end_col=80, end_row=3
             ).to_stream_at_cursor(
@@ -154,8 +142,7 @@ def vertical_stripes(ctx: TestingContext):
             )
             term.write(f"\n")
         ctx.take_screenshot(
-            "Full-width rulers on a striped background, image id ="
-            f" 0x{image_id:08x}"
+            f"Full-width rulers on a striped background, image id = 0x{image_id:08x}"
         )
         cmd = (
             cmd.clone_with(image_id=42)
@@ -186,9 +173,7 @@ def max_columns(ctx: TestingContext):
             image_id=image_id,
         )
         cmd.set_placement(virtual=True, rows=12, cols=columns)
-        text = "\n".join(
-            ",".join(str(i) for i in range(122)) for _ in range(12)
-        )
+        text = "\n".join(",".join(str(i) for i in range(122)) for _ in range(12))
         cmd.set_data(ctx.to_png(ctx.text_to_image(text)))
         term.send_command(cmd)
         row = 0

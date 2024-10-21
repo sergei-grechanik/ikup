@@ -135,9 +135,7 @@ class TestingContext:
 
     def _start_test(self, name: str):
         self.test_name = name
-        os.makedirs(
-            os.path.join(self.output_dir, self.test_name), exist_ok=True
-        )
+        os.makedirs(os.path.join(self.output_dir, self.test_name), exist_ok=True)
         if self.report_file is None:
             self.report_file = open(
                 os.path.join(self.output_dir, "report.html"), "w", buffering=1
@@ -202,9 +200,7 @@ class TestingContext:
         d = ImageDraw.Draw(img)
         font = ImageFont.truetype("DejaVuSansMono.ttf", 16)
         _, _, width, height = d.textbbox((0, 0), text, font=font)
-        img = Image.new(
-            "RGB", (width + pad * 2, height + pad * 2), color=bg_color
-        )
+        img = Image.new("RGB", (width + pad * 2, height + pad * 2), color=bg_color)
         d = ImageDraw.Draw(img)
         d.text((pad, pad), text, fill="white", font=font)
         d.rectangle(

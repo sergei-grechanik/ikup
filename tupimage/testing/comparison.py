@@ -58,17 +58,13 @@ class ComparisonReport:
                         "<p>Test has fewer screenshots than reference. Missing"
                         " reference screenshots:</p>\n"
                     )
-                    html += self.screenshots_to_html(
-                        ref_shots[len(test_shots) :]
-                    )
+                    html += self.screenshots_to_html(ref_shots[len(test_shots) :])
                 if len(test_shots) > len(ref_shots):
                     html += (
                         "<p>Test has more screenshots than reference. Extra"
                         " test screenshots:</p>\n"
                     )
-                    html += self.screenshots_to_html(
-                        test_shots[len(ref_shots) :]
-                    )
+                    html += self.screenshots_to_html(test_shots[len(ref_shots) :])
         if self.screenshots:
             html += "<h2>Screenshots</h2>\n"
             for screenshot in self.screenshots:
@@ -107,9 +103,7 @@ def get_output_dir_and_json(path: str) -> Tuple[str, List[dict]]:
         if test["name"].startswith("test_"):
             test["name"] = test["name"][5:]
         for screenshot in test["screenshots"]:
-            screenshot["filename"] = os.path.join(
-                directory, screenshot["filename"]
-            )
+            screenshot["filename"] = os.path.join(directory, screenshot["filename"])
     return directory, json_data
 
 

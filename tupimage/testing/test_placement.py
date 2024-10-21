@@ -63,21 +63,15 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False):
     )
     term.move_cursor(right=5)
     term.send_command(
-        PutCommand(
-            image_id=1, rows=10, cols=20, quiet=1, do_not_move_cursor=True
-        )
+        PutCommand(image_id=1, rows=10, cols=20, quiet=1, do_not_move_cursor=True)
     )
     term.move_cursor(right=20)
     term.send_command(
-        PutCommand(
-            image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True
-        )
+        PutCommand(image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True)
     )
     term.move_cursor(down=5)
     term.send_command(
-        PutCommand(
-            image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True
-        )
+        PutCommand(image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True)
     )
     ctx.take_screenshot(
         "Wikipedia logo and some columns. The cursor should be at the top left"
@@ -94,9 +88,7 @@ def multisize(ctx: TestingContext, placeholder: bool = False):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(1, 5):
         start_col = 0
         for c in range(1, 10):
@@ -127,15 +119,11 @@ def oob(ctx: TestingContext, placeholder: bool = False):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_ruler_png())
-    )
+    term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_ruler_png()))
     for r in range(24):
         term.move_cursor_abs(row=r, col=80 - (24 - r))
         term.send_command(
-            PutCommand(
-                image_id=1, rows=1, cols=24, quiet=1, do_not_move_cursor=True
-            )
+            PutCommand(image_id=1, rows=1, cols=24, quiet=1, do_not_move_cursor=True)
         )
     term.move_cursor_abs(row=0, col=0)
     ctx.take_screenshot("A ruler that goes off the screen. Not to scale.")
@@ -150,9 +138,7 @@ def oob_down(ctx: TestingContext, placeholder: bool = False):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(3):
         term.send_command(
             PutCommand(
@@ -163,9 +149,7 @@ def oob_down(ctx: TestingContext, placeholder: bool = False):
                 do_not_move_cursor=False,
             )
         )
-    ctx.take_screenshot(
-        "Three penguins, arranged diagonally. The top one is cut off."
-    )
+    ctx.take_screenshot("Three penguins, arranged diagonally. The top one is cut off.")
 
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
@@ -177,9 +161,7 @@ def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(3):
         term.send_command(
             PutCommand(
@@ -206,12 +188,8 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     )
-    term.send_command(
-        cmd.clone_with(image_id=1).set_filename(ctx.get_wikipedia_png())
-    )
-    term.send_command(
-        cmd.clone_with(image_id=2).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_wikipedia_png()))
+    term.send_command(cmd.clone_with(image_id=2).set_filename(ctx.get_tux_png()))
     for y in [10, 20]:
         term.move_cursor_abs(row=y, col=0)
         for i in range(80):
@@ -254,14 +232,10 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
     term.set_margins(top=11, bottom=19)
     for i in range(3):
         term.scroll_up()
-        ctx.take_screenshot(
-            f"Scrolled up (moved the content down) {i + 1} times"
-        )
+        ctx.take_screenshot(f"Scrolled up (moved the content down) {i + 1} times")
     for i in range(6):
         term.scroll_down()
-        ctx.take_screenshot(
-            f"Scrolled down (moved the content up) {i + 1} times"
-        )
+        ctx.take_screenshot(f"Scrolled down (moved the content up) {i + 1} times")
     term.scroll_down(5)
     ctx.take_screenshot("Scrolled down 6 more lines")
 
@@ -284,9 +258,7 @@ def numbers(ctx: TestingContext, placeholder: bool = False):
                 term.send_command(
                     cmd.clone_with(image_id=image_id).set_data(
                         ctx.to_png(
-                            ctx.text_to_image(
-                                str(image_id), colorize_by_id=image_id
-                            )
+                            ctx.text_to_image(str(image_id), colorize_by_id=image_id)
                         )
                     )
                 )
@@ -330,9 +302,7 @@ def image_ids(ctx: TestingContext, placeholder: bool = False):
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
                     ctx.to_png(
-                        ctx.text_to_image(
-                            str(image_id), colorize_by_id=image_id
-                        )
+                        ctx.text_to_image(str(image_id), colorize_by_id=image_id)
                     )
                 )
             )
@@ -374,9 +344,7 @@ def placement_ids(ctx: TestingContext, placeholder: bool = False):
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
                     ctx.to_png(
-                        ctx.text_to_image(
-                            str(image_id), colorize_by_id=image_id
-                        )
+                        ctx.text_to_image(str(image_id), colorize_by_id=image_id)
                     )
                 )
             )
@@ -459,8 +427,7 @@ def no_columns(ctx: TestingContext):
     term.write("\n")
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
     ctx.take_screenshot(
-        "Small arrow, wiki, and dice. 7 rows each, the number of columns is"
-        " inferred"
+        "Small arrow, wiki, and dice. 7 rows each, the number of columns is inferred"
     )
 
 
@@ -509,9 +476,7 @@ def no_size(ctx: TestingContext):
     term.move_cursor_abs(pos=pos)
     term.write("\n")
     term.send_command(
-        cmd.clone_with().set_data(
-            ctx.to_png(ctx.text_to_image("Long text " * 8))
-        )
+        cmd.clone_with().set_data(ctx.to_png(ctx.text_to_image("Long text " * 8)))
     )
     ctx.take_screenshot("Text boxes, the number of rows/columns is inferred")
 
@@ -705,8 +670,7 @@ def subimage_thin(ctx: TestingContext):
     )
     term.write("3\n")
     ctx.take_screenshot(
-        "A very thin vertical slice of wiki repeated 3 times. Note the"
-        " alignment."
+        "A very thin vertical slice of wiki repeated 3 times. Note the alignment."
     )
     term.reset()
     term.write("123\n")
@@ -752,8 +716,7 @@ def subimage_thin(ctx: TestingContext):
     )
     term.move_cursor(right=1)
     ctx.take_screenshot(
-        "A very thin vertical slice of wiki repeated 3 times. Note the"
-        " alignment."
+        "A very thin vertical slice of wiki repeated 3 times. Note the alignment."
     )
 
 

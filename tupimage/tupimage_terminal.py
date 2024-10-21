@@ -71,13 +71,11 @@ class ClipRectangle:
             self.end_row = self.start_row + rows
         if self.end_col < self.start_col:
             raise ValueError(
-                f"end_col ({self.end_col}) must be >= start_col"
-                f" ({self.start_col})"
+                f"end_col ({self.end_col}) must be >= start_col" f" ({self.start_col})"
             )
         if self.end_row < self.start_row:
             raise ValueError(
-                f"end_row ({self.end_row}) must be >= start_row"
-                f" ({self.start_row})"
+                f"end_row ({self.end_row}) must be >= start_row" f" ({self.start_row})"
             )
         if self.start_col < 0:
             raise ValueError(f"start_col ({self.start_col}) must be >= 0")
@@ -191,10 +189,7 @@ class TupimageConfig:
             self.id_subspace = IDSubspace.from_string(self.id_subspace)
         if isinstance(self.cell_size, str) and self.cell_size != "auto":
             self.cell_size = tupimage.utils.validate_size(self.cell_size)
-        if (
-            isinstance(self.default_cell_size, str)
-            and self.default_cell_size != "auto"
-        ):
+        if isinstance(self.default_cell_size, str) and self.default_cell_size != "auto":
             self.default_cell_size = tupimage.utils.validate_size(
                 self.default_cell_size
             )
@@ -309,9 +304,7 @@ class TupimageTerminal:
             if os.environ.get("TUPIMAGE_CONFIG") is not None:
                 config = os.environ["TUPIMAGE_CONFIG"]
             else:
-                config_file = (
-                    platformdirs.user_config_dir("tupimage") + "/config.toml"
-                )
+                config_file = platformdirs.user_config_dir("tupimage") + "/config.toml"
                 if os.path.exists(config_file):
                     config = config_file
                 else:
@@ -638,8 +631,7 @@ class TupimageTerminal:
             inst = image
             if cols is not None or rows is not None:
                 raise ValueError(
-                    "Cannot specify cols or rows when uploading an"
-                    " ImageInstance"
+                    "Cannot specify cols or rows when uploading an ImageInstance"
                 )
             if force_id is not None:
                 raise ValueError(
@@ -662,9 +654,7 @@ class TupimageTerminal:
             )
         max_uploads_ago = self._config.reupload_max_uploads_ago
         max_bytes_ago = self._config.reupload_max_bytes_ago
-        max_time_ago = datetime.timedelta(
-            seconds=self._config.reupload_max_seconds_ago
-        )
+        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
         if force_reupload is None:
             force_reupload = self._config.force_reupload
         if self._config.redetect_terminal:
@@ -691,9 +681,7 @@ class TupimageTerminal:
                 formats.append("jpeg")
             return format.lower() in formats
         else:
-            return format.lower() in [
-                f.lower() for f in self._config.supported_formats
-            ]
+            return format.lower() in [f.lower() for f in self._config.supported_formats]
 
     def get_max_upload_size(self, upload_method: TransmissionMedium) -> int:
         if upload_method in [
@@ -731,9 +719,7 @@ class TupimageTerminal:
             raise ValueError(f"Unsupported upload method: {upload_method}")
 
         if check_response:
-            raise NotImplementedError(
-                "Checking the response is not yet implemented"
-            )
+            raise NotImplementedError("Checking the response is not yet implemented")
 
         max_upload_size = self.get_max_upload_size(upload_method)
 
@@ -941,9 +927,7 @@ class TupimageTerminal:
         if isinstance(id, int):
             id = ImagePlaceholder(image_id=id, end_col=cols, end_row=rows)
 
-        mode = self.get_image_placeholder_mode(
-            id, less_diacritics=less_diacritics
-        )
+        mode = self.get_image_placeholder_mode(id, less_diacritics=less_diacritics)
 
         formatting = self.get_formatting(background)
 

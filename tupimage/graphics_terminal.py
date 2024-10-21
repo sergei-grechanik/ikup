@@ -70,9 +70,7 @@ class ShellScriptBinaryIOHelper(BinaryIO):
         return "".join(escaped)
 
     @staticmethod
-    def write_to_shellscript(
-        shellscript_out: TextIO, data: bytes, comment: str = ""
-    ):
+    def write_to_shellscript(shellscript_out: TextIO, data: bytes, comment: str = ""):
         if comment:
             shellscript_out.write(
                 "printf '" + ShellScriptBinaryIOHelper._escape_bytes(data) + "'"
@@ -85,15 +83,11 @@ class ShellScriptBinaryIOHelper(BinaryIO):
                 shellscript_out.write("printf '\\n'\n")
                 continue
             shellscript_out.write(
-                "printf '"
-                + ShellScriptBinaryIOHelper._escape_bytes(part)
-                + "\\n'\n"
+                "printf '" + ShellScriptBinaryIOHelper._escape_bytes(part) + "\\n'\n"
             )
         if parts[-1]:
             shellscript_out.write(
-                "printf '"
-                + ShellScriptBinaryIOHelper._escape_bytes(parts[-1])
-                + "'\n"
+                "printf '" + ShellScriptBinaryIOHelper._escape_bytes(parts[-1]) + "'\n"
             )
         shellscript_out.flush()
 
@@ -150,9 +144,7 @@ class GraphicsTerminal:
         self.num_tmux_layers: int = num_tmux_layers
         if tty_filename is not None:
             if tty_out is not None or tty_in is not None:
-                raise ValueError(
-                    "Cannot specify both tty_filename and tty_out/tty_in"
-                )
+                raise ValueError("Cannot specify both tty_filename and tty_out/tty_in")
         if tty_out is None and tty_in is None and tty_filename is None:
             tty_filename = "/dev/tty"
         self.tty_in: Optional[BinaryIO] = tty_in
@@ -328,9 +320,7 @@ class GraphicsTerminal:
                 command = command.clone_with()
                 command.placement.virtual = True
                 if command.placement.placement_id is None:
-                    command.placement.placement_id = random.randint(
-                        1, 2**24 - 1
-                    )
+                    command.placement.placement_id = random.randint(1, 2**24 - 1)
             if isinstance(command, PutCommand) and not command.virtual:
                 need_to_print_placeholder = True
                 command = command.clone_with(virtual=True)
@@ -342,10 +332,7 @@ class GraphicsTerminal:
         else:
             self.send_command_raw(command)
         if need_to_print_placeholder:
-            if (
-                isinstance(command, TransmitCommand)
-                and command.placement is not None
-            ):
+            if isinstance(command, TransmitCommand) and command.placement is not None:
                 self.print_placeholder_for_put(command.get_put_command())
             if isinstance(command, PutCommand):
                 self.print_placeholder_for_put(command)
@@ -447,9 +434,7 @@ class GraphicsTerminal:
             self.tracked_cursor_position = (int(x) - 1, int(y) - 1)
         return self.tracked_cursor_position
 
-    def get_cursor_position_tracked(
-        self, timeout: float = 2.0
-    ) -> Tuple[int, int]:
+    def get_cursor_position_tracked(self, timeout: float = 2.0) -> Tuple[int, int]:
         if self.tracked_cursor_position is None:
             self.get_cursor_position(timeout=timeout)
         return self.tracked_cursor_position
@@ -553,13 +538,9 @@ class GraphicsTerminal:
             right = -left
         if down:
             if down > 0:
-                self._write(
-                    b"\033[%dB" % down, comment=f"Move cursor down by {down}"
-                )
+                self._write(b"\033[%dB" % down, comment=f"Move cursor down by {down}")
             else:
-                self._write(
-                    b"\033[%dA" % -down, comment=f"Move cursor up by {-down}"
-                )
+                self._write(b"\033[%dA" % -down, comment=f"Move cursor up by {-down}")
         if right:
             if right > 0:
                 self._write(
@@ -589,13 +570,9 @@ class GraphicsTerminal:
                 raise ValueError("Cannot specify both pos and row/col")
             col, row = pos
         if row is not None:
-            self._write(
-                b"\033[%dd" % (row + 1), comment=f"Move cursor to row {row}"
-            )
+            self._write(b"\033[%dd" % (row + 1), comment=f"Move cursor to row {row}")
         if col is not None:
-            self._write(
-                b"\033[%dG" % (col + 1), comment=f"Move cursor to column {col}"
-            )
+            self._write(b"\033[%dG" % (col + 1), comment=f"Move cursor to column {col}")
         self.tty_out.flush()
         if self.tracked_cursor_position is not None:
             self.set_tracked_cursor_position(

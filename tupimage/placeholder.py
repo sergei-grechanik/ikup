@@ -452,9 +452,7 @@ class ImagePlaceholder:
         line_id_colors = b""
         # Encode first 24 bits of IDs in the fg and underline colors.
         if not no_escape:
-            if mode.allow_256colors_for_image_id and (
-                self.image_id & 0xFFFF00 == 0
-            ):
+            if mode.allow_256colors_for_image_id and (self.image_id & 0xFFFF00 == 0):
                 line_id_colors += b"\033[38;5;%dm" % (self.image_id & 0xFF)
             else:
                 line_id_colors += b"\033[38;2;%d;%d;%dm" % (
@@ -466,9 +464,7 @@ class ImagePlaceholder:
                 if mode.allow_256colors_for_placement_id and (
                     self.placement_id & 0xFFFF00 == 0
                 ):
-                    line_id_colors += b"\033[58;5;%dm" % (
-                        self.placement_id & 0xFF
-                    )
+                    line_id_colors += b"\033[58;5;%dm" % (self.placement_id & 0xFF)
                 else:
                     line_id_colors += b"\033[58;2;%d;%d;%dm" % (
                         (self.placement_id >> 16) & 0xFF,

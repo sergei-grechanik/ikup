@@ -88,8 +88,7 @@ def run(args):
         args.output_dir = f".tupimage-testing/{output_dir_name}"
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         raise RuntimeError(
-            f"Output directory {args.output_dir} already exists and is not"
-            " empty."
+            f"Output directory {args.output_dir} already exists and is not empty."
         )
     if args.data_dir is None:
         args.data_dir = f".tupimage-testing/data"
@@ -145,9 +144,7 @@ def main():
     parser_run.add_argument("--pause", action="store_true")
     parser_run.add_argument("--no-screenshots", action="store_true")
     parser_run.add_argument("--no-reset", action="store_true")
-    parser_run.add_argument(
-        "--dump-shell-script", "--sh", default=None, type=str
-    )
+    parser_run.add_argument("--dump-shell-script", "--sh", default=None, type=str)
     parser_run.add_argument("tests", nargs="*", type=str)
     parser_run.set_defaults(func=run)
 

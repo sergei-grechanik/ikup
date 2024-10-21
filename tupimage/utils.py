@@ -4,9 +4,7 @@ import argparse
 def validate_size(value: str):
     split_value = value.split("x")
     if len(split_value) != 2:
-        raise argparse.ArgumentTypeError(
-            f"Size must be specified as WxH: {value}"
-        )
+        raise argparse.ArgumentTypeError(f"Size must be specified as WxH: {value}")
     try:
         width = int(split_value[0])
         height = int(split_value[1])
@@ -19,14 +17,8 @@ def validate_size(value: str):
 
 def validate_place(value: str):
     split_value = [part.split("x") for part in value.split("@")]
-    if (
-        len(split_value) != 2
-        or len(split_value[0]) != 2
-        or len(split_value[1]) != 2
-    ):
-        raise argparse.ArgumentTypeError(
-            f"Place must be specified as WxH@XxY: {value}"
-        )
+    if len(split_value) != 2 or len(split_value[0]) != 2 or len(split_value[1]) != 2:
+        raise argparse.ArgumentTypeError(f"Place must be specified as WxH@XxY: {value}")
     try:
         width = int(split_value[0][0])
         height = int(split_value[0][1])

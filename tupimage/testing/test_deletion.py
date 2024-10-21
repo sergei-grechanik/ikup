@@ -291,13 +291,9 @@ def everything(ctx: TestingContext):
         quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         format=tupimage.Format.PNG,
     ).set_placement(rows=10, cols=20)
-    term.send_command(
-        cmd.clone_with(image_id=42).set_filename(ctx.get_wikipedia_png())
-    )
+    term.send_command(cmd.clone_with(image_id=42).set_filename(ctx.get_wikipedia_png()))
     term.move_cursor(up=9)
-    term.send_command(
-        cmd.clone_with(image_id=43).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_id=43).set_filename(ctx.get_tux_png()))
     term.move_cursor(up=9)
     term.send_command(
         cmd.clone_with(image_id=44).set_filename(ctx.get_transparency_png())

@@ -30,8 +30,7 @@ def upload_and_display_from_file(ctx: TestingContext):
                 tupiterm.term.write("\n")
         print(f" (method={method}, from file)", end="", flush=True)
         ctx.take_screenshot(
-            "Wikipedias and tuxes, using different ID settings,"
-            f" method={method}"
+            f"Wikipedias and tuxes, using different ID settings, method={method}"
         )
 
 

@@ -30,9 +30,7 @@ def tempfile_png(ctx: TestingContext):
     )
     term.send_command(cmd)
     time.sleep(0.2)
-    ctx.assert_true(
-        not os.path.exists(filename), f"File {filename} must not exist."
-    )
+    ctx.assert_true(not os.path.exists(filename), f"File {filename} must not exist.")
     ctx.take_screenshot("Wikipedia logo, temporary file uploading.")
 
 
@@ -149,14 +147,10 @@ def direct_rgb(ctx: TestingContext):
                 format=tupimage.Format.from_bits(bits),
                 compression=tupimage.Compression.from_bool(compress),
             )
-            data, w, h = ctx.to_rgb_and_wh(
-                ctx.get_tux_png(), bits, compress=compress
-            )
+            data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
             print(f"size: {len(data) // 1024}K")
             term.send_command(
-                cmd.clone_with(image_id=1, pix_width=w, pix_height=h).set_data(
-                    data
-                )
+                cmd.clone_with(image_id=1, pix_width=w, pix_height=h).set_data(data)
             )
             term.send_command(
                 PutCommand(
@@ -172,9 +166,7 @@ def direct_rgb(ctx: TestingContext):
             )
             print(f"size: {len(data) // 1024}K")
             term.send_command(
-                cmd.clone_with(image_id=2, pix_width=w, pix_height=h).set_data(
-                    data
-                )
+                cmd.clone_with(image_id=2, pix_width=w, pix_height=h).set_data(data)
             )
             term.send_command(
                 PutCommand(
@@ -208,9 +200,7 @@ def image_number(ctx: TestingContext):
         "Wikipedia logo, sent with an image number, combined transmit-and-put"
         " command."
     )
-    term.send_command(
-        cmd.clone_with(image_number=43).set_filename(ctx.get_tux_png())
-    )
+    term.send_command(cmd.clone_with(image_number=43).set_filename(ctx.get_tux_png()))
     term.send_command(
         PutCommand(
             image_number=43,
@@ -219,9 +209,7 @@ def image_number(ctx: TestingContext):
             quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
         )
     )
-    ctx.take_screenshot(
-        "Tux, sent with an image number, separate transmit and put."
-    )
+    ctx.take_screenshot("Tux, sent with an image number, separate transmit and put.")
 
 
 @screenshot_test
@@ -260,14 +248,10 @@ def image_number_multiple(ctx: TestingContext):
     for i in range(2):
         for idx, filename in enumerate(files):
             term.send_command(
-                transmit_cmd.clone_with(image_number=idx + 1).set_filename(
-                    filename
-                )
+                transmit_cmd.clone_with(image_number=idx + 1).set_filename(filename)
             )
         for idx, filename in enumerate(files):
-            term.send_command(
-                put_cmd.clone_with(rows=5, cols=10, image_number=idx + 1)
-            )
+            term.send_command(put_cmd.clone_with(rows=5, cols=10, image_number=idx + 1))
             term.move_cursor(up=4)
     ctx.take_screenshot(
         "Line, wiki, tux, dice, sent with image numbers, separate transmit and"
@@ -293,9 +277,7 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
             term.send_command(
                 cmd.clone_with(image_id=image_id).set_data(
                     ctx.to_png(
-                        ctx.text_to_image(
-                            str(image_id), colorize_by_id=image_id
-                        )
+                        ctx.text_to_image(str(image_id), colorize_by_id=image_id)
                     )
                 )
             )
@@ -413,9 +395,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
                 )
             )
             image_id += step
-    ctx.take_screenshot(
-        "Displayed some one-pixel images, some will be missing."
-    )
+    ctx.take_screenshot("Displayed some one-pixel images, some will be missing.")
 
 
 @screenshot_test
@@ -518,7 +498,9 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False):
             )
         )
         ctx.write("Sent deletion command.\n")
-        ctx.take_screenshot("After sending half of the commands and the deletion command.")
+        ctx.take_screenshot(
+            "After sending half of the commands and the deletion command."
+        )
 
     # Now send all the commands.
     for chunk in cmds:

@@ -178,9 +178,7 @@ class TransmitCommand(GraphicsCommand):
         data.seek(0)
         cur_chunk = data.read(max_size)
         next_chunk = data.read(max_size)
-        yield self.clone_with(
-            data=cur_chunk, more=original_more or bool(next_chunk)
-        )
+        yield self.clone_with(data=cur_chunk, more=original_more or bool(next_chunk))
         while next_chunk:
             cur_chunk = next_chunk
             next_chunk = data.read(max_size)
@@ -308,9 +306,7 @@ class GraphicsResponse:
     image_id: Optional[int] = None
     image_number: Optional[int] = None
     placement_id: Optional[int] = None
-    additional_data: Dict[str, Optional[str]] = dataclasses.field(
-        default_factory=dict
-    )
+    additional_data: Dict[str, Optional[str]] = dataclasses.field(default_factory=dict)
     message: str = ""
     is_ok: bool = False
     is_valid: bool = False

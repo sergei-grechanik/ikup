@@ -86,10 +86,7 @@ class IDSubspace:
         return (1 << self.fixed_bits) - 1
 
     def _rand_nonzero_byte(self) -> int:
-        b = (
-            _randbits(8 - self.fixed_bits, nonzero=self.value == 0)
-            << self.fixed_bits
-        )
+        b = _randbits(8 - self.fixed_bits, nonzero=self.value == 0) << self.fixed_bits
         return self._modify_byte(b)
 
     def _all_nonzero_bytes(self) -> Iterator[int]:
@@ -525,10 +522,7 @@ class IDManager:
                     row_id = row[0]
                     row_atime = datetime.fromisoformat(row[1])
                     available_ids.remove(row_id)
-                    if (
-                        oldest_atime_id is None
-                        or row_atime < oldest_atime_id[1]
-                    ):
+                    if oldest_atime_id is None or row_atime < oldest_atime_id[1]:
                         oldest_atime_id = (row_id, row_atime)
                 if available_ids:
                     id = secrets.choice(list(available_ids))
@@ -553,9 +547,7 @@ class IDManager:
                 # Run rejection sampling.
                 for j in range(8):
                     id = id_features.gen_random_id(subspace)
-                    self.cursor.execute(
-                        f"SELECT id FROM {namespace} WHERE id=?", (id,)
-                    )
+                    self.cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
                     if not self.cursor.fetchone():
                         break
                     id = None
@@ -579,9 +571,7 @@ class IDManager:
             self.cleanup(
                 id_features,
                 subspace,
-                max_ids=min(
-                    int(subspace_size * frac), self.max_ids_per_subspace
-                ),
+                max_ids=min(int(subspace_size * frac), self.max_ids_per_subspace),
             )
 
     def cleanup(

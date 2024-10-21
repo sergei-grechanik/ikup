@@ -73,9 +73,7 @@ def main():
         nargs="?",
         default=10,
         type=int,
-        help=(
-            "Time to wait for a response when detecting image display support."
-        ),
+        help=("Time to wait for a response when detecting image display support."),
     )
     parser_icat.add_argument(
         "--print-window-size",
@@ -124,9 +122,7 @@ def main():
         nargs="?",
         default="detect",
         choices=["detect", "none", "tmux"],
-        help=(
-            "Surround graphics commands with escape sequences for passthrough."
-        ),
+        help=("Surround graphics commands with escape sequences for passthrough."),
     )
     parser_icat.add_argument(
         "--image-id",
