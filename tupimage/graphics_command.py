@@ -37,6 +37,7 @@ class TransmissionMedium(Enum):
     DIRECT = "d"
     FILE = "f"
     TEMP_FILE = "t"
+    SHARED_MEMORY = "s"
 
     @staticmethod
     def from_string(s: str) -> "TransmissionMedium":
@@ -46,6 +47,8 @@ class TransmissionMedium(Enum):
             return TransmissionMedium.FILE
         elif s == "t" or s == "temp" or s == "tempfile":
             return TransmissionMedium.TEMP_FILE
+        elif s == "s" or s == "shm":
+            return TransmissionMedium.SHARED_MEMORY
         else:
             raise ValueError(f"Unsupported transmission medium: {s}")
 
@@ -148,6 +151,7 @@ class TransmitCommand(GraphicsCommand):
     medium: Optional[TransmissionMedium] = None
     data: Union[bytes, BinaryIO] = b""
     size: Optional[int] = None
+    offset: Optional[int] = None
     quiet: Optional[Quietness] = None
     more: Optional[bool] = None
     format: Optional[Format] = None
@@ -197,6 +201,7 @@ class TransmitCommand(GraphicsCommand):
             (b"I", self.image_number),
             (b"t", self.medium),
             (b"S", self.size),
+            (b"O", self.offset),
             (b"q", self.quiet),
             (b"m", self.more),
             (b"f", self.format),
@@ -206,7 +211,7 @@ class TransmitCommand(GraphicsCommand):
         )
         if not self.omit_action:
             action = "q" if self.query else "t" if self.placement is None else "T"
-            tup = (tup + (b"a", action),)
+            tup = tup + ((b"a", action),)
         if self.placement is not None:
             tup = tup + self.placement.to_tuple()
         return tup

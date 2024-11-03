@@ -290,6 +290,11 @@ class TestingContext:
                 self.term.write(b"\033[0m")
                 raise KeyboardInterrupt()
 
+    def take_screenshot_verbose(self, description: str = None):
+        if description is not None:
+            self.term.write(description)
+        self.take_screenshot(description)
+
     def assert_equal(self, lhs, rhs):
         if lhs != rhs:
             raise AssertionError(f"{lhs} != {rhs}")

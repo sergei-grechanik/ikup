@@ -8,6 +8,7 @@ import numpy as np
 import tupimage
 from tupimage import GraphicsTerminal, PutCommand, TransmitCommand, DeleteCommand
 from tupimage.testing import TestingContext, screenshot_test
+from multiprocessing import shared_memory
 
 
 @screenshot_test
@@ -182,6 +183,40 @@ def direct_rgb(ctx: TestingContext):
             )
 
 
+@screenshot_test
+def shm_png(ctx: TestingContext):
+    term = ctx.term
+    # Test with an offset, and make it divisible by the page size.
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    offset = page_size
+
+    term.reset()
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.SHARED_MEMORY,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    with open(ctx.get_wikipedia_png(), "rb") as f:
+        data = f.read()
+    size = len(data)
+    shm = shared_memory.SharedMemory(create=True, size=offset + len(data))
+    shm.buf[offset : offset + len(data)] = data
+    shm.close()
+    term.send_command(
+        cmd.clone_with(image_id=1, offset=offset, size=size).set_filename(shm.name)
+    )
+    term.send_command(
+        PutCommand(
+            image_id=1,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    term.write("\n")
+    ctx.take_screenshot_verbose("Wikipedia, png via shared memory")
+
+
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
 def direct_default(ctx: TestingContext, placeholder: bool = False):
@@ -208,6 +243,94 @@ def direct_default(ctx: TestingContext, placeholder: bool = False):
         )
     )
     ctx.take_screenshot(f"Tux and wiki, default transmission (direct, 32-bit data)")
+
+
+@screenshot_test
+def shm_rgb(ctx: TestingContext):
+    term = ctx.term
+    # Test with an offset, and make it divisible by the page size.
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    offset = page_size
+    for compress in [False, True]:
+        for bits in [24, 32]:
+            term.reset()
+            cmd = TransmitCommand(
+                medium=tupimage.TransmissionMedium.SHARED_MEMORY,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.from_bits(bits),
+                compression=tupimage.Compression.from_bool(compress),
+            )
+            data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
+            # If we don't compress, the size can be inferred from width and height.
+            size = None if not compress else len(data)
+            # Note that we don't unlink because the terminal does that for us. Currently
+            # python will complain about the shared memory being leaked, which is a
+            # bug in python.
+            # TODO: In 3.13 there is a new track=False parameter to SharedMemory.
+            shm = shared_memory.SharedMemory(create=True, size=offset + len(data))
+            shm.buf[offset : offset + len(data)] = data
+            shm.close()
+            term.send_command(
+                cmd.clone_with(
+                    image_id=1, pix_width=w, pix_height=h, offset=offset, size=size
+                ).set_filename(shm.name)
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=1,
+                    rows=10,
+                    cols=20,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+            term.write("\n")
+            ctx.take_screenshot_verbose(
+                f"Tux, shared memory, {bits}-bit data, compress = {compress}"
+            )
+
+
+@screenshot_test
+def shm_rgb(ctx: TestingContext):
+    term = ctx.term
+    # Test with an offset, and make it divisible by the page size.
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    offset = page_size
+    for compress in [False, True]:
+        for bits in [24, 32]:
+            term.reset()
+            cmd = TransmitCommand(
+                medium=tupimage.TransmissionMedium.SHARED_MEMORY,
+                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                format=tupimage.Format.from_bits(bits),
+                compression=tupimage.Compression.from_bool(compress),
+            )
+            data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
+            # If we don't compress, the size can be inferred from width and height.
+            size = None if not compress else len(data)
+            # Note that we don't unlink because the terminal does that for us. Currently
+            # python will complain about the shared memory being leaked, which is a
+            # bug in python.
+            # TODO: In 3.13 there is a new track=False parameter to SharedMemory.
+            shm = shared_memory.SharedMemory(create=True, size=offset + len(data))
+            shm.buf[offset : offset + len(data)] = data
+            shm.close()
+            term.send_command(
+                cmd.clone_with(
+                    image_id=1, pix_width=w, pix_height=h, offset=offset, size=size
+                ).set_filename(shm.name)
+            )
+            term.send_command(
+                PutCommand(
+                    image_id=1,
+                    rows=10,
+                    cols=20,
+                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                )
+            )
+            term.write("\n")
+            ctx.take_screenshot_verbose(
+                f"Tux, shared memory, {bits}-bit data, compress = {compress}"
+            )
 
 
 @screenshot_test
