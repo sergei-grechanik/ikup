@@ -156,6 +156,8 @@ class TransmitCommand(GraphicsCommand):
     pix_height: Optional[int] = None
     query: Optional[bool] = None
     placement: Optional[PlacementData] = None
+    # Used for debugging to omit `a=...` from the command.
+    omit_action: bool = False
 
     def get_put_command(self) -> Optional["PutCommand"]:
         if self.placement is None:
@@ -190,9 +192,7 @@ class TransmitCommand(GraphicsCommand):
             )
 
     def to_tuple(self):
-        action = "q" if self.query else "t" if self.placement is None else "T"
         tup = (
-            (b"a", action),
             (b"i", self.image_id),
             (b"I", self.image_number),
             (b"t", self.medium),
@@ -204,6 +204,9 @@ class TransmitCommand(GraphicsCommand):
             (b"s", self.pix_width),
             (b"v", self.pix_height),
         )
+        if not self.omit_action:
+            action = "q" if self.query else "t" if self.placement is None else "T"
+            tup = (tup + (b"a", action),)
         if self.placement is not None:
             tup = tup + self.placement.to_tuple()
         return tup

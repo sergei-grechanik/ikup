@@ -484,11 +484,14 @@ def error_syntax_no_response(ctx: TestingContext):
 def error_syntax_image_id(ctx: TestingContext):
     term = ctx.term
 
+    # This is probably an empty-data direct transmission, so the error will not be
+    # syntactic.
     ctx.write("Empty command modulo image id.")
     term.write("\033_Gi=1234\033\\\n")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
+    # This is actually a direct transmission due to defaults.
     ctx.write("Empty command modulo image id and some payload.")
     term.write("\033_Gi=1234;abcd\033\\\n")
     response = term.receive_response(timeout=0.2)

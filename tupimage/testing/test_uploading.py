@@ -182,6 +182,34 @@ def direct_rgb(ctx: TestingContext):
             )
 
 
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def direct_default(ctx: TestingContext, placeholder: bool = False):
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    term.reset()
+    # No action, no transmission type, no format - this is a direct transmission of
+    # 32-bit rgb data.
+    data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), 32)
+    cmd = TransmitCommand(
+        omit_action=True,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        image_id=0x12345678,
+        pix_width=w,
+        pix_height=h,
+    )
+    term.write(repr(cmd.content_to_bytes()) + "\n")
+    term.send_command(cmd.set_data(data))
+    term.send_command(
+        PutCommand(
+            image_id=0x12345678,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        )
+    )
+    ctx.take_screenshot(f"Tux and wiki, default transmission (direct, 32-bit data)")
+
+
 @screenshot_test
 def image_number(ctx: TestingContext):
     term = ctx.term
