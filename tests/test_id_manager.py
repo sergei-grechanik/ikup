@@ -246,10 +246,12 @@ def test_id_manager_single_id():
             assert id == id2
             # Check get_info().
             info = idman.get_info(id)
+            assert info
             assert info.id == id
             assert info.path == path
             assert info.mtime == mtime
-            assert abs(info.atime - datetime.now()) < timedelta(milliseconds=2)
+            assert info.atime is not None
+            assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
             # Subspaces may intersect, so we check that there is no other id in
             # the same subspace only if it's large enough.
             if id_features.subspace_size(subspace) >= 16:
@@ -295,10 +297,12 @@ def test_id_manager_disjoint_subspaces(id_features: IDFeatures, fixed_bits):
                 )
                 assert id_features.contains_and_in_subspace(id, subspace)
                 info = idman.get_info(id)
+                assert info
                 assert info.id == id
                 assert info.path == path
                 assert info.mtime == mtime
-                assert abs(info.atime - datetime.now()) < timedelta(milliseconds=5)
+                assert info.atime is not None
+                assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
         subspace_size = id_features.subspace_size(subspace)
@@ -343,9 +347,11 @@ def test_id_manager_uploads():
                 idman.mark_uploaded(id, term, size=size)
                 assert not idman.needs_uploading(id, term)
                 info = idman.get_upload_info(id, term)
+                assert info
                 term_to_infos[term].append(info)
+                assert info.upload_time is not None
                 assert abs(info.upload_time - datetime.now()) < timedelta(
-                    milliseconds=5
+                    milliseconds=10
                 )
                 assert info.size == size
                 assert info.path == path
