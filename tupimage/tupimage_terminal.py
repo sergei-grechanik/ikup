@@ -6,6 +6,7 @@ import json
 import math
 import os
 import re
+import select
 import subprocess
 import tempfile
 import typing
@@ -109,7 +110,7 @@ class TupimageConfig:
     max_cols: Union[int, Literal["auto"], None] = "auto"
 
     # Uploading options
-    max_payload_size: Optional[int] = 2816
+    max_command_size: Optional[int] = select.PIPE_BUF
     num_tmux_layers: Union[int, Literal["auto"], None] = "auto"
     reupload_max_uploads_ago: Optional[int] = 1024
     reupload_max_bytes_ago: Optional[int] = 20 * 1024 * 1024
@@ -341,7 +342,7 @@ class TupimageTerminal:
             tty_filename=tty_filename,
             tty_out=tty_out,
             tty_in=tty_in,
-            autosplit_max_size=config.max_payload_size,
+            max_command_size=config.max_command_size,
             num_tmux_layers=config.num_tmux_layers,
         )
 

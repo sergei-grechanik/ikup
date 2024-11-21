@@ -1,13 +1,10 @@
 import time
 
 import tupimage
-from tupimage import (
-    GraphicsResponse,
-    GraphicsTerminal,
-    PutCommand,
-    TransmitCommand,
-)
+from tupimage import GraphicsResponse, GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
+
+SPLIT_PAYLOAD_SIZE = 2816
 
 
 @screenshot_test
@@ -48,7 +45,7 @@ def ok_direct_transmit(ctx: TestingContext):
     )
     with open(ctx.get_wikipedia_png(), "rb") as f:
         cmd.set_data(f.read())
-    cmds = list(cmd.split(term.autosplit_max_size))
+    cmds = list(cmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
     ctx.write(f"Need to send {len(cmds)} direct uploading commands\n")
     half = len(cmds) // 2
     for i in range(half):
@@ -71,7 +68,7 @@ def ok_direct_transmit(ctx: TestingContext):
     )
     with open(ctx.get_tux_png(), "rb") as f:
         cmd.set_data(f.read())
-    cmds = list(cmd.split(term.autosplit_max_size))
+    cmds = list(cmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
     ctx.write(f"Need to send {len(cmds)} direct uploading commands\n")
     half = len(cmds) // 2
     for i in range(half):
@@ -187,7 +184,7 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     with open(ctx.get_wikipedia_png(), "rb") as f:
         cmd.set_data(f.read())
-    cmds = list(cmd.split(term.autosplit_max_size))
+    cmds = list(cmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
     ctx.write(f"Need to send {len(cmds)} direct uploading commands\n")
     half = len(cmds) // 2
     for i in range(half):
@@ -218,7 +215,7 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     with open(ctx.get_tux_png(), "rb") as f:
         cmd.set_data(f.read())
-    cmds = list(cmd.split(term.autosplit_max_size))
+    cmds = list(cmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
     ctx.write(f"Need to send {len(cmds)} direct uploading commands\n")
     half = len(cmds) // 2
     for i in range(half):

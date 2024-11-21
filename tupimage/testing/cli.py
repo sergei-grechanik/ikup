@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+import warnings
 from fnmatch import fnmatch
 from typing import List
 
@@ -23,7 +24,7 @@ from tupimage.testing import (
 # isort: on
 
 
-def is_test_enabled(funcname, tests: List[str]):
+def is_test_matching(funcname, tests: List[str]) -> bool:
     name = funcname[5:] if funcname.startswith("test_") else funcname
     for test in tests:
         if fnmatch(name, test) or fnmatch(funcname, test):
@@ -35,11 +36,14 @@ def list_tests(args):
     if not args.tests:
         args.tests = ["*"]
     for name, func in TestingContext.all_tests:
-        if is_test_enabled(name, args.tests):
+        if is_test_matching(name, args.tests) and not is_test_matching(
+            name, args.exclude
+        ):
             print(name)
 
 
 def run(args):
+    warnings.filterwarnings("ignore")
     term = GraphicsTerminal()
     term.detect_tmux()
     real_term_size = term.get_size()
@@ -107,8 +111,16 @@ def run(args):
     ran_any_tests = False
     with ctx.term.guard_tty_settings():
         ctx.term.set_immediate_input_noecho()
+        skipping = True
         for name, func in TestingContext.all_tests:
-            if is_test_enabled(name, args.tests):
+            if skipping and args.start:
+                if is_test_matching(name, args.start or []):
+                    skipping = False
+                else:
+                    continue
+            if is_test_matching(name, args.tests) and not is_test_matching(
+                name, args.exclude or []
+            ):
                 ran_any_tests = True
                 func(ctx)
                 ctx.dump_unexpected_responses()
@@ -145,10 +157,13 @@ def main():
     parser_run.add_argument("--no-screenshots", action="store_true")
     parser_run.add_argument("--no-reset", action="store_true")
     parser_run.add_argument("--dump-shell-script", "--sh", default=None, type=str)
+    parser_run.add_argument("--exclude", nargs="*", type=str)
+    parser_run.add_argument("--start", nargs="*", type=str)
     parser_run.add_argument("tests", nargs="*", type=str)
     parser_run.set_defaults(func=run)
 
     parser_list = subparsers.add_parser("list", help="List tests.")
+    parser_list.add_argument("--exclude", nargs="*", type=str)
     parser_list.add_argument("tests", nargs="*", type=str)
     parser_list.set_defaults(func=list_tests)
 

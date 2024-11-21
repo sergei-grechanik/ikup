@@ -1,10 +1,5 @@
 import tupimage
-from tupimage import (
-    DeleteCommand,
-    GraphicsTerminal,
-    PutCommand,
-    TransmitCommand,
-)
+from tupimage import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
 
 

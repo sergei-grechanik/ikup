@@ -2,13 +2,15 @@ import os
 import shutil
 import tempfile
 import time
+from multiprocessing import shared_memory
 
 import numpy as np
 
 import tupimage
-from tupimage import GraphicsTerminal, PutCommand, TransmitCommand, DeleteCommand
+from tupimage import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
 from tupimage.testing import TestingContext, screenshot_test
-from multiprocessing import shared_memory
+
+SPLIT_PAYLOAD_SIZE = 2816
 
 
 @screenshot_test
@@ -619,7 +621,7 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False):
     cmd.set_placement(rows=10, cols=20)
     with open(ctx.get_tux_png(), "rb") as f:
         cmd.set_data(f.read())
-    cmds = list(cmd.split(term.autosplit_max_size))
+    cmds = list(cmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
 
     # Send half of the commands.
     half = len(cmds) // 2
