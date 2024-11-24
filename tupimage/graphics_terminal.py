@@ -524,6 +524,16 @@ class GraphicsTerminal:
         self.tty_out.flush()
         self.tracked_cursor_position = (0, 0)
 
+    def clear_line(self):
+        self._write(b"\033[2K", comment="Clear line")
+        self.tty_out.flush()
+
+    def clear_screen(self):
+        """Clears the screen above and below. It's done with two commands to avoid
+        deleting images."""
+        self._write(b"\033[1J\033[0J", comment="Clear screen above and below")
+        self.tty_out.flush()
+
     def _get_sizes(self) -> Tuple[int, int, int, int]:
         try:
             fileno = (

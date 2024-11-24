@@ -489,7 +489,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
             "Large images (40 ~grey rectangles). We expect to see all of them."
         )
         # Now just display the same images.
-        term.reset()
+        term.clear_screen()
         image_id = 0
         for y in range(10):
             for x in range(4):
@@ -532,7 +532,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
         term.write(f"{i + 1}\r")
     ctx.take_screenshot("Uploaded many one-pixel images")
     # Now display them, but not all of them, use a step.
-    term.reset()
+    term.clear_screen()
     step = total_count / (80 * 23)
     image_id = 1
     for y in range(23):
@@ -582,7 +582,7 @@ def stress_too_many_placements(ctx: TestingContext):
                     quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
-    ctx.term.reset()
+    ctx.term.clear_screen()
     # Now display them, but not all of them, use a step.
     step = total_image_count / (80 * 23 / 5)
     image_id = 1

@@ -275,6 +275,8 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
             delete_data=True,
         )
     )
+    # Kitty doesn't always refresh immediately after the deletion, force redraw.
+    term.write("\n")
     ctx.take_screenshot("Deleted everything.")
     # We don't check that we cannot create placements anymore, because there
     # might be pre-existing placements with the same image number. There is no
