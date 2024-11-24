@@ -101,6 +101,8 @@ class GraphicsCommand(ABC):
     Note that all graphics commands are assumed to be mutable dataclasses.
     """
 
+    DEFAULT_TEMPLATE = b"\033_G%b\033\\"
+
     @abstractmethod
     def header_to_tuple(self) -> Tuple[Tuple[bytes, bytes | int], ...]:
         """Returns the header of the command as a dictionary of key-value pairs. The
@@ -146,10 +148,20 @@ class GraphicsCommand(ABC):
         assert is_dataclass(self)
         return dataclasses.replace(self, **kwargs)
 
+    def to_bytes(self, template: bytes) -> bytes:
+        """Returns the command as a byte string formatted using the specified template.
+
+        Args:
+            template: The template to use to format the command. It should contain a
+                single `%b` format specifier where the command content should be
+                inserted. See `GraphicsCommand.DEFAULT_TEMPLATE`.
+        """
+        return template % self.content_to_bytes()
+
     def send(
         self,
         tty: BinaryIO,
-        template=b"\033_G%b\033\\",
+        template: bytes,
         max_size: Optional[int] = None,
         callback: Optional[Callable[["GraphicsCommand"], None]] = None,
     ) -> None:
@@ -159,7 +171,7 @@ class GraphicsCommand(ABC):
             tty: The file-like object to write the command to.
             template: The template to use to format the command. It should contain a
                 single `%b` format specifier where the command content should be
-                inserted.
+                inserted. See `GraphicsCommand.DEFAULT_TEMPLATE`.
             max_size: The maximum total size of the command. If it's a transmission
                 command, it will be split to fit this size. The default is
                 `select.PIPE_BUF`.
@@ -183,7 +195,8 @@ class GraphicsCommand(ABC):
         max_payload_size = (max_base64_payload_size // 4) * 3
         if max_payload_size < 1:
             raise ValueError(
-                f"The maximum payload size is too small. Increase the max_size parameter (now {max_size})"
+                "The maximum payload size is too small. "
+                f"Increase the max_size parameter (now {max_size})"
             )
         for cmd in self.split(max_payload_size=max_payload_size):
             tty.write(template % cmd.content_to_bytes())

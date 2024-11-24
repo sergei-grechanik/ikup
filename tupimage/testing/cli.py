@@ -46,12 +46,14 @@ def run(args):
     warnings.filterwarnings("ignore")
     term = GraphicsTerminal()
     term.detect_tmux()
-    real_term_size = term.get_size()
-    real_cell_size = term.get_cell_size()
     if args.dump_shell_script:
         term.shellscript_out = open(args.dump_shell_script, "w")
         term.shellscript_out.write("#!/bin/sh\n\n")
+    if args.force_direct_transmission:
+        term.force_direct_transmission = True
     if not args.ignore_size:
+        real_term_size = term.get_size()
+        real_cell_size = term.get_cell_size()
         if (
             real_term_size[0] != args.term_size[0]
             or real_term_size[1] != args.term_size[1]
@@ -61,9 +63,10 @@ def run(args):
                 f" ({real_term_size[0]}x{real_term_size[1]}) does not match the"
                 f" expected size ({args.term_size[0]}x{args.term_size[1]})"
             )
+        if not real_cell_size:
+            raise RuntimeError("Could not determine the terminal cell size.")
         if (
-            not real_cell_size
-            or abs(
+            abs(
                 real_cell_size[0] / real_cell_size[1]
                 - args.cell_size[0] / args.cell_size[1]
             )
@@ -157,6 +160,7 @@ def main():
     parser_run.add_argument("--no-screenshots", action="store_true")
     parser_run.add_argument("--no-reset", action="store_true")
     parser_run.add_argument("--dump-shell-script", "--sh", default=None, type=str)
+    parser_run.add_argument("--force-direct-transmission", action="store_true")
     parser_run.add_argument("--exclude", nargs="*", type=str)
     parser_run.add_argument("--start", nargs="*", type=str)
     parser_run.add_argument("tests", nargs="*", type=str)

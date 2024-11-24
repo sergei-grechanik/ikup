@@ -182,9 +182,12 @@ def image_with_data_two_placements(ctx: TestingContext):
     ctx.take_screenshot("ENOENT response, no assertion failures.")
 
 
+@screenshot_test(suffix="direct_transmission", params={"direct": True})
 @screenshot_test
-def image_by_number(ctx: TestingContext):
+def image_by_number(ctx: TestingContext, direct: bool = False):
     term = ctx.term
+    if direct:
+        term = term.clone_with(force_direct_transmission=True)
     term.send_command(
         TransmitCommand(
             image_number=1234,

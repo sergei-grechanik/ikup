@@ -17,6 +17,7 @@ from tupimage import (
     PutCommand,
     TransmitCommand,
 )
+from tupimage.graphics_command import TransmissionMedium
 from tupimage.placeholder import (
     AdditionalFormatting,
     ImagePlaceholder,
@@ -125,13 +126,17 @@ class ShellScriptBinaryIOHelper(BinaryIO):
             base64 = ShellScriptBinaryIOHelper._try_base64(chunk)
             if base64 is not None:
                 formatstring += "%s"
-                params.append(f"\"$(printf '{base64}' | base64)\"")
+                params.append(f"\"$(printf '{base64}' | base64 -w0)\"")
             else:
                 formatstring += ShellScriptBinaryIOHelper._escape_bytes(chunk)
         # The final shell script command.
         command = f"printf '{formatstring}'"
         if params:
             command += f" {' '.join(params)}"
+        if not comment:
+            shellscript_out.write(f"{command}\n")
+            shellscript_out.flush()
+            return
         # Print the comment inline if it fits.
         if len(comment) + len(command) + 3 <= 80:
             shellscript_out.write(f"{command} # {comment}\n")
@@ -155,6 +160,7 @@ class GraphicsTerminal:
         tty_in: Optional[BinaryIO] = None,
         max_command_size: Optional[int] = None,
         force_placeholders: bool = False,
+        force_direct_transmission: bool = False,
         num_tmux_layers: int = 0,
         shellscript_out: Optional[TextIO] = None,
     ):
@@ -172,6 +178,7 @@ class GraphicsTerminal:
         self.tty_out: BinaryIO = tty_out
         self.max_command_size: Optional[int] = max_command_size
         self.force_placeholders: bool = force_placeholders
+        self.force_direct_transmission: bool = force_direct_transmission
         self.num_tmux_layers: int = num_tmux_layers
         self.shellscript_out: Optional[TextIO] = shellscript_out
         self.old_term_settings = []
@@ -180,12 +187,15 @@ class GraphicsTerminal:
     def clone_with(
         self,
         force_placeholders: Optional[bool] = None,
+        force_direct_transmission: Optional[bool] = None,
         num_tmux_layers: Optional[int] = None,
     ):
         res = copy.copy(self)
         res.old_term_settings = []
         if force_placeholders is not None:
             res.force_placeholders = force_placeholders
+        if force_direct_transmission is not None:
+            res.force_direct_transmission = force_direct_transmission
         if num_tmux_layers is not None:
             res.num_tmux_layers = num_tmux_layers
         return res
@@ -311,6 +321,7 @@ class GraphicsTerminal:
         self,
         command: GraphicsCommand,
         force_placeholders: Optional[bool] = None,
+        force_direct_transmission: Optional[bool] = None,
     ):
         # Convert a classic placement to a unicode placeholder placement if requested.
         if force_placeholders is None:
@@ -334,14 +345,30 @@ class GraphicsTerminal:
                 if command.placement_id is None:
                     command.placement_id = random.randint(1, 2**24 - 1)
 
+        # Convert a file-based transmission to a direct transmission if requested.
+        if force_direct_transmission is None:
+            force_direct_transmission = self.force_direct_transmission
+        if force_direct_transmission:
+            if isinstance(command, TransmitCommand) and (
+                command.medium == TransmissionMedium.FILE
+                or command.medium == TransmissionMedium.TEMP_FILE
+            ):
+                filename = command.get_raw_payload()
+                if filename:
+                    file = open(filename.decode(), "rb")
+                    command = command.clone_with(
+                        medium=TransmissionMedium.DIRECT, data=file
+                    )
+
+        template = self.get_graphics_command_template()
         # If we want to log the commands to a shell script, we need a callback.
         callback = None
         if self.shellscript_out is not None:
-            callback = lambda cmd: self._write_to_shellscript(cmd.to_bytes())
+            callback = lambda cmd: self._write_to_shellscript(cmd.to_bytes(template))
         # Send the command.
         command.send(
             self.tty_out,
-            template=self.get_graphics_command_template(),
+            template=template,
             max_size=self.max_command_size,
             callback=callback,
         )
