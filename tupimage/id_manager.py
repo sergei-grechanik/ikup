@@ -3,100 +3,98 @@ import secrets
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterator, List, Optional
-
-
-def _randbits_nonzero(bits: int) -> int:
-    if bits <= 1:
-        return 1
-    else:
-        x = 0
-        while x == 0:
-            x = secrets.randbits(bits)
-        return x
-
-
-def _randbits(bits: int, nonzero: bool) -> int:
-    if nonzero:
-        return _randbits_nonzero(bits)
-    else:
-        return secrets.randbits(bits)
+from typing import Iterator, Iterable, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
 class IDSubspace:
-    """A subspace of ids, defined by a fixed number of certain bits.
+    """A subspace of ids, defined by a range of a certain byte (depending on the
+    IDFeatures space).
 
-    All image IDs may be broken down into multiple non-intersecting subspaces if
-    we fix certain bits to a constant value. This class represents such a
-    subspace with `fixed_bits` fixed bits and `value` as the value of those
-    bits.
-
-    All subspaces with the same number of fixed bits are disjoint, but
-    subspaces with different numbers of fixed bits are nested inside each other.
-    For example, `IDSubspace(3, value=6)` (6 is '110' in binary) is a subspace
-    of `IDSubspace(2, value=2)` (2 is '10' in binary). `IDSubspace(3, value=2)`
-    is also a subspace of `IDSubspace(2, value=2)`.
-
-    Note that the fixed bits are not necessarily the least significant bits of
-    the ID. The exact fixed bits depend on the IDFeatures space.
+    The restricted byte is the most significant byte that can be used in an IDFeatures
+    space. It is guaranteed that the subspace will contain at least `end - begin` ids
+    and that the subspace will not overlap if their ranges don't overlap.
 
     Attributes:
-        fixed_bits: The number of fixed bits. Must be between 0 and 6.
-        value: The value of the fixed bits. Must be between 0 and 2**fixed_bits.
+        begin: The first byte value in the range.
+        end: The byte value after the last one in the range.
     """
 
-    fixed_bits: int = 0
-    value: int = 0
+    begin: int = 0
+    end: int = 256
+
+    def __post_init__(self):
+        if not (0 <= self.begin < self.end <= 256):
+            raise ValueError("Invariant violation: 0 <= begin < end <= 256")
+        if self.end == 1:
+            raise ValueError("A subspace must contain at least one non-zero id")
+
+    def __str__(self) -> str:
+        return f"{self.begin}:{self.end}"
 
     @staticmethod
     def from_string(s: str) -> "IDSubspace":
-        """Parses an IDSubspace from a string.
-
-        The string must a binary representation of `value` with the number of
-        bits inferred from the length of the string, e.g. "0110" for
-        `IDSubspace(4, value=6)`.
-        """
+        """Parses an IDSubspace from a string `begin:end`."""
         if not s:
             return IDSubspace()
-        return IDSubspace(len(s), int(s, 2))
+        try:
+            begin, end = s.split(":")
+            begin = int(begin)
+            end = int(end)
+        except ValueError:
+            raise ValueError(f"Invalid format for IDSubspace: '{s}'. Expected format 'begin:end' with integers.")
+        return IDSubspace(begin, end)
 
-    def to_string(self) -> str:
-        """Returns a binary representation of `value` with the number of bits
-        inferred from the length of the string, e.g. "0110" for
-        `IDSubspace(4, value=6)`.
-        """
-        if self.fixed_bits == 0:
-            return ""
-        return f"{self.value:0{self.fixed_bits}b}"
+    def rand_byte(self) -> int:
+        """Generates a random byte in the range."""
+        return secrets.randbelow(self.end - self.begin) + self.begin
 
-    def __post_init__(self):
-        if self.fixed_bits < 0 or self.fixed_bits > 6:
-            raise ValueError(
-                "The number of fixed bits must be between 0 and 6, got:"
-                f" {self.fixed_bits}"
-            )
-        if self.value < 0 or self.value >= 1 << self.fixed_bits:
-            raise ValueError(f"Invalid value: {self.value}")
+    def rand_nonzero_byte(self) -> int:
+        """Generates a random non-zero byte in the range."""
+        if self.begin <= 0:
+            return secrets.randbelow(self.end - 1) + 1
+        return self.rand_byte()
 
-    def _modify_byte(self, id: int) -> int:
-        return (id & ~self._mask()) | self.value
+    def all_byte_values(self) -> Iterable[int]:
+        """Generates all byte values in the range."""
+        return range(self.begin, self.end)
 
-    def _mask(self) -> int:
-        return (1 << self.fixed_bits) - 1
+    def all_nonzero_byte_values(self) -> Iterable[int]:
+        """Generates all non-zero byte values in the range"""
+        if self.begin <= 0:
+            return range(1, self.end)
+        return range(self.begin, self.end)
 
-    def _rand_nonzero_byte(self) -> int:
-        b = _randbits(8 - self.fixed_bits, nonzero=self.value == 0) << self.fixed_bits
-        return self._modify_byte(b)
+    def num_byte_values(self) -> int:
+        """Returns the number of byte values in the range."""
+        return self.end - self.begin
 
-    def _all_nonzero_bytes(self) -> Iterator[int]:
-        for b in range(1 << (8 - self.fixed_bits)):
-            if b != 0 or self.value != 0:
-                yield (b << self.fixed_bits) | self.value
+    def num_nonzero_byte_values(self) -> int:
+        """Returns the number of non-zero byte values in the range"""
+        if self.begin <= 0:
+            return self.end - 1
+        return self.end - self.begin
 
-    def _all_bytes(self) -> Iterator[int]:
-        for b in range(1 << (8 - self.fixed_bits)):
-            yield (b << self.fixed_bits) | self.value
+    def contains_byte(self, b: int) -> bool:
+        """Returns true if the byte is in the range."""
+        return self.begin <= b < self.end
+
+    def split(self, count: int) -> List["IDSubspace"]:
+        """Splits the subspace into `count` non-overlapping subspaces of approximately
+        equal size. Will raise an error if the subspace is too small to split."""
+        if count <= 0:
+            raise ValueError("count must be positive")
+        if count == 1:
+            return [self]
+        if self.num_nonzero_byte_values() < count:
+            raise ValueError(f"Subspace is too small to split: the number of non-zero byte values {self.num_nonzero_byte_values()} is less than the number of requested sub-subspaces {count}")
+        size = self.num_nonzero_byte_values() // count
+        remainder = self.num_byte_values() - size * count
+        subspaces = []
+        for begin in range(self.begin + remainder, self.end, size):
+            subspaces.append(IDSubspace(begin, begin + size))
+        subspaces[0] = IDSubspace(self.begin, subspaces[0].end)
+        return subspaces
 
 
 @dataclass(frozen=True)
@@ -164,9 +162,10 @@ class IDFeatures:
     def contains_and_in_subspace(self, id: int, subspace: IDSubspace) -> bool:
         """Returns true if the id is in this space and also in the given
         subspace."""
-        return self.contains(id) and (
-            id & self.subspace_mask(subspace)
-        ) == self.subspace_masked_value(subspace)
+        begin, end = self.subspace_masked_range(subspace)
+        return self.contains(id) and (begin <= (
+            id & self.subspace_byte_mask()
+        ) < end)
 
     def gen_random_id(self, subspace: IDSubspace = IDSubspace()) -> int:
         """Generates a random id in this space that also belongs to the given
@@ -174,85 +173,117 @@ class IDFeatures:
         # We want to use every feature available to us, making id namespaces
         # disjoint.
 
-        # If we can't use any color bits, we must use the 3rd diacritic and
-        # apply the subspace to it.
-        if self.color_bits == 0:
-            return subspace._rand_nonzero_byte() << 24
-
-        byte_0 = 0
-        byte_1_2 = 0
-        byte_3 = 0
+        byte_0 = 0 # blue or the color index
+        byte_1 = 0 # green
+        byte_2 = 0 # red
+        byte_3 = 0 # 3rd diacritic
         if self.use_3rd_diacritic:
-            # If we can use the 3rd diacritic, it must be nonzero.
-            byte_3 = _randbits_nonzero(8)
-        if self.color_bits == 8:
-            # If we can use only 8 bit colors, the color must be nonzero and we
-            # apply the subspace to it.
-            byte_0 = subspace._rand_nonzero_byte()
-        elif self.color_bits == 24:
-            # If we can use 24 bit colors, the two bytes in the middle must be
-            # non-zero, but the least significant byte may be zero.
-            byte_0 = subspace._modify_byte(secrets.randbits(8))
-            byte_1_2 = _randbits_nonzero(16)
-        return (byte_3 << 24) | (byte_1_2 << 8) | byte_0
+            # If we can use the 3rd diacritic, it must be nonzero, and we apply the
+            # subspace to it.
+            byte_3 = subspace.rand_nonzero_byte()
+            if self.color_bits == 8:
+                # If we can use only 8 bit colors, the color must be nonzero.
+                byte_0 = secrets.randbelow(255) + 1
+            elif self.color_bits == 24:
+                # If we can use 24 bit colors, one of the the two bytes in the middle
+                # must be non-zero.
+                byte_0 = secrets.randbelow(256)
+                byte_2 = secrets.randbelow(256)
+                if byte_2 == 0:
+                    byte_1 = secrets.randbelow(255) + 1
+                else:
+                    byte_1 = secrets.randbelow(256)
+        else:
+            # No 3rd diacritic.
+            if self.color_bits == 8:
+                # If we can use only 8 bit colors, the color must be nonzero and we
+                # apply the subspace to it.
+                byte_0 = subspace.rand_nonzero_byte()
+            elif self.color_bits == 24:
+                # If we can use 24 bit colors, one of the two bytes in the middle must
+                # be non-zero, and we apply the subspace to the most significant one.
+                byte_0 = secrets.randbelow(256)
+                byte_2 = subspace.rand_byte()
+                if byte_2 == 0:
+                    byte_1 = secrets.randbelow(255) + 1
+                else:
+                    byte_1 = secrets.randbelow(256)
+        return (byte_3 << 24) | (byte_2 << 16) | (byte_1 << 8) | byte_0
 
     def all_ids(self, subspace: IDSubspace = IDSubspace()) -> Iterator[int]:
         """Generates all ids in this space that also belong to the given
         subspace."""
-        if self.color_bits == 0:
-            for b in subspace._all_nonzero_bytes():
-                yield b << 24
-            return
-
-        byte3_gen = lambda: range(1, 256) if self.use_3rd_diacritic else [0]
-
-        if self.color_bits == 8:
-            byte0_gen = lambda: subspace._all_nonzero_bytes()
-            byte12_gen = lambda: [0]
-        elif self.color_bits == 24:
-            byte0_gen = lambda: subspace._all_bytes()
-            byte12_gen = lambda: range(1, 1 << 16)
-
-        for byte3 in byte3_gen():
-            for byte12 in byte12_gen():
-                for byte0 in byte0_gen():
-                    yield (byte3 << 24) | (byte12 << 8) | byte0
+        byte_0 = lambda: [0] # blue or the color index
+        byte_1_2 = lambda: [0] # red and green
+        byte_3 = lambda: [0] # 3rd diacritic
+        if self.use_3rd_diacritic:
+            byte_3 = lambda: subspace.all_nonzero_byte_values()
+            if self.color_bits == 8:
+                byte_0 = lambda: range(1, 256)
+            elif self.color_bits == 24:
+                byte_0 = lambda: range(0, 256)
+                byte_1_2 = lambda: range(1, 256 * 256)
+        else:
+            # No 3rd diacritic.
+            if self.color_bits == 8:
+                byte_0 = lambda: subspace.all_nonzero_byte_values()
+            elif self.color_bits == 24:
+                byte_0 = lambda: range(0, 256)
+                byte_1_2 = lambda: ((b2 << 8) | b1 for b2 in subspace.all_byte_values() for b1 in range(1 if b2 == 0 else 0, 256))
+        for b3 in byte_3():
+            for b12 in byte_1_2():
+                for b0 in byte_0():
+                    yield (b3 << 24) | (b12 << 8) | b0
 
     def subspace_size(self, subspace: IDSubspace = IDSubspace()) -> int:
         """Returns the number of ids in this space that also belong to the given
         subspace. This function takes into account that some bytes must not be
         zero."""
-        num_zero_ids = 1 if subspace.value == 0 else 0
-        if self.color_bits == 0:
-            return (1 << (8 - subspace.fixed_bits)) - num_zero_ids
-
-        byte3_count = 255 if self.use_3rd_diacritic else 1
-
-        if self.color_bits == 8:
-            byte0_count = (1 << (8 - subspace.fixed_bits)) - num_zero_ids
-            byte12_count = 1
-        elif self.color_bits == 24:
-            byte0_count = 256
-            byte12_count = (1 << 16) - 1
-
-        return byte3_count * byte12_count * byte0_count
-
-    def subspace_mask(self, subspace: IDSubspace) -> int:
-        """Returns a mask that can be used to select all ids in this space that
-        also belong to the given subspace. The mask mask is one for the
-        positions of fixed bits."""
-        if self.color_bits == 0:
-            return subspace._mask() << 24
+        byte_0_cnt = 1
+        byte_12_cnt = 1
+        byte_3_cnt = 1
+        if self.use_3rd_diacritic:
+            byte_3_cnt = subspace.num_nonzero_byte_values()
+            if self.color_bits == 8:
+                byte_0_cnt = 255
+            elif self.color_bits == 24:
+                byte_0_cnt = 256
+                byte_12_cnt = 256 * 256 - 1
         else:
-            return subspace._mask()
+            # No 3rd diacritic.
+            if self.color_bits == 8:
+                byte_0_cnt = subspace.num_nonzero_byte_values()
+            elif self.color_bits == 24:
+                byte_0_cnt = 256
+                byte_12_cnt = subspace.num_byte_values() * 256
+                if subspace.begin <= 0:
+                    byte_12_cnt -= 1
+        return byte_3_cnt * byte_12_cnt * byte_0_cnt
 
-    def subspace_masked_value(self, subspace: IDSubspace) -> int:
-        """Returns the value of the fixed bits of the given subspace, shifted to
-        the correct position."""
-        if self.color_bits == 0:
-            return subspace.value << 24
-        else:
-            return subspace.value
+    def subspace_byte_offset(self) -> int:
+        """Returns the offset (in bits) of the byte to which the subspace is applied."""
+        if self.use_3rd_diacritic:
+            return 24
+        if self.color_bits == 24:
+            return 16
+        return 0
+
+    def subspace_byte_mask(self) -> int:
+        """Returns a mask that can be used to get the byte to which the subspace is
+        applied."""
+        return 0xFF << self.subspace_byte_offset()
+
+    def subspace_masked_range(self, subspace: IDSubspace) -> Tuple[int, int]:
+        """Returns the range of IDs from the subspace after applying the byte mask. That
+        is, an ID `id` from the space `self` belongs to `subspace` iff the following
+        holds:
+
+                begin <= (id & self.subspace_byte_mask()) < end
+
+        where `begin, end = self.subspace_masked_range(subspace)`.
+        """
+        offset = self.subspace_byte_offset()
+        return (subspace.begin << offset, subspace.end << offset)
 
     @staticmethod
     def all_values() -> Iterator["IDFeatures"]:
@@ -366,13 +397,15 @@ class IDManager:
         self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
     ) -> List[ImageInfo]:
         namespace = id_features.namespace_name()
+        begin, end = id_features.subspace_masked_range(subspace)
         self.cursor.execute(
             f"""SELECT id, path, params, mtime, atime FROM {namespace}
-                WHERE id & ? = ? ORDER BY atime DESC
+                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
             """,
             (
-                id_features.subspace_mask(subspace),
-                id_features.subspace_masked_value(subspace),
+                id_features.subspace_byte_mask(),
+                begin,
+                end - 1,
             ),
         )
         return [
@@ -390,11 +423,15 @@ class IDManager:
         self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
     ) -> int:
         namespace = id_features.namespace_name()
+        begin, end = id_features.subspace_masked_range(subspace)
         self.cursor.execute(
-            f"SELECT COUNT(*) FROM {namespace} WHERE id & ? = ?",
+            f"""SELECT COUNT(*) FROM {namespace}
+                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
+            """,
             (
-                id_features.subspace_mask(subspace),
-                id_features.subspace_masked_value(subspace),
+                id_features.subspace_byte_mask(),
+                begin,
+                end - 1,
             ),
         )
         return self.cursor.fetchone()[0]
@@ -453,6 +490,7 @@ class IDManager:
                 mtime = datetime.fromtimestamp(0)
 
         namespace = id_features.namespace_name()
+        begin, end = id_features.subspace_masked_range(subspace)
 
         atime = datetime.now()
 
@@ -462,14 +500,15 @@ class IDManager:
             # subspace.
             self.cursor.execute(
                 f"""SELECT id FROM {namespace}
-                    WHERE path=? AND params=? AND mtime=? AND id & ? = ?
+                    WHERE path=? AND params=? AND mtime=? AND (id & ?) BETWEEN ? AND ?
                 """,
                 (
                     path,
                     params,
                     mtime.isoformat(),
-                    id_features.subspace_mask(subspace),
-                    id_features.subspace_masked_value(subspace),
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
                 ),
             )
             row = self.cursor.fetchone()
@@ -492,12 +531,13 @@ class IDManager:
                 # is full, select the oldest row and update it.
                 if self.count(id_features, subspace) >= subspace_size:
                     self.cursor.execute(
-                        f"""SELECT id FROM {namespace} WHERE id & ? = ?
+                        f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
                             ORDER BY atime ASC LIMIT 1
                         """,
                         (
-                            id_features.subspace_mask(subspace),
-                            id_features.subspace_masked_value(subspace),
+                            id_features.subspace_byte_mask(),
+                            begin,
+                            end - 1,
                         ),
                     )
                     id = self.cursor.fetchone()[0]
@@ -510,10 +550,11 @@ class IDManager:
                     )
                     return id
                 self.cursor.execute(
-                    f"SELECT id, atime FROM {namespace} WHERE id & ? = ?",
+                    f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
                     (
-                        id_features.subspace_mask(subspace),
-                        id_features.subspace_masked_value(subspace),
+                        id_features.subspace_byte_mask(),
+                        begin,
+                        end - 1,
                     ),
                 )
                 available_ids = set(id_features.all_ids(subspace))
@@ -527,6 +568,7 @@ class IDManager:
                 if available_ids:
                     id = secrets.choice(list(available_ids))
                 else:
+                    assert(oldest_atime_id is not None)
                     id = oldest_atime_id[0]
                 self.set_id(
                     id,
@@ -583,24 +625,27 @@ class IDManager:
         if max_ids is None:
             max_ids = self.max_ids_per_subspace
         namespace = id_features.namespace_name()
+        begin, end = id_features.subspace_masked_range(subspace)
         self.cursor.execute(
             f"""DELETE FROM {namespace}
                 WHERE id IN (
                     SELECT id FROM {namespace}
-                    WHERE id & ? = ?
+                    WHERE (id & ?) BETWEEN ? AND ?
                     ORDER BY atime ASC
                     LIMIT (
                         SELECT MAX(COUNT(*) - ?, 0) FROM {namespace}
-                        WHERE id & ? = ?
+                        WHERE (id & ?) BETWEEN ? AND ?
                     )
                 )
             """,
             (
-                id_features.subspace_mask(subspace),
-                id_features.subspace_masked_value(subspace),
+                id_features.subspace_byte_mask(),
+                begin,
+                end - 1,
                 max_ids,
-                id_features.subspace_mask(subspace),
-                id_features.subspace_masked_value(subspace),
+                id_features.subspace_byte_mask(),
+                begin,
+                end - 1,
             ),
         )
 

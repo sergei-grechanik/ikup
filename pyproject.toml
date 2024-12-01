@@ -1,0 +1,26 @@
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[project]
+name = "tupimage"
+description = "A tool for displaying images in the terminal using the kitty graphics protocol."
+readme = "README.md"
+dynamic = ["version"]
+requires-python = ">= 3.8"
+dependencies = [
+    "numpy",
+    "Pillow",
+    "platformdirs",
+    "pytest",
+    "toml",
+]
+
+[project.optional-dependencies]
+pytest = ["pytest"]
+
+[project.scripts]
+tupimage = "tupimage.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -355,7 +355,7 @@ class TupimageTerminal:
             max_ids_per_subspace=config.max_ids_per_subspace,
         )
 
-    max_cold = _config_property("max_cols")
+    max_cols = _config_property("max_cols")
     max_rows = _config_property("max_rows")
     scale = _config_property("scale")
     id_color_bits = _config_property("id_color_bits")
@@ -366,7 +366,7 @@ class TupimageTerminal:
     upload_method = _config_property("upload_method")
     force_reupload = _config_property("force_reupload")
     less_diacritics = _config_property("less_diacritics")
-    redetect_terminal = _config_property("less_diacritics")
+    redetect_terminal = _config_property("redetect_terminal")
     background = _config_property("background")
     final_cursor_pos = _config_property("final_cursor_pos")
     clip = _config_property("clip")

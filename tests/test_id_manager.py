@@ -7,90 +7,113 @@ import pytest
 from tupimage.id_manager import *
 
 
-@pytest.mark.parametrize("fixed_bits", range(7))
-def test_id_subspace_init_correct(fixed_bits):
+def interesting_subspaces() -> Iterator[IDSubspace]:
+    yield IDSubspace(0, 256)
+    yield IDSubspace(1, 256)
+    yield IDSubspace(0, 255)
+    yield IDSubspace(1, 255)
+    yield IDSubspace(255, 256)
+    for d in [1, 2, 3, 32, 113, 128]:
+        for i in [0, 1, 2, 3, 32, 64, 100, 113, 128, 250, 254]:
+            if i + d > 256:
+                break
+            if i + d != 1:
+                yield IDSubspace(i, i + d)
+
+
+def several_interesting_subspaces() -> Iterator[IDSubspace]:
+    yield IDSubspace(0, 256)
+    yield IDSubspace(1, 256)
+    yield IDSubspace(0, 255)
+    yield IDSubspace(1, 255)
+    yield IDSubspace(255, 256)
+    yield IDSubspace(0, 2)
+    yield IDSubspace(0, 3)
+    yield IDSubspace(0, 64)
+    yield IDSubspace(0, 113)
+    yield IDSubspace(1, 2)
+    yield IDSubspace(1, 3)
+    yield IDSubspace(1, 64)
+    yield IDSubspace(1, 113)
+
+
+@pytest.mark.parametrize("begin", range(256))
+def test_id_subspace_init_correct(begin: int):
     """Test that IDSubspace is initialized correctly."""
-    for val in range(1 << fixed_bits):
-        subsp = IDSubspace(fixed_bits, val)
-        assert subsp.fixed_bits == fixed_bits
-        assert subsp.value == val
-        assert subsp.from_string(subsp.to_string()) == subsp
+    for last in range(begin, 256):
+        end = last + 1
+        subsp = IDSubspace(begin, end)
+        assert subsp.begin == begin
+        assert subsp.end == end
+        assert subsp.from_string(str(subsp)) == subsp
 
 
 def test_id_subspace_from_string():
+    assert IDSubspace.from_string("") == IDSubspace(0, 256)
     assert IDSubspace.from_string("") == IDSubspace()
-    assert IDSubspace.from_string("0") == IDSubspace(1, value=0)
-    assert IDSubspace.from_string("1") == IDSubspace(1, value=1)
-    assert IDSubspace.from_string("00") == IDSubspace(2, value=0)
-    assert IDSubspace.from_string("01") == IDSubspace(2, value=1)
-    assert IDSubspace.from_string("10") == IDSubspace(2, value=2)
-    assert IDSubspace.from_string("11") == IDSubspace(2, value=3)
+    assert IDSubspace.from_string("0:2") == IDSubspace(0, 2)
+    assert IDSubspace.from_string("0:256") == IDSubspace(1, 256)
+    assert IDSubspace.from_string("100:200") == IDSubspace(100, 200)
+    assert IDSubspace.from_string("255:256") == IDSubspace(255, 256)
 
 
-@pytest.mark.parametrize("fixed_bits", range(7))
-def test_id_subspace_init_value_oob(fixed_bits):
-    """Test that IDSubspace raises ValueError when initialized with an
-    out-of-bounds value (negative or requiring more than `fixed_bits` bits)."""
-    for val in [-1, 1 << fixed_bits]:
-        with pytest.raises(ValueError):
-            IDSubspace(fixed_bits, val)
-
-
-@pytest.mark.parametrize("fixed_bits", [-1, 7, 8, 16, 32])
-def test_id_subspace_init_incorrect_fixed_bits(fixed_bits):
-    """Test that IDSubspace raises ValueError when initialized with an
-    incorrect number of fixed bits."""
+@pytest.mark.parametrize("pair", [(0, 1), (-1, 10), (10, 257), (0, 0), (10, 10), (10, 9), (256, 256), (256, 0), (10, -1)])
+def test_id_subspace_incorrect(pair):
     with pytest.raises(ValueError):
-        IDSubspace(fixed_bits, 0)
+        IDSubspace(pair[0], pair[1])
 
 
-@pytest.mark.parametrize("fixed_bits", range(7))
-def test_id_subspace_all_bytes(fixed_bits):
-    # Test for several values of fixed bits.
-    for val in [0, 1, (1 << fixed_bits) - 1, (1 << fixed_bits) // 2]:
-        if val >= 1 and fixed_bits == 0:
-            continue
-        subsp = IDSubspace(fixed_bits, val)
-        all_bytes = list(subsp._all_bytes())
-        # Check length, sortedness, uniqueness.
-        assert len(all_bytes) == 1 << (8 - fixed_bits)
-        assert sorted(all_bytes) == all_bytes
-        assert len(all_bytes) == len(set(all_bytes))
-        # Check non-zero bytes too.
-        all_nz_bytes = list(subsp._all_nonzero_bytes())
-        assert 0 not in all_nz_bytes
-        if len(all_bytes) != len(all_nz_bytes):
-            # If there is a zero byte, it must be the first one.
-            assert all_bytes[0] == 0
-            assert all_nz_bytes == all_bytes[1:]
-        else:
-            # Otherwise, non-zero bytes are the same as all bytes.
-            assert all_nz_bytes == all_bytes
-        # Check that all bytes have the correct value of lower bits.
-        for b in all_bytes:
-            assert b & subsp._mask() == val
+@pytest.mark.parametrize("subsp", interesting_subspaces())
+def test_id_subspace_all_bytes(subsp: IDSubspace):
+    all_bytes = list(subsp.all_byte_values())
+    # Check length, sortedness, uniqueness.
+    assert len(all_bytes) == subsp.num_byte_values()
+    assert sorted(all_bytes) == all_bytes
+    assert len(all_bytes) == len(set(all_bytes))
+    # Check non-zero bytes too.
+    all_nz_bytes = list(subsp.all_nonzero_byte_values())
+    assert len(all_nz_bytes) == subsp.num_nonzero_byte_values()
+    assert 0 not in all_nz_bytes
+    if len(all_bytes) != len(all_nz_bytes):
+        # If there is a zero byte, it must be the first one.
+        assert all_bytes[0] == 0
+        assert all_nz_bytes == all_bytes[1:]
+    else:
+        # Otherwise, non-zero bytes are the same as all bytes.
+        assert all_nz_bytes == all_bytes
+    # Check `contains_byte`.
+    all_bytes = set(all_bytes)
+    for b in range(256):
+        assert (b in all_bytes) == subsp.contains_byte(b)
 
 
-@pytest.mark.parametrize("fixed_bits", range(7))
-def test_id_subspace_rand_nonzero_byte(fixed_bits):
-    """Test that IDSubspace._rand_nonzero_byte() generates a non-zero byte with
-    some bits fixed."""
-    for val in [0, 1, (1 << fixed_bits) - 1, (1 << fixed_bits) // 2]:
-        if val >= 1 and fixed_bits == 0:
-            continue
-        subsp = IDSubspace(fixed_bits, val)
-        # The set of all non-zero bytes.
-        all_nz_bytes = set(subsp._all_nonzero_bytes())
-        # Generate many random bytes.
-        for _ in range(10000):
-            b = subsp._rand_nonzero_byte()
-            # Check the fixed bits and non-zero-ness.
-            assert b & subsp._mask() == val
-            assert b != 0
-            # Remove the generated byte from the set.
-            all_nz_bytes.discard(b)
-        # Check that we have generated all non-zero bytes.
-        assert not all_nz_bytes
+@pytest.mark.parametrize("subsp", several_interesting_subspaces())
+def test_id_subspace_rand_nonzero_byte(subsp: IDSubspace):
+    """Test that IDSubspace.rand_nonzero_byte() generates a non-zero byte from the
+    range."""
+    # The set of all non-zero bytes.
+    all_nz_bytes = set(subsp.all_nonzero_byte_values())
+    # Generate many random bytes.
+    for _ in range(10000):
+        b = subsp.rand_nonzero_byte()
+        assert subsp.contains_byte(b)
+        # Remove the generated byte from the set.
+        all_nz_bytes.discard(b)
+    # Check that we have generated all non-zero bytes.
+    assert not all_nz_bytes
+
+
+@pytest.mark.parametrize("subsp", interesting_subspaces())
+def test_subspace_split(subsp: IDSubspace):
+    for i in range(1, subsp.num_nonzero_byte_values()):
+        subs = subsp.split(i)
+        assert len(subs) == i
+        assert sum(sub.num_byte_values() for sub in subs) == subsp.num_byte_values()
+        assert sum(sub.num_nonzero_byte_values() for sub in subs) == subsp.num_nonzero_byte_values()
+        assert subs[0].begin == subsp.begin
+        assert subs[-1].end == subsp.end
+        for j in range(i - 1):
+            assert subs[j].end == subs[j + 1].begin
 
 
 def test_id_features_init():
@@ -109,15 +132,7 @@ def test_id_features_init():
 @pytest.mark.parametrize("id_features", IDFeatures.all_values())
 @pytest.mark.parametrize(
     "subspace",
-    [
-        IDSubspace(),
-        IDSubspace(1, 0),
-        IDSubspace(1, 1),
-        IDSubspace(6, 0),
-        IDSubspace(6, 1 << 5),
-        IDSubspace(5, 0),
-        IDSubspace(4, 0),
-    ],
+    several_interesting_subspaces(),
 )
 def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
     """Partially test the correctness of IDFeatures.all_ids()."""
@@ -132,9 +147,8 @@ def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
         assert id_features.contains(id)
         assert IDFeatures.from_id(id) == id_features
         # Check that it's in the correct subspace using different methods.
-        assert id & id_features.subspace_mask(
-            subspace
-        ) == id_features.subspace_masked_value(subspace)
+        begin, end = id_features.subspace_masked_range(subspace)
+        assert begin <= (id & id_features.subspace_byte_mask()) < end
         assert id_features.contains_and_in_subspace(id, subspace)
         # Check that it's not in any other id feature space.
         for other in IDFeatures.all_values():
@@ -162,15 +176,7 @@ def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
 @pytest.mark.parametrize("id_features", IDFeatures.all_values())
 @pytest.mark.parametrize(
     "subspace",
-    [
-        IDSubspace(),
-        IDSubspace(1, 0),
-        IDSubspace(1, 1),
-        IDSubspace(6, 0),
-        IDSubspace(6, 1 << 5),
-        IDSubspace(5, 0),
-        IDSubspace(4, 0),
-    ],
+    several_interesting_subspaces(),
 )
 def test_id_features_gen_random_id(id_features: IDFeatures, subspace: IDSubspace):
     """Test random generation of ids in a subspace."""
@@ -184,9 +190,8 @@ def test_id_features_gen_random_id(id_features: IDFeatures, subspace: IDSubspace
         # Check that it's in the correct id feature space and subspace.
         assert id_features.contains(id)
         assert id_features.contains_and_in_subspace(id, subspace)
-        assert id & id_features.subspace_mask(
-            subspace
-        ) == id_features.subspace_masked_value(subspace)
+        begin, end = id_features.subspace_masked_range(subspace)
+        assert begin <= (id & id_features.subspace_byte_mask()) < end
         assert IDFeatures.from_id(id) == id_features
         # Check that it's not in any other id feature space.
         for other in IDFeatures.all_values():
@@ -213,15 +218,7 @@ def test_id_features_gen_random_id(id_features: IDFeatures, subspace: IDSubspace
 def test_id_manager_single_id():
     """Generate a single id for some subspaces in each id-feature space.
     Subspaces may intersect."""
-    subspaces = [
-        IDSubspace(),
-        IDSubspace(1, 0),
-        IDSubspace(1, 1),
-        IDSubspace(6, 0),
-        IDSubspace(6, 1 << 5),
-        IDSubspace(5, 0),
-        IDSubspace(4, 0),
-    ]
+    subspaces = list(several_interesting_subspaces())
     idman = IDManager(":memory:")
     for id_features in IDFeatures.all_values():
         for subspace in subspaces:
@@ -254,7 +251,7 @@ def test_id_manager_single_id():
             assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
             # Subspaces may intersect, so we check that there is no other id in
             # the same subspace only if it's large enough.
-            if id_features.subspace_size(subspace) >= 16:
+            if id_features.subspace_size(subspace) >= 1000:
                 another_id = id
                 while id == another_id:
                     another_id = id_features.gen_random_id(subspace)
@@ -272,10 +269,11 @@ def test_id_manager_single_id():
 
 
 @pytest.mark.parametrize("id_features", IDFeatures.all_values())
-@pytest.mark.parametrize("fixed_bits", [0, 1, 4, 5, 6])
-def test_id_manager_disjoint_subspaces(id_features: IDFeatures, fixed_bits):
+@pytest.mark.parametrize("big_subspace_end", [8, 14, 15, 255, 256])
+@pytest.mark.parametrize("num_subspaces", [1, 2, 7])
+def test_id_manager_disjoint_subspaces(id_features: IDFeatures, big_subspace_end: int, num_subspaces: int):
     """Generate many ids for disjoint subspaces in each id-feature space."""
-    subspaces = [IDSubspace(fixed_bits, v) for v in range(min(10, 1 << fixed_bits))]
+    subspaces = IDSubspace(0, big_subspace_end).split(num_subspaces)
     # We will have 1100 distinct "image" paths, so some of the paths will be
     # repeated 2 or 3 times.
     num_distinct_paths = 1100
