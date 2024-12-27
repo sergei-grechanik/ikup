@@ -1,6 +1,7 @@
 import os
 import secrets
 import sqlite3
+import heapq
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterator, Iterable, List, Optional, Tuple
@@ -130,6 +131,27 @@ class IDFeatures:
                 " or 24"
             )
 
+    def __str__(self) -> str:
+        bits = self.num_nonzero_bits()
+        if bits == 8 and self.use_3rd_diacritic:
+            return "8bit_diacritic"
+        return f"{bits}bit"
+
+    @staticmethod
+    def from_string(s: str) -> "IDFeatures":
+        """Parses an IDFeatures from a string."""
+        if s == "32bit":
+            return IDFeatures(24, True)
+        if s == "24bit":
+            return IDFeatures(24, False)
+        if s == "8bit_diacritic":
+            return IDFeatures(0, True)
+        if s == "8bit":
+            return IDFeatures(8, False)
+        if s == "16bit":
+            return IDFeatures(8, True)
+        raise ValueError(f"Invalid IDFeatures string: {s}")
+
     @staticmethod
     def from_id(id: int) -> "IDFeatures":
         """Get the IDFeatures space an image ID belongs to."""
@@ -152,9 +174,9 @@ class IDFeatures:
         """Get the name of this IDFeatures space that can be used as an
         identifier or a file name."""
         if self.use_3rd_diacritic:
-            return f"ids_{self.num_nonzero_bits()}bit_3rd_diacritic"
+            return f"ids_{self}"
         else:
-            return f"ids_{self.num_nonzero_bits()}bit"
+            return f"ids_{self}"
 
     def contains(self, id: int) -> bool:
         return self.from_id(id) == self
@@ -286,6 +308,12 @@ class IDFeatures:
         return (subspace.begin << offset, subspace.end << offset)
 
     @staticmethod
+    def get_subspace_byte(id: int) -> int:
+        """Returns the byte to which the subspace is applied in the given ID."""
+        offset = IDFeatures.from_id(id).subspace_byte_offset()
+        return (id >> offset) & 0xFF
+
+    @staticmethod
     def all_values() -> Iterator["IDFeatures"]:
         """Generates all IDFeatures spaces."""
         for use_3rd_diacritic in [True, False]:
@@ -297,28 +325,37 @@ class IDFeatures:
 
 @dataclass
 class ImageInfo:
-    path: str
-    params: str = ""
-    mtime: Optional[datetime] = None
-    id: Optional[int] = None
-    atime: Optional[datetime] = None
+    description: str
+    id: int
+    atime: datetime
 
 
 @dataclass
 class UploadInfo:
     id: int
-    path: str
-    params: str
-    mtime: Optional[datetime]
-    upload_time: Optional[datetime]
+    description: str
+    upload_time: datetime
     terminal: str
     size: int
     bytes_ago: int
     uploads_ago: int
 
+    def needs_uploading(
+        self,
+        *,
+        max_uploads_ago: int = 1024,
+        max_bytes_ago: int = 20 * (2**20),
+        max_time_ago: timedelta = timedelta(hours=1),
+    ) -> bool:
+        return (self.bytes_ago > max_bytes_ago
+            or self.uploads_ago > max_uploads_ago
+            or datetime.now() - self.upload_time > max_time_ago
+            )
+
 
 class IDManager:
     def __init__(self, database_file: str, *, max_ids_per_subspace: int = 1024):
+        self.database_file = database_file
         self.conn = sqlite3.connect(database_file, isolation_level=None)
         self.cursor = self.conn.cursor()
         self.max_ids_per_subspace: int = max_ids_per_subspace
@@ -330,16 +367,14 @@ class IDManager:
                 f"""
                     CREATE TABLE IF NOT EXISTS {namespace} (
                         id INTEGER PRIMARY KEY,
-                        path TEXT NOT NULL,
-                        params TEXT NOT NULL,
-                        mtime TIMESTAMP NOT NULL,
+                        description TEXT NOT NULL,
                         atime TIMESTAMP NOT NULL
                     )
                 """
             )
             self.cursor.execute(
                 f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
-                    ON {namespace} (path, params)
+                    ON {namespace} (description)
                 """
             )
             self.cursor.execute(
@@ -352,9 +387,7 @@ class IDManager:
             f"""
                 CREATE TABLE IF NOT EXISTS upload (
                     id INTEGER NOT NULL,
-                    path TEXT NOT NULL,
-                    params TEXT NOT NULL,
-                    mtime TIMESTAMP NOT NULL,
+                    description TEXT NOT NULL,
                     size INTEGER NOT NULL,
                     terminal TEXT NOT NULL,
                     upload_time TIMESTAMP NOT NULL,
@@ -376,7 +409,7 @@ class IDManager:
         id_features = IDFeatures.from_id(id)
         namespace = id_features.namespace_name()
         self.cursor.execute(
-            f"""SELECT path, params, mtime, atime FROM {namespace}
+            f"""SELECT description, atime FROM {namespace}
                 WHERE id=?
             """,
             (id,),
@@ -384,22 +417,24 @@ class IDManager:
         row = self.cursor.fetchone()
         if not row:
             return None
-        path, params, mtime, atime = row
+        description, atime = row
         return ImageInfo(
             id=id,
-            path=path,
-            params=params,
-            mtime=datetime.fromisoformat(mtime),
+            description=description,
             atime=datetime.fromisoformat(atime),
         )
 
     def get_all(
-        self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
+        self, id_features: Optional[IDFeatures] = None, subspace: IDSubspace = IDSubspace()
     ) -> List[ImageInfo]:
+        if id_features is None:
+            spaces = [self.get_all(s, subspace) for s in IDFeatures.all_values()]
+            return list(heapq.merge(*spaces, key=lambda x: x.atime, reverse=True))
+
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
         self.cursor.execute(
-            f"""SELECT id, path, params, mtime, atime FROM {namespace}
+            f"""SELECT id, description, atime FROM {namespace}
                 WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
             """,
             (
@@ -409,24 +444,25 @@ class IDManager:
             ),
         )
         return [
-            ImageInfo(
-                id=row[0],
-                path=row[1],
-                params=row[2],
-                mtime=datetime.fromisoformat(row[3]),
-                atime=datetime.fromisoformat(row[4]),
-            )
-            for row in self.cursor.fetchall()
-        ]
+                ImageInfo(
+                    id=row[0],
+                    description=row[1],
+                    atime=datetime.fromisoformat(row[2]),
+                )
+                for row in self.cursor.fetchall()
+                ]
 
     def count(
-        self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
+        self, id_features: Optional[IDFeatures] = None, subspace: IDSubspace = IDSubspace()
     ) -> int:
+        if id_features is None:
+            return sum(self.count(s, subspace) for s in IDFeatures.all_values())
+
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
         self.cursor.execute(
             f"""SELECT COUNT(*) FROM {namespace}
-                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
+                WHERE (id & ?) BETWEEN ? AND ?
             """,
             (
                 id_features.subspace_byte_mask(),
@@ -439,30 +475,23 @@ class IDManager:
     def set_id(
         self,
         id: int,
-        path: str,
+        description: str,
         *,
-        params: str = "",
-        mtime: Optional[datetime] = None,
         atime: Optional[datetime] = None,
     ):
         id_features = IDFeatures.from_id(id)
         namespace = id_features.namespace_name()
-        if mtime is None:
-            try:
-                mtime = datetime.fromtimestamp(os.path.getmtime(path))
-            except FileNotFoundError:
-                mtime = datetime.fromtimestamp(0)
         if atime is None:
             atime = datetime.now()
         # Upsert the row.
         self.cursor.execute(
-            f"""INSERT INTO {namespace} (id, path, params, mtime, atime)
-                VALUES (?, ?, ?, ?, ?)
+            f"""INSERT INTO {namespace} (id, description, atime)
+                VALUES (?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
-                    path=excluded.path, params=excluded.params,
-                    mtime=excluded.mtime, atime=excluded.atime
+                    description=excluded.description,
+                    atime=excluded.atime
             """,
-            (id, path, params, mtime.isoformat(), atime.isoformat()),
+            (id, description, atime.isoformat()),
         )
 
     def del_id(self, id: int):
@@ -474,21 +503,11 @@ class IDManager:
 
     def get_id(
         self,
-        path: str,
+        description: str,
         id_features: IDFeatures,
         *,
-        params: str = "",
-        mtime: Optional[datetime] = None,
         subspace: IDSubspace = IDSubspace(),
     ) -> int:
-        # If `mtime` is not given, use the modification time of the file, or
-        # just some arbitrary time if the file does not exist.
-        if mtime is None:
-            try:
-                mtime = datetime.fromtimestamp(os.path.getmtime(path))
-            except FileNotFoundError:
-                mtime = datetime.fromtimestamp(0)
-
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
 
@@ -496,16 +515,13 @@ class IDManager:
 
         with self.conn:
             self.conn.execute("BEGIN")
-            # Find the row with the given `path`, `params`, `mtime` and id
-            # subspace.
+            # Find the row with the given `description` and id subspace.
             self.cursor.execute(
                 f"""SELECT id FROM {namespace}
-                    WHERE path=? AND params=? AND mtime=? AND (id & ?) BETWEEN ? AND ?
+                    WHERE description=? AND (id & ?) BETWEEN ? AND ?
                 """,
                 (
-                    path,
-                    params,
-                    mtime.isoformat(),
+                    description,
                     id_features.subspace_byte_mask(),
                     begin,
                     end - 1,
@@ -543,9 +559,7 @@ class IDManager:
                     id = self.cursor.fetchone()[0]
                     self.set_id(
                         id,
-                        path=path,
-                        params=params,
-                        mtime=mtime,
+                        description=description,
                         atime=atime,
                     )
                     return id
@@ -572,9 +586,7 @@ class IDManager:
                     id = oldest_atime_id[0]
                 self.set_id(
                     id,
-                    path=path,
-                    params=params,
-                    mtime=mtime,
+                    description=description,
                     atime=atime,
                 )
                 return id
@@ -597,24 +609,24 @@ class IDManager:
                 if id is not None:
                     self.set_id(
                         id,
-                        path=path,
-                        params=params,
-                        mtime=mtime,
+                        description=description,
                         atime=atime,
                     )
                     return id
             if frac == 0:
-                raise RuntimeError(
-                    "Failed to find an unused id, row count:"
-                    f" {self.count(id_features, subspace)}, subspace size:"
-                    f" {subspace_size}"
-                )
+                break
             # If it failed, try do a cleanup.
             self.cleanup(
                 id_features,
                 subspace,
                 max_ids=min(int(subspace_size * frac), self.max_ids_per_subspace),
             )
+
+        raise RuntimeError(
+            "Failed to find an unused id, row count:"
+            f" {self.count(id_features, subspace)}, subspace size:"
+            f" {subspace_size}"
+        )
 
     def cleanup(
         self,
@@ -652,7 +664,7 @@ class IDManager:
     def get_upload_info(self, id: int, terminal: str) -> Optional[UploadInfo]:
         self.cursor.execute(
             """
-            SELECT path, params, mtime, upload_time, size FROM upload
+            SELECT description, upload_time, size FROM upload
             WHERE id=? AND terminal=?
             """,
             (id, terminal),
@@ -660,7 +672,7 @@ class IDManager:
         row = self.cursor.fetchone()
         if not row:
             return None
-        path, params, mtime_str, upload_time_str, size = row
+        description, upload_time_str, size = row
         if size is None:
             size = 0
         self.cursor.execute(
@@ -673,15 +685,29 @@ class IDManager:
         uploads_ago, bytes_ago = self.cursor.fetchone()
         return UploadInfo(
             id=id,
-            path=path,
-            params=params,
-            mtime=datetime.fromisoformat(mtime_str),
+            description=description,
             upload_time=datetime.fromisoformat(upload_time_str),
             terminal=terminal,
             size=size,
             bytes_ago=size + (bytes_ago if bytes_ago else 0),
             uploads_ago=1 + (uploads_ago if uploads_ago else 0),
         )
+
+    def get_upload_infos(self, id: int) -> List[UploadInfo]:
+        self.cursor.execute(
+            """
+            SELECT terminal FROM upload
+            WHERE id=?
+            """,
+            (id,),
+        )
+        res = []
+        for row in self.cursor.fetchall():
+            terminal = row[0]
+            upload_info = self.get_upload_info(id, terminal)
+            if upload_info:
+                res.append(upload_info)
+        return res
 
     def needs_uploading(
         self,
@@ -699,12 +725,8 @@ class IDManager:
         if upload_info is None:
             return True
         return (
-            upload_info.path != info.path
-            or upload_info.params != info.params
-            or upload_info.mtime != info.mtime
-            or upload_info.bytes_ago > max_bytes_ago
-            or upload_info.uploads_ago > max_uploads_ago
-            or datetime.now() - upload_info.upload_time > max_time_ago
+            upload_info.description != info.description
+            or upload_info.needs_uploading(max_uploads_ago=max_uploads_ago, max_bytes_ago=max_bytes_ago, max_time_ago=max_time_ago)
         )
 
     def mark_uploaded(
@@ -722,18 +744,16 @@ class IDManager:
             return
         self.cursor.execute(
             f"""INSERT INTO upload
-                (id, path, params, mtime, size, terminal, upload_time)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                (id, description, size, terminal, upload_time)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(id, terminal) DO UPDATE SET
-                    path=excluded.path, params=excluded.params,
-                    mtime=excluded.mtime, size=excluded.size,
+                    description=excluded.description,
+                    size=excluded.size,
                     upload_time=excluded.upload_time
             """,
             (
                 id,
-                info.path,
-                info.params,
-                info.mtime.isoformat(),
+                info.description,
                 size,
                 terminal,
                 upload_time.isoformat(),
@@ -752,3 +772,27 @@ class IDManager:
             """,
             (max_uploads,),
         )
+
+    def get_all_with_upload_info(
+        self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
+    ) -> List[ImageInfo]:
+        namespace = id_features.namespace_name()
+        begin, end = id_features.subspace_masked_range(subspace)
+        self.cursor.execute(
+            f"""SELECT id, description, atime FROM {namespace}
+                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
+            """,
+            (
+                id_features.subspace_byte_mask(),
+                begin,
+                end - 1,
+            ),
+        )
+        return [
+            ImageInfo(
+                id=row[0],
+                description=row[1],
+                atime=datetime.fromisoformat(row[4]),
+            )
+            for row in self.cursor.fetchall()
+        ]

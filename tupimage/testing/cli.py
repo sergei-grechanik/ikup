@@ -112,8 +112,8 @@ def run(args):
     if not args.tests:
         args.tests = ["*"]
     ran_any_tests = False
-    with ctx.term.guard_tty_settings():
-        ctx.term.set_immediate_input_noecho()
+    with ctx.term.guard_tty_settings(ctx.term.tty_userinput):
+        ctx.term.set_immediate_input_noecho(ctx.term.tty_userinput)
         skipping = True
         for name, func in TestingContext.all_tests:
             if skipping and args.start:
@@ -161,13 +161,13 @@ def main():
     parser_run.add_argument("--no-reset", action="store_true")
     parser_run.add_argument("--dump-shell-script", "--sh", default=None, type=str)
     parser_run.add_argument("--force-direct-transmission", action="store_true")
-    parser_run.add_argument("--exclude", nargs="*", type=str)
-    parser_run.add_argument("--start", nargs="*", type=str)
+    parser_run.add_argument("--exclude", nargs="*", type=str, default=[])
+    parser_run.add_argument("--start", nargs="*", type=str, default=[])
     parser_run.add_argument("tests", nargs="*", type=str)
     parser_run.set_defaults(func=run)
 
     parser_list = subparsers.add_parser("list", help="List tests.")
-    parser_list.add_argument("--exclude", nargs="*", type=str)
+    parser_list.add_argument("--exclude", nargs="*", type=str, default=[])
     parser_list.add_argument("tests", nargs="*", type=str)
     parser_list.set_defaults(func=list_tests)
 

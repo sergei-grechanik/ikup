@@ -9,7 +9,6 @@ readme = "README.md"
 dynamic = ["version"]
 requires-python = ">= 3.8"
 dependencies = [
-    "numpy",
     "Pillow",
     "platformdirs",
     "pytest",
@@ -17,7 +16,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-pytest = ["pytest"]
+test = ["pytest", "numpy"]
 
 [project.scripts]
 tupimage = "tupimage.cli:main"

@@ -12,7 +12,7 @@ import tempfile
 import typing
 import zlib
 from dataclasses import dataclass, field
-from typing import BinaryIO, Callable, List, Literal, Optional, Tuple, Union
+from typing import BinaryIO, Callable, List, Literal, Optional, Tuple, Union, Any
 
 import platformdirs
 import toml
@@ -33,60 +33,7 @@ from tupimage import (
     TransmissionMedium,
     TransmitCommand,
 )
-
-
-@dataclass(frozen=True)
-class ClipRectangle:
-    start_col: int = 0
-    start_row: int = 0
-    end_col: Optional[int] = 0
-    end_row: Optional[int] = 0
-
-    @staticmethod
-    def whole_window() -> "ClipRectangle":
-        return ClipRectangle()
-
-    def __init__(
-        self,
-        start_col: int = 0,
-        start_row: int = 0,
-        *,
-        end_col: Optional[int] = None,
-        end_row: Optional[int] = None,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-    ):
-        self.start_col = start_col
-        self.start_row = start_row
-        if end_col is not None and cols is not None:
-            raise ValueError("Cannot specify both end_col and cols")
-        if end_row is not None and rows is not None:
-            raise ValueError("Cannot specify both end_row and rows")
-        if end_col is not None:
-            self.end_col = end_col
-        elif cols is not None:
-            self.end_col = self.start_col + cols
-        if end_row is not None:
-            self.end_row = end_row
-        elif rows is not None:
-            self.end_row = self.start_row + rows
-        if self.end_col < self.start_col:
-            raise ValueError(
-                f"end_col ({self.end_col}) must be >= start_col" f" ({self.start_col})"
-            )
-        if self.end_row < self.start_row:
-            raise ValueError(
-                f"end_row ({self.end_row}) must be >= start_row" f" ({self.start_row})"
-            )
-        if self.start_col < 0:
-            raise ValueError(f"start_col ({self.start_col}) must be >= 0")
-        if self.start_row < 0:
-            raise ValueError(f"start_row ({self.start_row}) must be >= 0")
-
-
-@dataclass(frozen=True)
-class NoClipping:
-    pass
+import tupimage.utils
 
 
 BackgroundLike = Union[tupimage.AdditionalFormatting, str, int, None]
@@ -96,48 +43,46 @@ FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 @dataclass
 class TupimageConfig:
     # Id allocation options.
-    id_subspace: Union[IDSubspace, str, None] = IDSubspace()
-    id_color_bits: Literal[0, 8, 24, None] = 24
-    id_use_3rd_diacritic: Optional[bool] = True
-    max_ids_per_subspace: Optional[int] = 1024
-    id_database_dir: Optional[str] = ""
+    id_subspace: IDSubspace = IDSubspace()
+    id_color_bits: Literal[0, 8, 24] = 24
+    id_use_3rd_diacritic: bool = True
+    max_ids_per_subspace: int = 1024
+    id_database_dir: str = platformdirs.user_state_dir("tupimage")
 
     # Image geometry options.
-    cell_size: Union[Tuple[int, int], str, Literal["auto"], None] = "auto"
-    default_cell_size: Union[Tuple[int, int], str, None] = (8, 16)
-    scale: Optional[float] = 1.0
-    max_rows: Union[int, Literal["auto"], None] = "auto"
-    max_cols: Union[int, Literal["auto"], None] = "auto"
+    cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
+    default_cell_size: Tuple[int, int] = (8, 16)
+    scale: float = 1.0
+    max_rows: Union[int, Literal["auto"]] = "auto"
+    max_cols: Union[int, Literal["auto"]] = "auto"
 
     # Uploading options
-    max_command_size: Optional[int] = select.PIPE_BUF
-    num_tmux_layers: Union[int, Literal["auto"], None] = "auto"
-    reupload_max_uploads_ago: Optional[int] = 1024
-    reupload_max_bytes_ago: Optional[int] = 20 * 1024 * 1024
-    reupload_max_seconds_ago: Optional[int] = 3600
-    force_reupload: Optional[bool] = False
-    supported_formats: Union[List[str], Literal["auto"], None] = "auto"
-    upload_method: Union[TransmissionMedium, str, None] = "auto"
-    check_response: Optional[bool] = False
-    check_response_timeout: Optional[float] = 3.0
-    redetect_terminal: Optional[bool] = True
-    stream_max_size: Optional[int] = 1 * 1024 * 1024
-    file_max_size: Optional[int] = 2 * 1024 * 1024
+    max_command_size: int = select.PIPE_BUF
+    num_tmux_layers: Union[int, Literal["auto"]] = "auto"
+    reupload_max_uploads_ago: int = 1024
+    reupload_max_bytes_ago: int = 20 * 1024 * 1024
+    reupload_max_seconds_ago: int = 3600
+    force_reupload: bool = False
+    supported_formats: Union[List[str], Literal["auto"]] = "auto"
+    upload_method: Union[TransmissionMedium, Literal["auto"]] = "auto"
+    check_response: bool = False
+    check_response_timeout: float = 3.0
+    redetect_terminal: bool = True
+    stream_max_size: int = 1 * 1024 * 1024
+    file_max_size: int = 2 * 1024 * 1024
 
     # Image display options.
-    less_diacritics: Optional[bool] = False
-    placeholder_char: Optional[str] = tupimage.PLACEHOLDER_CHAR
-    final_cursor_pos: Optional[FinalCursorPos] = "bottom-right"
+    fewer_diacritics: bool = False
+    placeholder_char: str = tupimage.PLACEHOLDER_CHAR
     background: BackgroundLike = "none"
-    clip: Union[ClipRectangle, NoClipping, None] = NoClipping()
 
     # General options.
-    ignore_unknown_attributes: Optional[bool] = False
+    ignore_unknown_attributes: bool = False
 
     def to_toml_string(self) -> str:
         dic = dataclasses.asdict(self)
         if isinstance(self.id_subspace, IDSubspace):
-            dic["id_subspace"] = self.id_subspace.to_string()
+            dic["id_subspace"] = str(self.id_subspace)
         if isinstance(self.cell_size, tuple):
             dic["cell_size"] = f"{self.cell_size[0]}x{self.cell_size[1]}"
         if isinstance(self.default_cell_size, tuple):
@@ -153,67 +98,76 @@ class TupimageConfig:
             self.override_from_toml_string(f.read())
 
     def override_from_toml_string(self, string: str):
-        conf = toml.loads(string)
-        field_names = set()
-        for field in dataclasses.fields(self):
-            field_names.add(field.name)
-            if field.name in config:
-                value = config[field.name]
-                setattr(self, field.name, value)
-        self.verify_and_normalize()
-        if not self.ignore_unknown_attributes:
-            for key, value in conf.items():
-                if key not in field_names:
-                    raise ValueError(f"Unknown config key: {key}")
+        config = toml.loads(string)
+        unknown_keys = set()
+        for key, value in config.items():
+            if key not in TupimageConfig.__annotations__:
+                unknown_keys.add(key)
+                continue
+            normalized = TupimageConfig.validate_and_normalize(key, value)
+            setattr(self, key, normalized)
+        if unknown_keys and not self.ignore_unknown_attributes:
+            raise KeyError(f"Unknown config keys: {', '.join(unknown_keys)}")
 
     def override_from_dict(self, config: dict):
         field_names = {field.name for field in dataclasses.fields(self)}
         for key, value in config.items():
-            if key not in field_names:
-                raise ValueError(f"Unknown config key: {key}")
             if value is not None:
-                setattr(self, key, value)
-        self.verify_and_normalize()
+                normalized = TupimageConfig.validate_and_normalize(key, value)
+                setattr(self, key, normalized)
 
     def override_from_kwargs(self, **kwargs):
         self.override_from_dict(kwargs)
 
-    def verify_and_normalize(self):
-        for field in dataclasses.fields(self):
-            value = getattr(self, field.name)
-            if not self._verify_type(value, field.type):
-                raise ValueError(
-                    f"Field {field.name} has type {field.type}, but got"
-                    f" {value} of type {type(value)}"
-                )
-        if isinstance(self.id_subspace, str):
-            self.id_subspace = IDSubspace.from_string(self.id_subspace)
-        if isinstance(self.cell_size, str) and self.cell_size != "auto":
-            self.cell_size = tupimage.utils.validate_size(self.cell_size)
-        if isinstance(self.default_cell_size, str) and self.default_cell_size != "auto":
-            self.default_cell_size = tupimage.utils.validate_size(
-                self.default_cell_size
-            )
-        if self.id_database_dir == "":
-            self.id_database_dir = platformdirs.user_state_dir("tupimage")
-        if isinstance(self.max_cols, int) and self.max_cols <= 0:
-            raise ValueError(f"max_cols must be positive: {self.max_cols}")
-        if isinstance(self.max_rows, int) and not (0 < self.max_cols <= 256):
+    @staticmethod
+    def validate_and_normalize(name: str, value: Any) -> Any:
+        if name not in TupimageConfig.__annotations__:
+            raise KeyError(f"Unknown config key: {name}")
+        field_type = TupimageConfig.__annotations__[name]
+
+        # Normalize values specified as strings.
+        if isinstance(value, str) and value != "auto":
+            if field_type is IDSubspace:
+                return IDSubspace.from_string(value)
+            if name == "cell_size" or name == "default_cell_size":
+                return tupimage.utils.validate_size(value)
+            if name == "id_database_dir" and value == "":
+                return platformdirs.user_state_dir("tupimage")
+            if name == "upload_method":
+                return TransmissionMedium.from_string(value)
+            if name in ["max_rows", "max_cols", "num_tmux_layers"]:
+                return int(value)
+            if name == "supported_formats":
+                return re.split(r'[, ]+', value)
+
+        # Verify the type.
+        if not TupimageConfig._verify_type(value, field_type):
             raise ValueError(
-                "max_rows must be positive and not greater than 256:"
-                f" {self.max_cols}"
+                f"Field {name} has type {field_type}, but got"
+                f" {value} of type {type(value)}"
             )
 
-    def _verify_type(self, value, type):
+        # Verify additional constraints.
+        if isinstance(value, int):
+            if name == "max_cols" and value <= 0:
+                raise ValueError(f"max_cols must be positive: {value}")
+            if name == "max_rows" and not (0 < value <= 256):
+                raise ValueError(
+                    "max_rows must be positive and not greater than 256:"
+                    f" {value}"
+                )
+
+    @staticmethod
+    def _verify_type(value, type):
         origin = typing.get_origin(type)
         args = typing.get_args(type)
         if origin is Optional:
             if value is None:
                 return True
-            return self._verify_type(value, args[0])
+            return TupimageConfig._verify_type(value, args[0])
         elif origin is Union:
             for arg in args:
-                if self._verify_type(value, arg):
+                if TupimageConfig._verify_type(value, arg):
                     return True
             return False
         elif origin is tuple:
@@ -222,14 +176,14 @@ class TupimageConfig:
             if len(value) != len(args):
                 return False
             for i in range(len(value)):
-                if not self._verify_type(value[i], args[i]):
+                if not TupimageConfig._verify_type(value[i], args[i]):
                     return False
             return True
         elif origin is list:
             if not isinstance(value, list):
                 return False
             for subval in value:
-                if not self._verify_type(subval, args[0]):
+                if not TupimageConfig._verify_type(subval, args[0]):
                     return False
             return True
         elif origin is Literal:
@@ -244,18 +198,32 @@ class ImageInstance:
     mtime: datetime.datetime
     cols: int
     rows: int
-    id: Optional[int] = None
+    id: int
     image: Optional[Image.Image] = None
 
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
 
     @staticmethod
-    def build_param_string(cols: int, rows: int) -> str:
-        return json.dumps({"cols": cols, "rows": rows})
+    def from_description(description: str, id: int) -> Optional["ImageInstance"]:
+        try:
+            params = json.loads(description)
+            return ImageInstance(
+                    path=params.get("path"),
+                    mtime=datetime.datetime.fromtimestamp(float(params.get("mtime"))),
+                    cols=int(params.get("cols")),
+                    rows=int(params.get("rows")),
+                    id=id,)
+        except (json.JSONDecodeError, KeyError, ValueError, TypeError):
+            return None
 
-    def get_param_string(self):
-        return self.build_param_string(cols=self.cols, rows=self.rows)
+    @staticmethod
+    def build_descr_string(path: str, mtime: datetime.datetime, cols: int, rows: int) -> str:
+        return json.dumps({"path": path, "mtime": mtime.timestamp(),
+                           "cols": cols, "rows": rows})
+
+    def get_description(self):
+        return self.build_descr_string(path=self.path, mtime=self.mtime, cols=self.cols, rows=self.rows)
 
     def is_file_available(self) -> bool:
         return (
@@ -273,34 +241,26 @@ class ImageInstance:
 
 
 ImageOrFilename = Union[Image.Image, str]
-ImageLike = Union[ImageOrFilename, ImageInstance]
-
-
-def _config_property(name):
-    def getter(obj):
-        return getattr(obj._config, name)
-
-    def setter(obj, new_value):
-        setattr(obj._config, name, new_value)
-        obj._config.verify_and_normalize()
-
-    return property(getter, setter)
 
 
 class TupimageTerminal:
     def __init__(
         self,
         *,
-        tty_filename: Optional[str] = None,
-        tty_out: Optional[BinaryIO] = None,
-        tty_in: Optional[BinaryIO] = None,
+        tty_command: Union[BinaryIO, str, None] = None,
+        tty_display: Union[BinaryIO, str, None] = None,
+        tty_status: Union[BinaryIO, str, None] = None,
+        tty_response: Union[BinaryIO, str, None] = None,
         id_database: Optional[str] = None,
         session_id: Optional[str] = None,
         terminal_id: Optional[str] = None,
         terminal_name: Optional[str] = None,
+        final_cursor_pos: FinalCursorPos = "bottom-left",
         config: Optional[Union[TupimageConfig, str]] = None,
+        config_overrides: dict = {},
         **kwargs,
     ):
+        self._config_file: str = "DEFAULT"
         if config is None:
             if os.environ.get("TUPIMAGE_CONFIG") is not None:
                 config = os.environ["TUPIMAGE_CONFIG"]
@@ -311,11 +271,16 @@ class TupimageTerminal:
                 else:
                     config = TupimageConfig()
         if isinstance(config, str):
+            self._config_file: str = config
             if config == "DEFAULT":
                 config = TupimageConfig()
             else:
                 config = TupimageConfig().override_from_toml_file(config)
+        assert config is not None
         config.override_from_dict(kwargs)
+        config.override_from_dict(config_overrides)
+
+        self.final_cursor_pos: FinalCursorPos = final_cursor_pos
 
         if config.num_tmux_layers == "auto":
             term = os.environ.get("TERM", "")
@@ -330,7 +295,7 @@ class TupimageTerminal:
             or os.environ.get("SSH_CONNECTION") is not None
         )
 
-        self._config = config
+        self._config: TupimageConfig = config
 
         self.override_terminal_name = terminal_name
         self.override_terminal_id = terminal_id
@@ -339,9 +304,10 @@ class TupimageTerminal:
         self.detect_terminal()
 
         self.term = GraphicsTerminal(
-            tty_filename=tty_filename,
-            tty_out=tty_out,
-            tty_in=tty_in,
+            tty_command=tty_command,
+            tty_display=tty_display,
+            tty_response=tty_response,
+            tty_userinput=None,
             max_command_size=config.max_command_size,
             num_tmux_layers=config.num_tmux_layers,
         )
@@ -355,31 +321,11 @@ class TupimageTerminal:
             max_ids_per_subspace=config.max_ids_per_subspace,
         )
 
-    max_cols = _config_property("max_cols")
-    max_rows = _config_property("max_rows")
-    scale = _config_property("scale")
-    id_color_bits = _config_property("id_color_bits")
-    id_use_3rd_diacritic = _config_property("id_use_3rd_diacritic")
-    id_subspace = _config_property("id_subspace")
-    check_response = _config_property("check_response")
-    check_response_timeout = _config_property("check_response_timeout")
-    upload_method = _config_property("upload_method")
-    force_reupload = _config_property("force_reupload")
-    less_diacritics = _config_property("less_diacritics")
-    redetect_terminal = _config_property("redetect_terminal")
-    background = _config_property("background")
-    final_cursor_pos = _config_property("final_cursor_pos")
-    clip = _config_property("clip")
-    supported_formats = _config_property("supported_formats")
-    stream_max_size = _config_property("stream_max_size")
-    file_max_size = _config_property("file_max_size")
-
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
             ["tmux", "display-message", "-p", message],
             capture_output=True,
             text=True,
-            stderr=subprocess.DEVNULL,
         )
         return result.stdout.strip()
 
@@ -499,13 +445,13 @@ class TupimageTerminal:
     def build_image_instance(
         self,
         image: ImageOrFilename,
+        id: int,
         *,
         cols: Optional[int] = None,
         rows: Optional[int] = None,
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id: Optional[int] = None,
     ) -> ImageInstance:
         path, mtime = self._get_image_path_and_mtime(image)
         if cols is None or rows is None:
@@ -538,13 +484,14 @@ class TupimageTerminal:
     ) -> Tuple[str, datetime.datetime]:
         if isinstance(image, str):
             if image.startswith(":"):
-                return image
+                return image, datetime.datetime.fromtimestamp(0)
             if image.startswith("~"):
                 image = os.expanduser(image)
             if os.path.exists(image):
                 return os.path.abspath(image), datetime.datetime.fromtimestamp(
                     os.path.getmtime(image)
                 )
+            return image, datetime.datetime.fromtimestamp(0)
         else:
             md5sum = hashlib.md5(image.tobytes()).hexdigest()
             return f":tupimage:{md5sum}", datetime.datetime.fromtimestamp(0)
@@ -588,17 +535,16 @@ class TupimageTerminal:
     ) -> ImageInstance:
         inst = self.build_image_instance(
             image,
+            id=0,
             cols=cols,
             rows=rows,
             max_cols=max_cols,
             max_rows=max_rows,
             scale=scale,
         )
-        params = inst.get_param_string()
-        path = inst.path
-        mtime = inst.mtime
+        descr = inst.get_description()
         if force_id is not None:
-            self.id_manager.set_id(force_id, path, mtime=mtime, params=params)
+            self.id_manager.set_id(force_id, descr)
             inst.id = force_id
             return inst
         id_features = self.get_id_features(
@@ -607,13 +553,33 @@ class TupimageTerminal:
         )
         id_subspace = self.get_subspace(id_subspace)
         inst.id = self.id_manager.get_id(
-            path, id_features, mtime=mtime, params=params, subspace=id_subspace
+            descr, id_features, subspace=id_subspace
         )
         return inst
 
+    def get_image_instance(self, id: int) -> Optional[ImageInstance]:
+        info = self.id_manager.get_info(id)
+        if info is None:
+            return None
+        return ImageInstance.from_description(info.description, id)
+
+    def needs_uploading(self, id: int, terminal_id: Optional[str] = None) -> bool:
+        max_uploads_ago = self._config.reupload_max_uploads_ago
+        max_bytes_ago = self._config.reupload_max_bytes_ago
+        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
+        if terminal_id is None:
+            terminal_id = self._terminal_id
+        return self.id_manager.needs_uploading(
+            id,
+            terminal_id,
+            max_uploads_ago=max_uploads_ago,
+            max_bytes_ago=max_bytes_ago,
+            max_time_ago=max_time_ago,
+        )
+
     def upload(
         self,
-        image: ImageLike,
+        image: Union[ImageOrFilename, ImageInstance],
         *,
         cols: Optional[int] = None,
         rows: Optional[int] = None,
@@ -653,36 +619,28 @@ class TupimageTerminal:
                 id_subspace=id_subspace,
                 force_id=force_id,
             )
-        max_uploads_ago = self._config.reupload_max_uploads_ago
-        max_bytes_ago = self._config.reupload_max_bytes_ago
-        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
         if force_reupload is None:
             force_reupload = self._config.force_reupload
         if self._config.redetect_terminal:
             self.detect_terminal()
-        if force_reupload or self.id_manager.needs_uploading(
-            inst.id,
-            self._terminal_id,
-            max_uploads_ago=max_uploads_ago,
-            max_bytes_ago=max_bytes_ago,
-            max_time_ago=max_time_ago,
-        ):
+        if force_reupload or self.needs_uploading(inst.id):
             size = self._upload(
                 inst, check_response=check_response, upload_method=upload_method
             )
             self.id_manager.mark_uploaded(inst.id, self._terminal_id, size=size)
         return inst
 
-    def _is_format_supported(self, format: Optional[str]) -> bool:
-        if format is None:
-            return False
+    def get_supported_formats(self) -> List[str]:
         if self._config.supported_formats == "auto":
             formats = ["png"]
             if self._terminal_name.startswith("st"):
                 formats.append("jpeg")
-            return format.lower() in formats
         else:
-            return format.lower() in [f.lower() for f in self._config.supported_formats]
+            formats = self._config.supported_formats
+        return [f.lower() for f in formats]
+
+    def _is_format_supported(self, format: Optional[str]) -> bool:
+        return format is not None and format.lower() in self.get_supported_formats()
 
     def get_max_upload_size(self, upload_method: TransmissionMedium) -> int:
         if upload_method in [
@@ -694,6 +652,17 @@ class TupimageTerminal:
             return self._config.stream_max_size
         else:
             raise ValueError(f"Unsupported upload method: {upload_method}")
+
+    def get_upload_method(self) -> TransmissionMedium:
+        upload_method = self._config.upload_method
+        if upload_method == "auto" or upload_method is None:
+            if self.inside_ssh:
+                upload_method = TransmissionMedium.DIRECT
+            else:
+                upload_method = TransmissionMedium.FILE
+        if isinstance(upload_method, str):
+            upload_method = TransmissionMedium.from_string(upload_method)
+        return upload_method
 
     def _upload(
         self,
@@ -819,7 +788,7 @@ class TupimageTerminal:
 
     def upload_and_display(
         self,
-        image: ImageLike,
+        image: Union[ImageOrFilename, ImageInstance],
         *,
         cols: Optional[int] = None,
         rows: Optional[int] = None,
@@ -833,10 +802,9 @@ class TupimageTerminal:
         force_reupload: Optional[bool] = None,
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
-        less_diacritics: Optional[bool] = None,
+        fewer_diacritics: Optional[bool] = None,
         background: Optional[Callable[[int, int], bytes]] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
-        clip: Union[ClipRectangle, NoClipping] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
     ) -> ImagePlaceholder:
         inst = self.upload(
@@ -854,26 +822,26 @@ class TupimageTerminal:
             check_response=check_response,
             upload_method=upload_method,
         )
-        return self.display(
+        return self.display_only(
             inst,
-            less_diacritics=less_diacritics,
+            fewer_diacritics=fewer_diacritics,
             background=background,
             abs_pos=abs_pos,
-            clip=clip,
             final_cursor_pos=final_cursor_pos,
         )
 
     def get_image_placeholder_mode(
         self,
         id: Union[int, ImageInstance, ImagePlaceholder],
-        less_diacritics: Optional[bool] = None,
+        *,
+        fewer_diacritics: Optional[bool] = None,
     ) -> ImagePlaceholderMode:
         if isinstance(id, ImagePlaceholder):
             id = id.image_id
         if isinstance(id, ImageInstance):
             id = id.id
-        if less_diacritics is None:
-            less_diacritics = self._config.less_diacritics
+        if fewer_diacritics is None:
+            fewer_diacritics = self._config.fewer_diacritics
         return ImagePlaceholderMode(
             allow_256colors_for_image_id=True,
             allow_256colors_for_placement_id=False,
@@ -881,14 +849,14 @@ class TupimageTerminal:
             first_column_diacritic_level=tupimage.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO,
             other_columns_diacritic_level=(
                 tupimage.DiacriticLevel.NONE
-                if less_diacritics
+                if fewer_diacritics
                 else tupimage.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO
             ),
             placeholder_char=self._config.placeholder_char,
         )
 
     def get_formatting(
-        self, background: BackgroundLike
+        self, background: Optional[BackgroundLike]
     ) -> tupimage.AdditionalFormatting:
         if background is None:
             background = self._config.background
@@ -902,113 +870,96 @@ class TupimageTerminal:
             return b"\033[48;5;%dm" % background
         return background
 
-    def display(
+    def display_only(
         self,
         id: Union[int, ImageInstance, ImagePlaceholder],
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        less_diacritics: Optional[bool] = None,
-        background: BackgroundLike = None,
+        *,
+        start_col: Optional[int] = None,
+        start_row: Optional[int] = None,
+        end_col: Optional[int] = None,
+        end_row: Optional[int] = None,
+        allow_expansion: bool = True,
+        fewer_diacritics: Optional[bool] = None,
+        background: Optional[BackgroundLike] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
-        clip: Union[ClipRectangle, NoClipping] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
     ) -> ImagePlaceholder:
+        placement_id = 0
         if isinstance(id, ImagePlaceholder):
-            if cols is not None or rows is not None:
-                raise ValueError(
-                    "Cannot specify cols or rows when displaying an"
-                    " ImagePlaceholder, use clone_with to override rows and"
-                    " cols"
-                )
+            start_col = start_col or id.start_col
+            start_row = start_row or id.start_row
+            end_col = end_col or id.end_col
+            end_row = end_row or id.end_row
+            if not allow_expansion:
+                end_col = min(end_col, id.end_col)
+                end_row = min(end_row, id.end_row)
+            placement_id = id.placement_id
+            id = id.image_id
         elif isinstance(id, ImageInstance):
-            cols = cols or id.cols
-            rows = rows or id.rows
+            start_col = start_col or 0
+            start_row = start_row or 0
+            end_col = end_col or id.cols
+            end_row = end_row or id.rows
+            if not allow_expansion:
+                end_col = min(end_col, id.cols)
+                end_row = min(end_row, id.rows)
             id = id.id
+        else:
+            start_col = start_col or 0
+            start_row = start_row or 0
+            if end_col is None or end_row is None:
+                raise ValueError(
+                    "end_col and end_row must be specified when id is an int"
+                )
+            if not allow_expansion:
+                raise ValueError(
+                    "Cannot specify allow_expansion=False when id is an int. "
+                    "Use ImageInstance returned by get_image_instance instead."
+                )
 
-        if isinstance(id, int):
-            id = ImagePlaceholder(image_id=id, end_col=cols, end_row=rows)
-
-        mode = self.get_image_placeholder_mode(id, less_diacritics=less_diacritics)
+        mode = self.get_image_placeholder_mode(id, fewer_diacritics=fewer_diacritics)
 
         formatting = self.get_formatting(background)
 
-        if clip is None:
-            clip = self._config.clip
-
-        if clip == NoClipping():
-            if abs_pos is None:
-                self.term.print_placeholder(
-                    placeholder=id, mode=mode, formatting=formatting
-                )
-            else:
-                if abs_pos[0] < 0 or abs_pos[1] < 0:
-                    raise ValueError(
-                        "Absolute position must be non-negative (unless"
-                        f" clipping is enabled): {abs_pos}"
-                    )
-                self.term.print_placeholder(
-                    placeholder=id,
-                    pos=abs_pos,
-                    mode=mode,
-                    formatting=formatting,
-                )
-            self._move_cursor_to_final_position(
-                id.end_col - id.start_col,
-                id.end_row - id.start_row,
-                final_cursor_pos,
-            )
-            return id
-
         if abs_pos is None:
-            abs_pos = self.term.get_cursor_position()
-        if clip.end_col is None or clip.end_row is None:
-            term_cols, term_rows = self.term.get_size()
-            clip = clip.clone_with(
-                end_col=clip.end_col or term_cols,
-                end_row=clip.end_row or term_rows,
+            self.term.print_placeholder(
+                image_id=id,
+                placement_id=placement_id,
+                start_col=start_col,
+                start_row=start_row,
+                end_col=end_col,
+                end_row=end_row,
+                mode=mode, formatting=formatting
             )
-
-        pos_col = abs_pos[0]
-        pos_row = abs_pos[1]
-        start_col = id.start_col
-        start_row = id.start_row
-        end_col = id.end_col
-        end_row = id.end_row
-
-        if pos_col < clip.start_col:
-            start_col += clip.start_col - pos_col
-            pos_col = clip.start_col
-        if pos_row < clip.start_row:
-            start_row += clip.start_row - pos_row
-            pos_row = clip.start_row
-        if pos_col + end_col - start_col > clip.end_col:
-            end_col = clip.end_col - pos_col + start_col
-        if pos_row + end_row - start_row > clip.end_row:
-            end_row = clip.end_row - pos_row + start_row
-
-        if end_col <= start_col or end_row <= start_row:
-            return id
-
-        self.term.print_placeholder(
-            image_id=id.id,
-            start_col=start_col,
-            start_row=start_row,
-            end_col=end_col,
-            end_row=end_row,
-            pos=(pos_col, pos_row),
-            mode=mode,
-            formatting=formatting,
-        )
+        else:
+            if abs_pos[0] < 0 or abs_pos[1] < 0:
+                raise ValueError(
+                    "Absolute position must be non-negative (unless"
+                    f" clipping is enabled): {abs_pos}"
+                )
+            self.term.print_placeholder(
+                image_id=id,
+                placement_id=placement_id,
+                start_col=start_col,
+                start_row=start_row,
+                end_col=end_col,
+                end_row=end_row,
+                pos=abs_pos,
+                mode=mode,
+                formatting=formatting,
+            )
         self._move_cursor_to_final_position(
-            end_col - start_col, end_row - start_row, final_cursor_pos
+            end_col - start_col,
+            end_row - start_row,
+            final_cursor_pos,
         )
-        return id
+        return ImagePlaceholder(image_id=id, placement_id=placement_id, start_col=start_col, start_row=start_row, end_col=end_col, end_row=end_row)
 
     def _move_cursor_to_final_position(
         self, cols: int, rows: int, final_cursor_pos: Optional[FinalCursorPos]
     ):
         if final_cursor_pos is None:
-            final_cursor_pos = self._config.final_cursor_pos
+            final_cursor_pos = self.final_cursor_pos
 
         if final_cursor_pos == "bottom-right":
             return
