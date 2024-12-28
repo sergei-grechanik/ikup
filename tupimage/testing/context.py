@@ -57,11 +57,13 @@ class TestingContext:
     def __init__(
         self,
         term: GraphicsTerminal,
+        *,
         output_dir: str,
         data_dir: str,
         term_size: Tuple[int, int] = (80, 24),
         screenshot_cell_size: Tuple[int, int] = (4, 8),
         pause_after_screenshot: bool = False,
+        pause_before_test: bool = False,
         take_screenshots: bool = True,
         reset_before_test: bool = True,
     ):
@@ -76,6 +78,7 @@ class TestingContext:
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
         self.pause_after_screenshot = pause_after_screenshot
+        self.pause_before_test = pause_before_test
         self.take_screenshots: bool = take_screenshots
         self.reset_before_test: bool = reset_before_test
         self.init_image_downloaders()
@@ -146,6 +149,11 @@ class TestingContext:
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n\n# {name}")
             self.term.shellscript_out.write(" {{{\n\n")
+        if self.pause_before_test:
+            if self.reset_before_test:
+                self.term.reset()
+            self.term.write(f"Test: {name}\n")
+            self.wait_for_keypress()
         if self.reset_before_test:
             self.term.reset()
 
@@ -256,6 +264,12 @@ class TestingContext:
             if len(resps) > 5:
                 print("...")
 
+    def wait_for_keypress(self):
+        key = self.term.wait_for_keypress()
+        if key == b"\x03":
+            self.term.write(b"\033[0m")
+            raise KeyboardInterrupt()
+
     def take_screenshot(self, description: Optional[str] = None):
         if self.test_name is None:
             raise RuntimeError("No test running")
@@ -285,10 +299,7 @@ class TestingContext:
             )
         self.screenshot_index += 1
         if self.pause_after_screenshot:
-            key = self.term.wait_keypress()
-            if key == b"\x03":
-                self.term.write(b"\033[0m")
-                raise KeyboardInterrupt()
+            self.wait_for_keypress()
 
     def take_screenshot_verbose(self, description: str = None):
         if description is not None:

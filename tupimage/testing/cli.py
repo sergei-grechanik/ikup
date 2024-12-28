@@ -106,6 +106,7 @@ def run(args):
         term_size=args.term_size,
         screenshot_cell_size=args.cell_size,
         pause_after_screenshot=args.pause,
+        pause_before_test=args.pause,
         take_screenshots=not args.no_screenshots,
         reset_before_test=not args.no_reset,
     )

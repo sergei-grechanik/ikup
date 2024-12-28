@@ -49,7 +49,7 @@ def dump_config(args):
 def status(args):
     tupiterm = tupimage.TupimageTerminal()
     print(f"Config file: {tupiterm._config_file}")
-    print(f"num_tmux_layers: {tupiterm.num_tmux_layers}")
+    print(f"num_tmux_layers: {tupiterm._config.num_tmux_layers}")
     print(f"inside_ssh: {tupiterm.inside_ssh}")
     print(f"terminal_name: {tupiterm._terminal_name}")
     print(f"terminal_id: {tupiterm._terminal_id}")

@@ -525,7 +525,7 @@ class GraphicsTerminal:
     def guard_tty_settings(self, tty: BinaryIO) -> TtySettingsGuard:
         return TtySettingsGuard(tty)
 
-    def wait_keypress(self) -> bytes:
+    def wait_for_keypress(self) -> bytes:
         with self.guard_tty_settings(self.tty_userinput):
             self.set_immediate_input_noecho(self.tty_userinput)
             result = b""
