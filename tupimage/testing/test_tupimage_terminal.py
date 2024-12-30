@@ -3,7 +3,7 @@ import time
 from PIL import Image, ImageOps
 
 import tupimage
-from tupimage import TupimageTerminal
+from tupimage import TupimageTerminal, IDFeatures, IDSubspace
 from tupimage.testing import TestingContext, screenshot_test
 
 
@@ -123,7 +123,7 @@ def id_reclaiming(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=False)
     for i in range(300):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
-        for y, idf in enumerate(tupimage.IDFeatures.all_values()):
+        for y, idf in enumerate(IDFeatures.all_values()):
             tupiterm.upload_and_display(
                 img,
                 cols=4,
@@ -142,10 +142,11 @@ def id_reclaiming(ctx: TestingContext):
 @screenshot_test
 def id_reclaiming_subspace(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=False)
-    tupiterm.id_subspace = "010101"
+    tupiterm.id_subspace = IDSubspace(100, 104)
+    assert IDFeatures(8, True).subspace_size(tupiterm._config.id_subspace) == 1020
     for i in range(1100):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
-        for y, idf in enumerate(tupimage.IDFeatures.all_values()):
+        for y, idf in enumerate(IDFeatures.all_values()):
             tupiterm.id_color_bits = idf.color_bits
             tupiterm.id_use_3rd_diacritic = idf.use_3rd_diacritic
             if i % 4 == 0:

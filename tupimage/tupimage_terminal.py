@@ -110,13 +110,12 @@ class TupimageConfig:
             raise KeyError(f"Unknown config keys: {', '.join(unknown_keys)}")
 
     def override_from_dict(self, config: dict):
-        field_names = {field.name for field in dataclasses.fields(self)}
         for key, value in config.items():
             if value is not None:
                 normalized = TupimageConfig.validate_and_normalize(key, value)
                 setattr(self, key, normalized)
 
-    def override_from_kwargs(self, **kwargs):
+    def override(self, **kwargs):
         self.override_from_dict(kwargs)
 
     @staticmethod
@@ -156,6 +155,8 @@ class TupimageConfig:
                     "max_rows must be positive and not greater than 256:"
                     f" {value}"
                 )
+
+        return value
 
     @staticmethod
     def _verify_type(value, type):
@@ -243,6 +244,18 @@ class ImageInstance:
 ImageOrFilename = Union[Image.Image, str]
 
 
+def _config_property(name: str):
+    assert name in TupimageConfig.__annotations__
+
+    def getter(obj: "TupimageTerminal"):
+        return getattr(obj._config, name)
+
+    def setter(obj: "TupimageTerminal", new_value):
+        obj._config.override_from_dict({name: new_value})
+
+    return property(getter, setter)
+
+
 class TupimageTerminal:
     def __init__(
         self,
@@ -320,6 +333,24 @@ class TupimageTerminal:
             database_file=id_database,
             max_ids_per_subspace=config.max_ids_per_subspace,
         )
+
+    max_cols = _config_property("max_cols")
+    max_rows = _config_property("max_rows")
+    scale = _config_property("scale")
+    id_color_bits = _config_property("id_color_bits")
+    id_use_3rd_diacritic = _config_property("id_use_3rd_diacritic")
+    id_subspace = _config_property("id_subspace")
+    check_response = _config_property("check_response")
+    check_response_timeout = _config_property("check_response_timeout")
+    upload_method = _config_property("upload_method")
+    force_reupload = _config_property("force_reupload")
+    fewer_diacritics = _config_property("fewer_diacritics")
+    redetect_terminal = _config_property("redetect_terminal")
+    background = _config_property("background")
+    supported_formats = _config_property("supported_formats")
+    stream_max_size = _config_property("stream_max_size")
+    file_max_size = _config_property("file_max_size")
+    num_tmux_layers = _config_property("num_tmux_layers")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(

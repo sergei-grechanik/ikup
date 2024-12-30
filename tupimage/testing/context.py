@@ -175,7 +175,7 @@ class TestingContext:
         img = Image.open(filename)
         return img.size
 
-    def generate_image(self, width: int, height: int) -> Image:
+    def generate_image(self, width: int, height: int) -> Image.Image:
         #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))
         #  np.stack((xx, yy), axis=-1)
         data = np.random.random_sample(size=(height, width, 3))
@@ -184,7 +184,7 @@ class TestingContext:
 
     def alpha_test_image(
         self, width: int, height: int, color: Tuple[int, int, int]
-    ) -> Image:
+    ) -> Image.Image:
         img = Image.new("RGBA", (width, height))
         d = ImageDraw.Draw(img)
         for x in range(width):
@@ -194,7 +194,7 @@ class TestingContext:
 
     def text_to_image(
         self, text: str, pad: int = 2, colorize_by_id: Optional[int] = None
-    ) -> Image:
+    ) -> Image.Image:
         bg_color = "black"
         if colorize_by_id is not None:
             byte4 = (colorize_by_id & 0xFF000000) >> 24
