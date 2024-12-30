@@ -57,7 +57,20 @@ def test_id_subspace_from_string():
     assert IDSubspace.from_string("255:256") == IDSubspace(255, 256)
 
 
-@pytest.mark.parametrize("pair", [(0, 1), (-1, 10), (10, 257), (0, 0), (10, 10), (10, 9), (256, 256), (256, 0), (10, -1)])
+@pytest.mark.parametrize(
+    "pair",
+    [
+        (0, 1),
+        (-1, 10),
+        (10, 257),
+        (0, 0),
+        (10, 10),
+        (10, 9),
+        (256, 256),
+        (256, 0),
+        (10, -1),
+    ],
+)
 def test_id_subspace_incorrect(pair):
     with pytest.raises(ValueError):
         IDSubspace(pair[0], pair[1])
@@ -109,7 +122,10 @@ def test_subspace_split(subsp: IDSubspace):
         subs = subsp.split(i)
         assert len(subs) == i
         assert sum(sub.num_byte_values() for sub in subs) == subsp.num_byte_values()
-        assert sum(sub.num_nonzero_byte_values() for sub in subs) == subsp.num_nonzero_byte_values()
+        assert (
+            sum(sub.num_nonzero_byte_values() for sub in subs)
+            == subsp.num_nonzero_byte_values()
+        )
         assert subs[0].begin == subsp.begin
         assert subs[-1].end == subsp.end
         for j in range(i - 1):
@@ -271,7 +287,9 @@ def test_id_manager_single_id():
 @pytest.mark.parametrize("id_features", IDFeatures.all_values())
 @pytest.mark.parametrize("big_subspace_end", [8, 14, 15, 255, 256])
 @pytest.mark.parametrize("num_subspaces", [1, 2, 7])
-def test_id_manager_disjoint_subspaces(id_features: IDFeatures, big_subspace_end: int, num_subspaces: int):
+def test_id_manager_disjoint_subspaces(
+    id_features: IDFeatures, big_subspace_end: int, num_subspaces: int
+):
     """Generate many ids for disjoint subspaces in each id-feature space."""
     subspaces = IDSubspace(0, big_subspace_end).split(num_subspaces)
     # We will have 1100 distinct "image" paths, so some of the paths will be

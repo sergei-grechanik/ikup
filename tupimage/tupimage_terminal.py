@@ -12,13 +12,14 @@ import tempfile
 import typing
 import zlib
 from dataclasses import dataclass, field
-from typing import BinaryIO, Callable, List, Literal, Optional, Tuple, Union, Any
+from typing import Any, BinaryIO, Callable, List, Literal, Optional, Tuple, Union
 
 import platformdirs
 import toml
 from PIL import Image, ImageColor
 
 import tupimage
+import tupimage.utils
 from tupimage import (
     GraphicsCommand,
     GraphicsResponse,
@@ -33,8 +34,6 @@ from tupimage import (
     TransmissionMedium,
     TransmitCommand,
 )
-import tupimage.utils
-
 
 BackgroundLike = Union[tupimage.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
@@ -137,7 +136,7 @@ class TupimageConfig:
             if name in ["max_rows", "max_cols", "num_tmux_layers"]:
                 return int(value)
             if name == "supported_formats":
-                return re.split(r'[, ]+', value)
+                return re.split(r"[, ]+", value)
 
         # Verify the type.
         if not TupimageConfig._verify_type(value, field_type):
@@ -152,8 +151,7 @@ class TupimageConfig:
                 raise ValueError(f"max_cols must be positive: {value}")
             if name == "max_rows" and not (0 < value <= 256):
                 raise ValueError(
-                    "max_rows must be positive and not greater than 256:"
-                    f" {value}"
+                    "max_rows must be positive and not greater than 256:" f" {value}"
                 )
 
         return value
@@ -210,21 +208,27 @@ class ImageInstance:
         try:
             params = json.loads(description)
             return ImageInstance(
-                    path=params.get("path"),
-                    mtime=datetime.datetime.fromtimestamp(float(params.get("mtime"))),
-                    cols=int(params.get("cols")),
-                    rows=int(params.get("rows")),
-                    id=id,)
+                path=params.get("path"),
+                mtime=datetime.datetime.fromtimestamp(float(params.get("mtime"))),
+                cols=int(params.get("cols")),
+                rows=int(params.get("rows")),
+                id=id,
+            )
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
             return None
 
     @staticmethod
-    def build_descr_string(path: str, mtime: datetime.datetime, cols: int, rows: int) -> str:
-        return json.dumps({"path": path, "mtime": mtime.timestamp(),
-                           "cols": cols, "rows": rows})
+    def build_descr_string(
+        path: str, mtime: datetime.datetime, cols: int, rows: int
+    ) -> str:
+        return json.dumps(
+            {"path": path, "mtime": mtime.timestamp(), "cols": cols, "rows": rows}
+        )
 
     def get_description(self):
-        return self.build_descr_string(path=self.path, mtime=self.mtime, cols=self.cols, rows=self.rows)
+        return self.build_descr_string(
+            path=self.path, mtime=self.mtime, cols=self.cols, rows=self.rows
+        )
 
     def is_file_available(self) -> bool:
         return (
@@ -583,9 +587,7 @@ class TupimageTerminal:
             id_use_3rd_diacritic=id_use_3rd_diacritic,
         )
         id_subspace = self.get_subspace(id_subspace)
-        inst.id = self.id_manager.get_id(
-            descr, id_features, subspace=id_subspace
-        )
+        inst.id = self.id_manager.get_id(descr, id_features, subspace=id_subspace)
         return inst
 
     def get_image_instance(self, id: int) -> Optional[ImageInstance]:
@@ -960,7 +962,8 @@ class TupimageTerminal:
                 start_row=start_row,
                 end_col=end_col,
                 end_row=end_row,
-                mode=mode, formatting=formatting
+                mode=mode,
+                formatting=formatting,
             )
         else:
             if abs_pos[0] < 0 or abs_pos[1] < 0:
@@ -984,7 +987,14 @@ class TupimageTerminal:
             end_row - start_row,
             final_cursor_pos,
         )
-        return ImagePlaceholder(image_id=id, placement_id=placement_id, start_col=start_col, start_row=start_row, end_col=end_col, end_row=end_row)
+        return ImagePlaceholder(
+            image_id=id,
+            placement_id=placement_id,
+            start_col=start_col,
+            start_row=start_row,
+            end_col=end_col,
+            end_row=end_row,
+        )
 
     def _move_cursor_to_final_position(
         self, cols: int, rows: int, final_cursor_pos: Optional[FinalCursorPos]

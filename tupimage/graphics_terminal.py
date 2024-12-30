@@ -171,7 +171,13 @@ class GraphicsTerminal:
         shellscript_out: Optional[TextIO] = None,
     ):
         # If none of the tty_* arguments are provided, use /dev/tty.
-        if tty_command is None and tty_display is None and tty_response is None and tty_userinput is None and tty_filename is None:
+        if (
+            tty_command is None
+            and tty_display is None
+            and tty_response is None
+            and tty_userinput is None
+            and tty_filename is None
+        ):
             tty_filename = "/dev/tty"
 
         # If a tty_filename is provided, open it for reading an writing and use it as

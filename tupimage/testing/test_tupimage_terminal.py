@@ -3,7 +3,7 @@ import time
 from PIL import Image, ImageOps
 
 import tupimage
-from tupimage import TupimageTerminal, IDFeatures, IDSubspace
+from tupimage import IDFeatures, IDSubspace, TupimageTerminal
 from tupimage.testing import TestingContext, screenshot_test
 
 

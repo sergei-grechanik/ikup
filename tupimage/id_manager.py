@@ -1,10 +1,10 @@
+import heapq
 import os
 import secrets
 import sqlite3
-import heapq
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterator, Iterable, List, Optional, Tuple
+from typing import Iterable, Iterator, List, Optional, Tuple
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,9 @@ class IDSubspace:
             begin = int(begin)
             end = int(end)
         except ValueError:
-            raise ValueError(f"Invalid format for IDSubspace: '{s}'. Expected format 'begin:end' with integers.")
+            raise ValueError(
+                f"Invalid format for IDSubspace: '{s}'. Expected format 'begin:end' with integers."
+            )
         return IDSubspace(begin, end)
 
     def rand_byte(self) -> int:
@@ -88,7 +90,9 @@ class IDSubspace:
         if count == 1:
             return [self]
         if self.num_nonzero_byte_values() < count:
-            raise ValueError(f"Subspace is too small to split: the number of non-zero byte values {self.num_nonzero_byte_values()} is less than the number of requested sub-subspaces {count}")
+            raise ValueError(
+                f"Subspace is too small to split: the number of non-zero byte values {self.num_nonzero_byte_values()} is less than the number of requested sub-subspaces {count}"
+            )
         size = self.num_nonzero_byte_values() // count
         remainder = self.num_byte_values() - size * count
         subspaces = []
@@ -185,9 +189,7 @@ class IDFeatures:
         """Returns true if the id is in this space and also in the given
         subspace."""
         begin, end = self.subspace_masked_range(subspace)
-        return self.contains(id) and (begin <= (
-            id & self.subspace_byte_mask()
-        ) < end)
+        return self.contains(id) and (begin <= (id & self.subspace_byte_mask()) < end)
 
     def gen_random_id(self, subspace: IDSubspace = IDSubspace()) -> int:
         """Generates a random id in this space that also belongs to the given
@@ -195,10 +197,10 @@ class IDFeatures:
         # We want to use every feature available to us, making id namespaces
         # disjoint.
 
-        byte_0 = 0 # blue or the color index
-        byte_1 = 0 # green
-        byte_2 = 0 # red
-        byte_3 = 0 # 3rd diacritic
+        byte_0 = 0  # blue or the color index
+        byte_1 = 0  # green
+        byte_2 = 0  # red
+        byte_3 = 0  # 3rd diacritic
         if self.use_3rd_diacritic:
             # If we can use the 3rd diacritic, it must be nonzero, and we apply the
             # subspace to it.
@@ -235,9 +237,9 @@ class IDFeatures:
     def all_ids(self, subspace: IDSubspace = IDSubspace()) -> Iterator[int]:
         """Generates all ids in this space that also belong to the given
         subspace."""
-        byte_0 = lambda: [0] # blue or the color index
-        byte_1_2 = lambda: [0] # red and green
-        byte_3 = lambda: [0] # 3rd diacritic
+        byte_0 = lambda: [0]  # blue or the color index
+        byte_1_2 = lambda: [0]  # red and green
+        byte_3 = lambda: [0]  # 3rd diacritic
         if self.use_3rd_diacritic:
             byte_3 = lambda: subspace.all_nonzero_byte_values()
             if self.color_bits == 8:
@@ -251,7 +253,11 @@ class IDFeatures:
                 byte_0 = lambda: subspace.all_nonzero_byte_values()
             elif self.color_bits == 24:
                 byte_0 = lambda: range(0, 256)
-                byte_1_2 = lambda: ((b2 << 8) | b1 for b2 in subspace.all_byte_values() for b1 in range(1 if b2 == 0 else 0, 256))
+                byte_1_2 = lambda: (
+                    (b2 << 8) | b1
+                    for b2 in subspace.all_byte_values()
+                    for b1 in range(1 if b2 == 0 else 0, 256)
+                )
         for b3 in byte_3():
             for b12 in byte_1_2():
                 for b0 in byte_0():
@@ -347,10 +353,11 @@ class UploadInfo:
         max_bytes_ago: int = 20 * (2**20),
         max_time_ago: timedelta = timedelta(hours=1),
     ) -> bool:
-        return (self.bytes_ago > max_bytes_ago
+        return (
+            self.bytes_ago > max_bytes_ago
             or self.uploads_ago > max_uploads_ago
             or datetime.now() - self.upload_time > max_time_ago
-            )
+        )
 
 
 class IDManager:
@@ -425,7 +432,9 @@ class IDManager:
         )
 
     def get_all(
-        self, id_features: Optional[IDFeatures] = None, subspace: IDSubspace = IDSubspace()
+        self,
+        id_features: Optional[IDFeatures] = None,
+        subspace: IDSubspace = IDSubspace(),
     ) -> List[ImageInfo]:
         if id_features is None:
             spaces = [self.get_all(s, subspace) for s in IDFeatures.all_values()]
@@ -444,16 +453,18 @@ class IDManager:
             ),
         )
         return [
-                ImageInfo(
-                    id=row[0],
-                    description=row[1],
-                    atime=datetime.fromisoformat(row[2]),
-                )
-                for row in self.cursor.fetchall()
-                ]
+            ImageInfo(
+                id=row[0],
+                description=row[1],
+                atime=datetime.fromisoformat(row[2]),
+            )
+            for row in self.cursor.fetchall()
+        ]
 
     def count(
-        self, id_features: Optional[IDFeatures] = None, subspace: IDSubspace = IDSubspace()
+        self,
+        id_features: Optional[IDFeatures] = None,
+        subspace: IDSubspace = IDSubspace(),
     ) -> int:
         if id_features is None:
             return sum(self.count(s, subspace) for s in IDFeatures.all_values())
@@ -582,7 +593,7 @@ class IDManager:
                 if available_ids:
                     id = secrets.choice(list(available_ids))
                 else:
-                    assert(oldest_atime_id is not None)
+                    assert oldest_atime_id is not None
                     id = oldest_atime_id[0]
                 self.set_id(
                     id,
@@ -726,7 +737,11 @@ class IDManager:
             return True
         return (
             upload_info.description != info.description
-            or upload_info.needs_uploading(max_uploads_ago=max_uploads_ago, max_bytes_ago=max_bytes_ago, max_time_ago=max_time_ago)
+            or upload_info.needs_uploading(
+                max_uploads_ago=max_uploads_ago,
+                max_bytes_ago=max_bytes_ago,
+                max_time_ago=max_time_ago,
+            )
         )
 
     def mark_uploaded(
