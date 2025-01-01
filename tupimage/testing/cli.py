@@ -51,6 +51,9 @@ def run(args):
         term.shellscript_out.write("#!/bin/sh\n\n")
     if args.force_direct_transmission:
         term.force_direct_transmission = True
+    if args.reset_by_scrolling:
+        term.reset_by_scrolling = True
+
     if not args.ignore_size:
         real_term_size = term.get_size()
         real_cell_size = term.get_cell_size()
@@ -78,6 +81,7 @@ def run(args):
                 " expected cell size proportions"
                 f" ({args.cell_size[0]}x{args.cell_size[1]})"
             )
+
     if args.output_dir is None:
         now = datetime.datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
@@ -93,12 +97,15 @@ def run(args):
         if not os.path.lexists(latest_link):
             os.symlink(output_dir_name, latest_link)
         args.output_dir = f".tupimage-testing/{output_dir_name}"
+
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         raise RuntimeError(
             f"Output directory {args.output_dir} already exists and is not empty."
         )
+
     if args.data_dir is None:
         args.data_dir = f".tupimage-testing/data"
+
     ctx = TestingContext(
         term,
         output_dir=args.output_dir,
@@ -110,8 +117,10 @@ def run(args):
         take_screenshots=not args.no_screenshots,
         reset_before_test=not args.no_reset,
     )
+
     if not args.tests:
         args.tests = ["*"]
+
     ran_any_tests = False
     with ctx.term.guard_tty_settings(ctx.term.tty_userinput):
         ctx.term.set_immediate_input_noecho(ctx.term.tty_userinput)
@@ -128,8 +137,10 @@ def run(args):
                 ran_any_tests = True
                 func(ctx)
                 ctx.dump_unexpected_responses()
+
     if not args.no_reset:
         ctx.term.reset()
+
     if ran_any_tests:
         ctx.print_results()
     else:
@@ -160,6 +171,7 @@ def main():
     parser_run.add_argument("--pause", action="store_true")
     parser_run.add_argument("--no-screenshots", action="store_true")
     parser_run.add_argument("--no-reset", action="store_true")
+    parser_run.add_argument("--reset-by-scrolling", action="store_true")
     parser_run.add_argument("--dump-shell-script", "--sh", default=None, type=str)
     parser_run.add_argument("--force-direct-transmission", action="store_true")
     parser_run.add_argument("--exclude", nargs="*", type=str, default=[])

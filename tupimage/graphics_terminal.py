@@ -169,6 +169,7 @@ class GraphicsTerminal:
         force_direct_transmission: bool = False,
         num_tmux_layers: int = 0,
         shellscript_out: Optional[TextIO] = None,
+        reset_by_scrolling: bool = False,
     ):
         # If none of the tty_* arguments are provided, use /dev/tty.
         if (
@@ -206,7 +207,7 @@ class GraphicsTerminal:
         self.force_direct_transmission: bool = force_direct_transmission
         self.num_tmux_layers: int = num_tmux_layers
         self.shellscript_out: Optional[TextIO] = shellscript_out
-        self.old_term_settings = []
+        self.reset_by_scrolling: bool = reset_by_scrolling
         self.tracked_cursor_position: Optional[Tuple[int, int]] = None
 
     @staticmethod
@@ -225,7 +226,6 @@ class GraphicsTerminal:
         num_tmux_layers: Optional[int] = None,
     ):
         res = copy.copy(self)
-        res.old_term_settings = []
         if force_placeholders is not None:
             res.force_placeholders = force_placeholders
         if force_direct_transmission is not None:
@@ -550,6 +550,15 @@ class GraphicsTerminal:
             self.num_tmux_layers = 0
 
     def reset(self):
+        if self.reset_by_scrolling:
+            # Reset the brush.
+            self._write(b"\033[0m", comment="Reset brush")
+            # Reset the scroll margins.
+            self._write(b"\033[r", comment="Reset scroll margins")
+            cols, lines = self.get_size()
+            self.scroll_up(lines)
+            self.move_cursor_abs(col=0, row=0)
+            return
         self._write(b"\033c", comment="Reset terminal")
         self.tty_display.flush()
         self.tracked_cursor_position = (0, 0)
