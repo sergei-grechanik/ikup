@@ -41,6 +41,9 @@ def several_interesting_subspaces() -> Iterator[IDSubspace]:
 def test_id_subspace_init_correct(begin: int):
     """Test that IDSubspace is initialized correctly."""
     for last in range(begin, 256):
+        if last == 0:
+            # IDSubspace(0, 1) is not allowed.
+            continue
         end = last + 1
         subsp = IDSubspace(begin, end)
         assert subsp.begin == begin
@@ -52,7 +55,8 @@ def test_id_subspace_from_string():
     assert IDSubspace.from_string("") == IDSubspace(0, 256)
     assert IDSubspace.from_string("") == IDSubspace()
     assert IDSubspace.from_string("0:2") == IDSubspace(0, 2)
-    assert IDSubspace.from_string("0:256") == IDSubspace(1, 256)
+    assert IDSubspace.from_string("0:256") == IDSubspace(0, 256)
+    assert IDSubspace.from_string("1:256") == IDSubspace(1, 256)
     assert IDSubspace.from_string("100:200") == IDSubspace(100, 200)
     assert IDSubspace.from_string("255:256") == IDSubspace(255, 256)
 
@@ -238,21 +242,18 @@ def test_id_manager_single_id():
     idman = IDManager(":memory:")
     for id_features in IDFeatures.all_values():
         for subspace in subspaces:
-            # The path is just the space and subspace names.
-            path = str(id_features) + " " + str(subspace)
-            mtime = datetime.now()
+            # The description is just the space and subspace names.
+            description = str(id_features) + " " + str(subspace)
             # Get an id and check that it's correct.
             id = idman.get_id(
-                path=path,
-                mtime=mtime,
+                description=description,
                 id_features=id_features,
                 subspace=subspace,
             )
             assert id_features.contains_and_in_subspace(id, subspace)
             # Check that we get the same id if we call get_id() again.
             id2 = idman.get_id(
-                path=path,
-                mtime=mtime,
+                description=description,
                 id_features=id_features,
                 subspace=subspace,
             )
@@ -261,8 +262,7 @@ def test_id_manager_single_id():
             info = idman.get_info(id)
             assert info
             assert info.id == id
-            assert info.path == path
-            assert info.mtime == mtime
+            assert info.description == description
             assert info.atime is not None
             assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
             # Subspaces may intersect, so we check that there is no other id in
@@ -273,15 +273,15 @@ def test_id_manager_single_id():
                     another_id = id_features.gen_random_id(subspace)
                 assert idman.get_info(another_id) is None
                 # Check that set_id() works for non-existing IDs.
-                idman.set_id(another_id, path="another", mtime=mtime)
-                assert idman.get_info(another_id).path == "another"
+                idman.set_id(another_id, description="another")
+                assert idman.get_info(another_id).description == "another"
                 # Check that del_id() works.
                 idman.del_id(another_id)
                 assert idman.get_info(another_id) is None
                 assert idman.get_info(id) is not None
             # Check that set_id() works for existing IDs.
-            idman.set_id(id, path="new", mtime=mtime)
-            assert idman.get_info(id).path == "new"
+            idman.set_id(id, description="new")
+            assert idman.get_info(id).description == "new"
 
 
 @pytest.mark.parametrize("id_features", IDFeatures.all_values())
@@ -292,22 +292,20 @@ def test_id_manager_disjoint_subspaces(
 ):
     """Generate many ids for disjoint subspaces in each id-feature space."""
     subspaces = IDSubspace(0, big_subspace_end).split(num_subspaces)
-    # We will have 1100 distinct "image" paths, so some of the paths will be
+    # We will have 1100 distinct "image" descriptions, so some of the descriptions will be
     # repeated 2 or 3 times.
-    num_distinct_paths = 1100
+    num_distinct_descriptions = 1100
     idman = IDManager(":memory:")
-    mtime = datetime.now()
-    subspace_to_paths = {}
+    subspace_to_descriptions = {}
     for i in range(128):
         for subspace in subspaces:
-            paths = subspace_to_paths.setdefault(subspace, [])
+            descriptions = subspace_to_descriptions.setdefault(subspace, [])
             for j in range(20):
-                path = str((i * 20 + j) % num_distinct_paths)
-                paths.append(path)
+                description = str((i * 20 + j) % num_distinct_descriptions)
+                descriptions.append(description)
                 # Get an id and check its basic correctness.
                 id = idman.get_id(
-                    path=path,
-                    mtime=mtime,
+                    description=description,
                     id_features=id_features,
                     subspace=subspace,
                 )
@@ -315,30 +313,31 @@ def test_id_manager_disjoint_subspaces(
                 info = idman.get_info(id)
                 assert info
                 assert info.id == id
-                assert info.path == path
-                assert info.mtime == mtime
+                assert info.description == description
                 assert info.atime is not None
                 assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
         subspace_size = id_features.subspace_size(subspace)
-        stored_paths = [info.path for info in idman.get_all(id_features, subspace)]
-        stored_paths.reverse()
-        original_paths = subspace_to_paths[subspace]
-        assert len(stored_paths) <= num_distinct_paths
-        if subspace_size >= num_distinct_paths * 3:
-            # If the subspace is large enough, we expect all paths to be stored.
-            assert len(stored_paths) == num_distinct_paths
-        elif subspace_size >= num_distinct_paths:
+        stored_descriptions = [
+            info.description for info in idman.get_all(id_features, subspace)
+        ]
+        stored_descriptions.reverse()
+        original_descriptions = subspace_to_descriptions[subspace]
+        assert len(stored_descriptions) <= num_distinct_descriptions
+        if subspace_size >= num_distinct_descriptions * 3:
+            # If the subspace is large enough, we expect all descriptions to be stored.
+            assert len(stored_descriptions) == num_distinct_descriptions
+        elif subspace_size >= num_distinct_descriptions:
             # If it's not very large, some cleanups may be required, resulting
-            # in some paths being removed.
-            assert len(stored_paths) >= num_distinct_paths * 0.75
-        if subspace_size < min(num_distinct_paths, 256):
+            # in some descriptions being removed.
+            assert len(stored_descriptions) >= num_distinct_descriptions * 0.75
+        if subspace_size < min(num_distinct_descriptions, 256):
             # If the subspace is small, we will not do cleanups, and will just
             # reclaim the oldest ids instead.
-            assert len(stored_paths) == subspace_size
-        # Finally, the stored paths must be the last ones that were added.
-        assert stored_paths == original_paths[-len(stored_paths) :]
+            assert len(stored_descriptions) == subspace_size
+        # Finally, the stored descriptions must be the last ones that were added.
+        assert stored_descriptions == original_descriptions[-len(stored_descriptions) :]
 
 
 def test_id_manager_uploads():
@@ -346,14 +345,11 @@ def test_id_manager_uploads():
     idman = IDManager(":memory:")
     terminals = ["term" + str(i) for i in range(10)]
     term_to_infos = {term: [] for term in terminals}
-    mtime = datetime.now()
     for i in range(1000):
-        path = str(i)
+        description = str(i)
         size = random.randint(0, 100000)
         id = idman.get_id(
-            path=path,
-            mtime=mtime,
-            params="params",
+            description=description,
             id_features=IDFeatures(),
         )
         for term in terminals:
@@ -370,11 +366,9 @@ def test_id_manager_uploads():
                     milliseconds=10
                 )
                 assert info.size == size
-                assert info.path == path
-                assert info.mtime == mtime
+                assert info.description == description
                 assert info.id == id
                 assert info.terminal == term
-                assert info.params == "params"
                 assert info.bytes_ago == size
                 assert info.uploads_ago == 1
     # Compute bytes_ago and uploads_ago in python and compare to the results we
