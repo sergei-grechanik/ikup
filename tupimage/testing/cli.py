@@ -116,6 +116,7 @@ def run(args):
         pause_before_test=args.pause,
         take_screenshots=not args.no_screenshots,
         reset_before_test=not args.no_reset,
+        window_id=args.window_id,
     )
 
     if not args.tests:
@@ -165,6 +166,7 @@ def main():
     parser_run = subparsers.add_parser("run", help="Run tests.")
     parser_run.add_argument("--term-size", default="80x24", type=validate_size)
     parser_run.add_argument("--cell-size", default="4x8", type=validate_size)
+    parser_run.add_argument("--window-id", type=str, default=None)
     parser_run.add_argument("--ignore-size", action="store_true")
     parser_run.add_argument("--output-dir", "-o", default=None, type=str)
     parser_run.add_argument("--data-dir", default=None, type=str)

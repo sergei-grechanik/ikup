@@ -15,10 +15,13 @@ from PIL import Image, ImageDraw, ImageFont
 from tupimage import GraphicsTerminal
 
 
-def take_screenshot(filename: str, width: int = 480, height: int = 288):
-    window_id = os.getenv("WINDOWID")
+def take_screenshot(
+    filename: str, width: int = 480, height: int = 288, window_id: Optional[str] = None
+):
     if window_id is None:
-        raise RuntimeError("WINDOWID not set")
+        window_id = os.getenv("WINDOWID")
+        if window_id is None:
+            raise RuntimeError("WINDOWID not set")
     res = subprocess.run(
         [
             "import",
@@ -66,6 +69,7 @@ class TestingContext:
         pause_before_test: bool = False,
         take_screenshots: bool = True,
         reset_before_test: bool = True,
+        window_id: Optional[str] = None,
     ):
         self.term: GraphicsTerminal = term
         self.output_dir: str = output_dir
@@ -81,6 +85,7 @@ class TestingContext:
         self.pause_before_test = pause_before_test
         self.take_screenshots: bool = take_screenshots
         self.reset_before_test: bool = reset_before_test
+        self.window_id: Optional[str] = window_id
         self.init_image_downloaders()
 
     def image_downloader(
@@ -289,6 +294,7 @@ class TestingContext:
                 filename,
                 width=self.screenshot_width,
                 height=self.screenshot_height,
+                window_id=self.window_id,
             )
             self.current_test_data["screenshots"].append(
                 {

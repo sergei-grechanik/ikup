@@ -555,6 +555,7 @@ class GraphicsTerminal:
             self._write(b"\033[0m", comment="Reset brush")
             # Reset the scroll margins.
             self._write(b"\033[r", comment="Reset scroll margins")
+            # Scroll up to clear the screen.
             cols, lines = self.get_size()
             self.scroll_up(lines)
             self.move_cursor_abs(col=0, row=0)
@@ -693,11 +694,11 @@ class GraphicsTerminal:
         self.tracked_cursor_position = None
 
     def scroll_down(self, lines: int = 1):
-        self._write(b"\033[%dS" % lines, comment=f"Scroll down by {lines}")
+        self._write(b"\033[%dT" % lines, comment=f"Scroll down by {lines}")
         self.tty_display.flush()
         self.tracked_cursor_position = None
 
     def scroll_up(self, lines: int = 1):
-        self._write(b"\033[%dT" % lines, comment=f"Scroll up by {lines}")
+        self._write(b"\033[%dS" % lines, comment=f"Scroll up by {lines}")
         self.tty_display.flush()
         self.tracked_cursor_position = None

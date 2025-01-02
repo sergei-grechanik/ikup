@@ -231,13 +231,13 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
     )
     term.set_margins(top=11, bottom=19)
     for i in range(3):
-        term.scroll_up()
-        ctx.take_screenshot(f"Scrolled up (moved the content down) {i + 1} times")
-    for i in range(6):
         term.scroll_down()
-        ctx.take_screenshot(f"Scrolled down (moved the content up) {i + 1} times")
-    term.scroll_down(5)
-    ctx.take_screenshot("Scrolled down 6 more lines")
+        ctx.take_screenshot(f"Scrolled down (moved the content down) {i + 1} times")
+    for i in range(6):
+        term.scroll_up()
+        ctx.take_screenshot(f"Scrolled up (moved the content up) {i + 1} times")
+    term.scroll_up(5)
+    ctx.take_screenshot("Scrolled up 6 more lines")
 
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
