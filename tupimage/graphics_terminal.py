@@ -8,6 +8,7 @@ import select
 import struct
 import termios
 import time
+import sys
 from typing import BinaryIO, List, Optional, TextIO, Tuple, Union
 
 from tupimage import (
@@ -159,11 +160,11 @@ class ShellScriptBinaryIOHelper(BinaryIO):
 class GraphicsTerminal:
     def __init__(
         self,
-        tty_filename: Optional[str] = None,
-        tty_command: Union[BinaryIO, str, None] = None,
-        tty_display: Union[BinaryIO, str, None] = None,
-        tty_response: Union[BinaryIO, str, None] = None,
-        tty_userinput: Union[BinaryIO, str, None] = None,
+        tty_filename: Optional[str] = None, *,
+        out_command: Union[BinaryIO, str, None] = None,
+        out_display: Union[BinaryIO, str, None] = None,
+        in_response: Union[BinaryIO, str, None] = None,
+        in_userinput: Union[BinaryIO, str, None] = None,
         max_command_size: Optional[int] = None,
         force_placeholders: bool = False,
         force_direct_transmission: bool = False,
@@ -171,15 +172,17 @@ class GraphicsTerminal:
         shellscript_out: Optional[TextIO] = None,
         reset_by_scrolling: bool = False,
     ):
-        # If none of the tty_* arguments are provided, use /dev/tty.
+        # If none of the tty_* arguments are provided, use /dev/tty for everything
+        # except for the display output (for which stdout will be used by default).
         if (
-            tty_command is None
-            and tty_display is None
-            and tty_response is None
-            and tty_userinput is None
+            out_command is None
+            and out_display is None
+            and in_response is None
+            and in_userinput is None
             and tty_filename is None
         ):
             tty_filename = "/dev/tty"
+            out_display = sys.stdout.buffer
 
         # If a tty_filename is provided, open it for reading an writing and use it as
         # the default tty.
@@ -187,20 +190,20 @@ class GraphicsTerminal:
             fd = os.open(tty_filename, os.O_RDWR | os.O_NOCTTY)
             tty_out = os.fdopen(fd, "wb", buffering=0)
             tty_in = os.fdopen(fd, "rb", buffering=0)
-            if tty_command is None:
-                tty_command = tty_out
-            if tty_display is None:
-                tty_display = tty_out
-            if tty_response is None:
-                tty_response = tty_in
-            if tty_userinput is None:
-                tty_userinput = tty_in
+            if out_command is None:
+                out_command = tty_out
+            if out_display is None:
+                out_display = tty_out
+            if in_response is None:
+                in_response = tty_in
+            if in_userinput is None:
+                in_userinput = tty_in
 
         # Open the files if they are not already open.
-        self.tty_command: BinaryIO = self._open(tty_command, write=True)
-        self.tty_display: BinaryIO = self._open(tty_display, write=True)
-        self.tty_response: BinaryIO = self._open(tty_response, write=False)
-        self.tty_userinput: BinaryIO = self._open(tty_userinput, write=False)
+        self.out_command: BinaryIO = self._open(out_command, write=True)
+        self.out_display: BinaryIO = self._open(out_display, write=True)
+        self.in_response: BinaryIO = self._open(in_response, write=False)
+        self.in_userinput: BinaryIO = self._open(in_userinput, write=False)
 
         self.max_command_size: Optional[int] = max_command_size
         self.force_placeholders: bool = force_placeholders
@@ -240,14 +243,26 @@ class GraphicsTerminal:
                 self.shellscript_out, data, comment
             )
 
-    def _write(self, data: bytes, comment: str = ""):
-        self.tty_display.write(data)
+    def _write(self, data: bytes, comment: str = "", flush: bool = False):
+        self.out_display.write(data)
         self._write_to_shellscript(data, comment)
+        if flush:
+            self.out_display.flush()
 
-    def write(self, string: Union[str, bytes]):
+    def write(self, string: Union[str, bytes], flush: bool = False):
         if isinstance(string, str):
             string = string.encode("utf-8")
-        self._write(string)
+        self._write(string, flush=flush)
+        self.tracked_cursor_position = None
+
+    def writecmd(self, string: Union[str, bytes]):
+        self.out_display.flush()
+        self.out_command.flush()
+        if isinstance(string, str):
+            string = string.encode("utf-8")
+        self.out_command.write(string)
+        self.out_command.flush()
+        self._write_to_shellscript(string, comment="")
         self.tracked_cursor_position = None
 
     def get_graphics_command_template(self) -> bytes:
@@ -290,7 +305,7 @@ class GraphicsTerminal:
             placeholder.end_row = end_row
 
         placeholder.to_stream(
-            self.tty_display,
+            self.out_display,
             pos=pos,
             mode=mode,
             formatting=formatting,
@@ -355,7 +370,7 @@ class GraphicsTerminal:
             self.set_tracked_cursor_position(0, cur_y + rows)
         else:
             self.set_tracked_cursor_position(cur_x + cols, cur_y + rows - 1)
-        self.tty_display.flush()
+        self.out_display.flush()
 
     def send_command(
         self,
@@ -400,6 +415,12 @@ class GraphicsTerminal:
                         medium=TransmissionMedium.DIRECT, data=file
                     )
 
+        # If it's a display-like command, flush the display output. It is important when
+        # it's different from the command output.
+        placement_data = command.get_placement_data()
+        if placement_data is not None and placement_data.virtual != True:
+            self.out_display.flush()
+
         template = self.get_graphics_command_template()
         # If we want to log the commands to a shell script, we need a callback.
         callback = None
@@ -407,7 +428,7 @@ class GraphicsTerminal:
             callback = lambda cmd: self._write_to_shellscript(cmd.to_bytes(template))
         # Send the command.
         command.send(
-            self.tty_command,
+            self.out_command,
             template=template,
             max_size=self.max_command_size,
             callback=callback,
@@ -430,17 +451,17 @@ class GraphicsTerminal:
         termios.tcsetattr(tty.fileno(), termios.TCSADRAIN, settings)
 
     def receive_response(self, timeout: float = 10) -> GraphicsResponse:
-        #  if self.tty_response is None:
+        #  if self.in_response is None:
         #      raise ValueError("Cannot receive response on a write-only terminal")
-        with self.guard_tty_settings(self.tty_response):
-            self.set_immediate_input_noecho(self.tty_response)
+        with self.guard_tty_settings(self.in_response):
+            self.set_immediate_input_noecho(self.in_response)
             buffer = b""
             is_graphics_response = False
             end_time = time.time() + timeout
             while True:
-                ready, _, _ = select.select([self.tty_response], [], [], timeout)
+                ready, _, _ = select.select([self.in_response], [], [], timeout)
                 if ready:
-                    buffer += self.tty_response.read(1)
+                    buffer += self.in_response.read(1)
                     if is_graphics_response:
                         if buffer.endswith(b"\033\\"):
                             break
@@ -489,18 +510,20 @@ class GraphicsTerminal:
         return res
 
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
-        with self.guard_tty_settings(self.tty_userinput):
-            self.set_immediate_input_noecho(self.tty_userinput)
+        self.out_display.flush()
+        with self.guard_tty_settings(self.in_response):
+            self.set_immediate_input_noecho(self.in_response)
             # Don't use self._write here since we don't want to record this in
             # the generated shell script.
-            self.tty_display.write(b"\033[6n")
+            self.out_command.write(b"\033[6n")
+            self.out_command.flush()
             buffer = b""
             end_time = time.time() + timeout
             is_response = False
             while True:
-                ready, _, _ = select.select([self.tty_userinput], [], [], timeout)
+                ready, _, _ = select.select([self.in_response], [], [], timeout)
                 if ready:
-                    buffer += self.tty_userinput.read(1)
+                    buffer += self.in_response.read(1)
                     if is_response:
                         if buffer.endswith(b"R"):
                             break
@@ -532,12 +555,13 @@ class GraphicsTerminal:
         return TtySettingsGuard(tty)
 
     def wait_for_keypress(self) -> bytes:
-        with self.guard_tty_settings(self.tty_userinput):
-            self.set_immediate_input_noecho(self.tty_userinput)
+        self.out_display.flush()
+        with self.guard_tty_settings(self.in_userinput):
+            self.set_immediate_input_noecho(self.in_userinput)
             result = b""
             while len(result) < 256:
-                result += self.tty_userinput.read(1)
-                ready, _, _ = select.select([self.tty_userinput], [], [], 0)
+                result += self.in_userinput.read(1)
+                ready, _, _ = select.select([self.in_userinput], [], [], 0)
                 if not ready:
                     break
             return result
@@ -561,27 +585,21 @@ class GraphicsTerminal:
             self.move_cursor_abs(col=0, row=0)
             return
         self._write(b"\033c", comment="Reset terminal")
-        self.tty_display.flush()
+        self.out_display.flush()
         self.tracked_cursor_position = (0, 0)
 
     def clear_line(self):
         self._write(b"\033[2K", comment="Clear line")
-        self.tty_display.flush()
+        self.out_display.flush()
 
     def clear_screen(self):
         """Clears the screen above and below. It's done with two commands to avoid
         deleting images."""
         self._write(b"\033[1J\033[0J", comment="Clear screen above and below")
-        self.tty_display.flush()
+        self.out_display.flush()
 
-    def _get_sizes(self) -> Tuple[int, int, int, int]:
+    def _get_sizes(self, fileno) -> Tuple[int, int, int, int]:
         try:
-            fileno = (
-                #  self.tty_userinput.fileno()
-                #  if self.tty_userinput is not None
-                #  else self.tty_display.fileno()
-                self.tty_display.fileno()
-            )
             return struct.unpack(
                 "HHHH",
                 fcntl.ioctl(
@@ -593,17 +611,27 @@ class GraphicsTerminal:
         except OSError:
             return 0, 0, 0, 0
 
+    def _get_all_filenos(self):
+        return [
+            self.out_display.fileno(),
+            self.in_userinput.fileno(),
+            self.out_command.fileno(),
+            self.in_response.fileno(),
+        ]
+
     def get_size(self) -> Tuple[int, int]:
-        lines, cols, _, _ = self._get_sizes()
-        if lines == 0 or cols == 0:
-            raise ValueError("Could not determine terminal size")
-        return (cols, lines)
+        for fileno in self._get_all_filenos():
+            lines, cols, _, _ = self._get_sizes(fileno)
+            if lines != 0 and cols != 0:
+                return (cols, lines)
+        raise ValueError("Could not determine terminal size")
 
     def get_cell_size(self) -> Optional[Tuple[int, int]]:
-        lines, cols, width, height = self._get_sizes()
-        if lines == 0 or cols == 0 or width == 0 or height == 0:
-            return None
-        return (width // cols, height // lines)
+        for fileno in self._get_all_filenos():
+            lines, cols, width, height = self._get_sizes(fileno)
+            if lines != 0 and cols != 0 and width != 0 and height != 0:
+                return (width // cols, height // lines)
+        return None
 
     def set_tracked_cursor_position(
         self,
@@ -651,7 +679,7 @@ class GraphicsTerminal:
                     b"\033[%dD" % -right,
                     comment=f"Move cursor left by {-right}",
                 )
-        self.tty_display.flush()
+        self.out_display.flush()
         if self.tracked_cursor_position is not None:
             self.set_tracked_cursor_position(
                 self.tracked_cursor_position[0] + (right or 0),
@@ -673,7 +701,7 @@ class GraphicsTerminal:
             self._write(b"\033[%dd" % (row + 1), comment=f"Move cursor to row {row}")
         if col is not None:
             self._write(b"\033[%dG" % (col + 1), comment=f"Move cursor to column {col}")
-        self.tty_display.flush()
+        self.out_display.flush()
         if self.tracked_cursor_position is not None:
             self.set_tracked_cursor_position(
                 col or self.tracked_cursor_position[0],
@@ -690,15 +718,15 @@ class GraphicsTerminal:
             b"\033[%d;%dr" % (top + 1, bottom + 1),
             comment=f"Set margins to {top}-{bottom}",
         )
-        self.tty_display.flush()
+        self.out_display.flush()
         self.tracked_cursor_position = None
 
     def scroll_down(self, lines: int = 1):
         self._write(b"\033[%dT" % lines, comment=f"Scroll down by {lines}")
-        self.tty_display.flush()
+        self.out_display.flush()
         self.tracked_cursor_position = None
 
     def scroll_up(self, lines: int = 1):
         self._write(b"\033[%dS" % lines, comment=f"Scroll up by {lines}")
-        self.tty_display.flush()
+        self.out_display.flush()
         self.tracked_cursor_position = None

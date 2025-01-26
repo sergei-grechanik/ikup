@@ -279,7 +279,7 @@ class TestingContext:
         if self.test_name is None:
             raise RuntimeError("No test running")
         self.dump_unexpected_responses()
-        self.term.tty_display.flush()
+        self.term.out_display.flush()
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n# Screenshot: {description}\n")
             self.term.shellscript_out.write("sleep 0.5\n\n")

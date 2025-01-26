@@ -160,15 +160,15 @@ class GraphicsCommand(ABC):
 
     def send(
         self,
-        tty: BinaryIO,
+        out: BinaryIO,
         template: bytes,
         max_size: Optional[int] = None,
         callback: Optional[Callable[["GraphicsCommand"], None]] = None,
     ) -> None:
-        """Sends the command to the TTY.
+        """Sends the command to a stream.
 
         Args:
-            tty: The file-like object to write the command to.
+            out: The file-like object to write the command to.
             template: The template to use to format the command. It should contain a
                 single `%b` format specifier where the command content should be
                 inserted. See `GraphicsCommand.DEFAULT_TEMPLATE`.
@@ -180,10 +180,10 @@ class GraphicsCommand(ABC):
         """
         if max_size is None:
             max_size = select.PIPE_BUF
-        tty.flush()
+        out.flush()
         if not isinstance(self, TransmitCommand):
-            tty.write(template % self.content_to_bytes())
-            tty.flush()
+            out.write(template % self.content_to_bytes())
+            out.flush()
             if callback is not None:
                 callback(self)
             return
@@ -199,10 +199,14 @@ class GraphicsCommand(ABC):
                 f"Increase the max_size parameter (now {max_size})"
             )
         for cmd in self.split(max_payload_size=max_payload_size):
-            tty.write(template % cmd.content_to_bytes())
-            tty.flush()
+            out.write(template % cmd.content_to_bytes())
+            out.flush()
             if callback is not None:
                 callback(cmd)
+
+    def get_placement_data(self) -> Optional["PlacementData"]:
+        """Returns the placement data of the command if it has one."""
+        return None
 
 
 def normalize_header_value(value: Any) -> bytes | int:
@@ -283,6 +287,9 @@ class TransmitCommand(GraphicsCommand):
     placement: Optional[PlacementData] = None
     # Used for debugging to omit `a=...` from the command.
     omit_action: bool = False
+
+    def get_placement_data(self) -> Optional[PlacementData]:
+        return self.placement
 
     def get_pure_transmit_command(self) -> "TransmitCommand":
         """Returns a copy of the command without the placement data."""
@@ -408,6 +415,9 @@ class PutCommand(GraphicsCommand, PlacementData):
     image_id: Optional[int] = None
     image_number: Optional[int] = None
     quiet: Optional[Quietness] = None
+
+    def get_placement_data(self) -> Optional["PlacementData"]:
+        return self
 
     def header_to_tuple(self) -> Tuple[Tuple[bytes, bytes | int], ...]:
         tup = normalize_header_tuple(

@@ -309,13 +309,14 @@ def test_id_manager_disjoint_subspaces(
                     id_features=id_features,
                     subspace=subspace,
                 )
+                now = datetime.now()
                 assert id_features.contains_and_in_subspace(id, subspace)
                 info = idman.get_info(id)
                 assert info
                 assert info.id == id
                 assert info.description == description
                 assert info.atime is not None
-                assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
+                assert abs(info.atime - now) < timedelta(milliseconds=10)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
         subspace_size = id_features.subspace_size(subspace)

@@ -9,7 +9,7 @@ from tupimage.testing import TestingContext, screenshot_test
 
 @screenshot_test
 def upload_and_display_from_file(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=True)
     for method in ["file", "direct"]:
         tupiterm.term.reset()
         tupiterm.upload_method = method
@@ -36,7 +36,7 @@ def upload_and_display_from_file(ctx: TestingContext):
 
 @screenshot_test
 def upload_and_display_from_image(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=True)
     img1 = ImageOps.flip(Image.open(ctx.get_wikipedia_png()))
     img2 = ImageOps.flip(Image.open(ctx.get_tux_png()))
     for method in ["file", "direct"]:
@@ -66,7 +66,7 @@ def upload_and_display_from_image(ctx: TestingContext):
 
 @screenshot_test
 def upload_and_display_jpeg(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=True)
     img1 = ctx.get_castle_jpg()
     img2 = ImageOps.flip(Image.open(ctx.get_castle_jpg()))
     for method in ["file", "direct"]:
@@ -92,7 +92,7 @@ def upload_and_display_jpeg(ctx: TestingContext):
 
 @screenshot_test
 def upload_and_display_unsupported_jpeg(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=True)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=True)
     tupiterm.supported_formats = ["png"]
     img1 = ctx.get_castle_jpg()
     img2 = ImageOps.flip(Image.open(ctx.get_castle_jpg()))
@@ -120,7 +120,7 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
 
 @screenshot_test
 def id_reclaiming(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=False)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=False)
     for i in range(300):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
         for y, idf in enumerate(IDFeatures.all_values()):
@@ -141,7 +141,7 @@ def id_reclaiming(ctx: TestingContext):
 
 @screenshot_test
 def id_reclaiming_subspace(ctx: TestingContext):
-    tupiterm = TupimageTerminal(config="DEFAULT", force_reupload=False)
+    tupiterm = TupimageTerminal(config="DEFAULT", force_upload=False)
     tupiterm.id_subspace = IDSubspace(100, 104)
     assert IDFeatures(8, True).subspace_size(tupiterm._config.id_subspace) == 1020
     for i in range(1100):

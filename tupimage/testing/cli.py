@@ -123,8 +123,8 @@ def run(args):
         args.tests = ["*"]
 
     ran_any_tests = False
-    with ctx.term.guard_tty_settings(ctx.term.tty_userinput):
-        ctx.term.set_immediate_input_noecho(ctx.term.tty_userinput)
+    with ctx.term.guard_tty_settings(ctx.term.in_userinput):
+        ctx.term.set_immediate_input_noecho(ctx.term.in_userinput)
         skipping = True
         for name, func in TestingContext.all_tests:
             if skipping and args.start:

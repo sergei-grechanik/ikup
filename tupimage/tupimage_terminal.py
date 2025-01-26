@@ -61,7 +61,7 @@ class TupimageConfig:
     reupload_max_uploads_ago: int = 1024
     reupload_max_bytes_ago: int = 20 * 1024 * 1024
     reupload_max_seconds_ago: int = 3600
-    force_reupload: bool = False
+    force_upload: bool = False
     supported_formats: Union[List[str], Literal["auto"]] = "auto"
     upload_method: Union[TransmissionMedium, Literal["auto"]] = "auto"
     check_response: bool = False
@@ -264,10 +264,10 @@ class TupimageTerminal:
     def __init__(
         self,
         *,
-        tty_command: Union[BinaryIO, str, None] = None,
-        tty_display: Union[BinaryIO, str, None] = None,
-        tty_status: Union[BinaryIO, str, None] = None,
-        tty_response: Union[BinaryIO, str, None] = None,
+        out_command: Union[BinaryIO, str, None] = None,
+        out_display: Union[BinaryIO, str, None] = None,
+        out_status: Union[BinaryIO, str, None] = None,
+        in_response: Union[BinaryIO, str, None] = None,
         id_database: Optional[str] = None,
         session_id: Optional[str] = None,
         terminal_id: Optional[str] = None,
@@ -321,10 +321,10 @@ class TupimageTerminal:
         self.detect_terminal()
 
         self.term = GraphicsTerminal(
-            tty_command=tty_command,
-            tty_display=tty_display,
-            tty_response=tty_response,
-            tty_userinput=None,
+            out_command=out_command,
+            out_display=out_display,
+            in_response=in_response,
+            in_userinput=None,
             max_command_size=config.max_command_size,
             num_tmux_layers=config.num_tmux_layers,
         )
@@ -347,7 +347,7 @@ class TupimageTerminal:
     check_response = _config_property("check_response")
     check_response_timeout = _config_property("check_response_timeout")
     upload_method = _config_property("upload_method")
-    force_reupload = _config_property("force_reupload")
+    force_upload = _config_property("force_upload")
     fewer_diacritics = _config_property("fewer_diacritics")
     redetect_terminal = _config_property("redetect_terminal")
     background = _config_property("background")
@@ -384,7 +384,7 @@ class TupimageTerminal:
                 self._session_id = self._terminal_id
         else:
             data = self._tmux_display_message(
-                "#{client_termname}||||#{client_pid}||||#{session_id}"
+                "#{client_termname}||||#{client_pid}||||#{pid}_#{session_id}"
             ).split("||||")
             if self._terminal_name is None:
                 self._terminal_name = data[0]
@@ -425,8 +425,8 @@ class TupimageTerminal:
 
     def get_optimal_cols_and_rows(
         self,
-        width: int,
-        height: int,
+        width: float,
+        height: float,
         *,
         cols: Optional[int] = None,
         rows: Optional[int] = None,
@@ -623,7 +623,7 @@ class TupimageTerminal:
         id_use_3rd_diacritic: Optional[bool] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
-        force_reupload: Optional[bool] = None,
+        force_upload: Optional[bool] = None,
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
     ) -> ImageInstance:
@@ -652,11 +652,11 @@ class TupimageTerminal:
                 id_subspace=id_subspace,
                 force_id=force_id,
             )
-        if force_reupload is None:
-            force_reupload = self._config.force_reupload
+        if force_upload is None:
+            force_upload = self._config.force_upload
         if self._config.redetect_terminal:
             self.detect_terminal()
-        if force_reupload or self.needs_uploading(inst.id):
+        if force_upload or self.needs_uploading(inst.id):
             size = self._upload(
                 inst, check_response=check_response, upload_method=upload_method
             )
@@ -832,7 +832,7 @@ class TupimageTerminal:
         id_use_3rd_diacritic: Optional[bool] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
-        force_reupload: Optional[bool] = None,
+        force_upload: Optional[bool] = None,
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
         fewer_diacritics: Optional[bool] = None,
@@ -851,7 +851,7 @@ class TupimageTerminal:
             id_use_3rd_diacritic=id_use_3rd_diacritic,
             id_subspace=id_subspace,
             force_id=force_id,
-            force_reupload=force_reupload,
+            force_upload=force_upload,
             check_response=check_response,
             upload_method=upload_method,
         )

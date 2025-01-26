@@ -434,43 +434,44 @@ def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
 def error_syntax_no_response(ctx: TestingContext):
     term = ctx.term
 
-    ctx.write("Empty command. No response is expected.")
-    term.write("\033_G\033\\\n")
+    ctx.write("Empty command. No response is expected.\n")
+    term.writecmd("\033_G\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("Almost empty command. No response is expected.")
-    term.write("\033_G;\033\\\n")
+    ctx.write("Almost empty command. No response is expected.\n")
+    term.writecmd("\033_G;\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("Almost empty command with a payload. No response is expected.")
-    term.write("\033_G;abcd\033\\\n")
+    ctx.write("Almost empty command with a payload. No response is expected.\n")
+    term.writecmd("\033_G;abcd\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("No = after key. No response is expected.")
-    term.write("\033_Ga;\033\\\n")
+    ctx.write("No = after key. No response is expected.\n")
+    term.writecmd("\033_Ga;\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("No value after =. No response is expected.")
-    term.write("\033_Ga=;\033\\\n")
+    ctx.write("No value after =. No response is expected.\n")
+    term.writecmd("\033_Ga=;\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("No , after a=t. No response is expected.")
-    term.write("\033_Ga=transmit;\033\\\n")
+    ctx.write("No , after a=t. No response is expected.\n")
+    term.writecmd("\033_Ga=transmit;\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
     ctx.write("A non-printed char in the command. No response is expected.")
-    term.write("\033_G\007;\033\\\n")
+    term.writecmd("\033_G\007;\033\\")
+    ctx.write("\n")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
-    ctx.write("A \\n in the command. No response is expected")
-    term.write("\033_G\na=t;\033\\\n")
+    ctx.write("A \\n in the command. No response is expected\n")
+    term.writecmd("\033_G\na=t;\033\\")
     response = term.receive_response(timeout=0.5)
     ctx.assert_true(not response.is_valid)
 
@@ -483,39 +484,39 @@ def error_syntax_image_id(ctx: TestingContext):
 
     # This is probably an empty-data direct transmission, so the error will not be
     # syntactic.
-    ctx.write("Empty command modulo image id.")
-    term.write("\033_Gi=1234\033\\\n")
+    ctx.write("Empty command modulo image id.\n")
+    term.writecmd("\033_Gi=1234\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
     # This is actually a direct transmission due to defaults.
-    ctx.write("Empty command modulo image id and some payload.")
-    term.write("\033_Gi=1234;abcd\033\\\n")
+    ctx.write("Empty command modulo image id and some payload.\n")
+    term.writecmd("\033_Gi=1234;abcd\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
-    ctx.write("Syntax error (missing key).")
-    term.write("\033_Gi=1234,a=;abcd\033\\\n")
+    ctx.write("Syntax error (missing key).\n")
+    term.writecmd("\033_Gi=1234,a=;abcd\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
-    ctx.write("Invalid action")
-    term.write("\033_Gi=1234,a=X;abcd\033\\\n")
+    ctx.write("Invalid action\n")
+    term.writecmd("\033_Gi=1234,a=X;abcd\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
-    ctx.write("Invalid transmission.")
-    term.write("\033_Gi=1234,a=t,t=X;abcd\033\\\n")
+    ctx.write("Invalid transmission.\n")
+    term.writecmd("\033_Gi=1234,a=t,t=X;abcd\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
-    ctx.write("Undecodable payload.")
-    term.write("\033_Gi=1234,a=t,t=d,f=100;@#$%\033\\\n")
+    ctx.write("Undecodable payload.\n")
+    term.writecmd("\033_Gi=1234,a=t,t=d,f=100;@#$%\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 
-    ctx.write("Undecodable payload as filename.")
-    term.write("\033_Gi=1234,a=t,t=f,f=100;@#$%\033\\\n")
+    ctx.write("Undecodable payload as filename.\n")
+    term.writecmd("\033_Gi=1234,a=t,t=f,f=100;@#$%\033\\")
     response = term.receive_response(timeout=0.2)
     ctx.write(f"Response message: {response.message}\n")
 

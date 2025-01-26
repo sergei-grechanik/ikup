@@ -5,6 +5,7 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterable, Iterator, List, Optional, Tuple
+from contextlib import closing
 
 
 @dataclass(frozen=True)
@@ -364,50 +365,53 @@ class IDManager:
     def __init__(self, database_file: str, *, max_ids_per_subspace: int = 1024):
         self.database_file = database_file
         self.conn = sqlite3.connect(database_file, isolation_level=None)
-        self.cursor = self.conn.cursor()
         self.max_ids_per_subspace: int = max_ids_per_subspace
 
-        # Make sure we have tables for all ID namespaces.
-        for id_features in IDFeatures.all_values():
-            namespace = id_features.namespace_name()
-            self.cursor.execute(
+        with closing(self.conn.cursor()) as cursor:
+            # Set some options.
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA busy_timeout = 30000")
+            # Make sure we have tables for all ID namespaces.
+            for id_features in IDFeatures.all_values():
+                namespace = id_features.namespace_name()
+                cursor.execute(
+                    f"""
+                        CREATE TABLE IF NOT EXISTS {namespace} (
+                            id INTEGER PRIMARY KEY,
+                            description TEXT NOT NULL,
+                            atime TIMESTAMP NOT NULL
+                        )
+                    """
+                )
+                cursor.execute(
+                    f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
+                        ON {namespace} (description)
+                    """
+                )
+                cursor.execute(
+                    f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_atime
+                        ON {namespace} (atime)
+                    """
+                )
+            # Make sure we have a table for recent uploads.
+            cursor.execute(
                 f"""
-                    CREATE TABLE IF NOT EXISTS {namespace} (
-                        id INTEGER PRIMARY KEY,
+                    CREATE TABLE IF NOT EXISTS upload (
+                        id INTEGER NOT NULL,
                         description TEXT NOT NULL,
-                        atime TIMESTAMP NOT NULL
+                        size INTEGER NOT NULL,
+                        terminal TEXT NOT NULL,
+                        upload_time TIMESTAMP NOT NULL,
+                        PRIMARY KEY (id, terminal)
                     )
                 """
             )
-            self.cursor.execute(
-                f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
-                    ON {namespace} (description)
+            cursor.execute(
+                f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
+                    ON upload (upload_time)
                 """
             )
-            self.cursor.execute(
-                f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_atime
-                    ON {namespace} (atime)
-                """
-            )
-        # Make sure we have a table for recent uploads.
-        self.cursor.execute(
-            f"""
-                CREATE TABLE IF NOT EXISTS upload (
-                    id INTEGER NOT NULL,
-                    description TEXT NOT NULL,
-                    size INTEGER NOT NULL,
-                    terminal TEXT NOT NULL,
-                    upload_time TIMESTAMP NOT NULL,
-                    PRIMARY KEY (id, terminal)
-                )
-            """
-        )
-        self.cursor.execute(
-            f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
-                ON upload (upload_time)
-            """
-        )
-        self.conn.commit()
+            self.conn.commit()
 
     def close(self):
         self.conn.close()
@@ -415,13 +419,14 @@ class IDManager:
     def get_info(self, id: int) -> Optional[ImageInfo]:
         id_features = IDFeatures.from_id(id)
         namespace = id_features.namespace_name()
-        self.cursor.execute(
-            f"""SELECT description, atime FROM {namespace}
-                WHERE id=?
-            """,
-            (id,),
-        )
-        row = self.cursor.fetchone()
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""SELECT description, atime FROM {namespace}
+                    WHERE id=?
+                """,
+                (id,),
+            )
+            row = cursor.fetchone()
         if not row:
             return None
         description, atime = row
@@ -442,24 +447,25 @@ class IDManager:
 
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
-        self.cursor.execute(
-            f"""SELECT id, description, atime FROM {namespace}
-                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
-            """,
-            (
-                id_features.subspace_byte_mask(),
-                begin,
-                end - 1,
-            ),
-        )
-        return [
-            ImageInfo(
-                id=row[0],
-                description=row[1],
-                atime=datetime.fromisoformat(row[2]),
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""SELECT id, description, atime FROM {namespace}
+                    WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
+                """,
+                (
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                ),
             )
-            for row in self.cursor.fetchall()
-        ]
+            return [
+                ImageInfo(
+                    id=row[0],
+                    description=row[1],
+                    atime=datetime.fromisoformat(row[2]),
+                )
+                for row in cursor.fetchall()
+            ]
 
     def count(
         self,
@@ -471,17 +477,18 @@ class IDManager:
 
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
-        self.cursor.execute(
-            f"""SELECT COUNT(*) FROM {namespace}
-                WHERE (id & ?) BETWEEN ? AND ?
-            """,
-            (
-                id_features.subspace_byte_mask(),
-                begin,
-                end - 1,
-            ),
-        )
-        return self.cursor.fetchone()[0]
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""SELECT COUNT(*) FROM {namespace}
+                    WHERE (id & ?) BETWEEN ? AND ?
+                """,
+                (
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                ),
+            )
+            return cursor.fetchone()[0]
 
     def set_id(
         self,
@@ -494,23 +501,25 @@ class IDManager:
         namespace = id_features.namespace_name()
         if atime is None:
             atime = datetime.now()
-        # Upsert the row.
-        self.cursor.execute(
-            f"""INSERT INTO {namespace} (id, description, atime)
-                VALUES (?, ?, ?)
-                ON CONFLICT(id) DO UPDATE SET
-                    description=excluded.description,
-                    atime=excluded.atime
-            """,
-            (id, description, atime.isoformat()),
-        )
+        with closing(self.conn.cursor()) as cursor:
+            # Upsert the row.
+            cursor.execute(
+                f"""INSERT INTO {namespace} (id, description, atime)
+                    VALUES (?, ?, ?)
+                    ON CONFLICT(id) DO UPDATE SET
+                        description=excluded.description,
+                        atime=excluded.atime
+                """,
+                (id, description, atime.isoformat()),
+            )
 
     def del_id(self, id: int):
         id_features = IDFeatures.from_id(id)
         namespace = id_features.namespace_name()
         with self.conn:
-            self.conn.execute("BEGIN")
-            self.cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
+            with closing(self.conn.cursor()) as cursor:
+                self.conn.execute("BEGIN IMMEDIATE")
+                cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
 
     def get_id(
         self,
@@ -525,105 +534,107 @@ class IDManager:
         atime = datetime.now()
 
         with self.conn:
-            self.conn.execute("BEGIN")
-            # Find the row with the given `description` and id subspace.
-            self.cursor.execute(
-                f"""SELECT id FROM {namespace}
-                    WHERE description=? AND (id & ?) BETWEEN ? AND ?
-                """,
-                (
-                    description,
-                    id_features.subspace_byte_mask(),
-                    begin,
-                    end - 1,
-                ),
-            )
-            row = self.cursor.fetchone()
-
-            # If there is such a row, update the `atime` and return the `id`.
-            if row:
-                id = row[0]
-                self.cursor.execute(
-                    f"UPDATE {namespace} SET atime=? WHERE id=?",
-                    (atime.isoformat(), id),
+            with closing(self.conn.cursor()) as cursor:
+                cursor.execute("BEGIN IMMEDIATE")
+                # Find the row with the given `description` and id subspace.
+                cursor.execute(
+                    f"""SELECT id FROM {namespace}
+                        WHERE description=? AND (id & ?) BETWEEN ? AND ?
+                    """,
+                    (
+                        description,
+                        id_features.subspace_byte_mask(),
+                        begin,
+                        end - 1,
+                    ),
                 )
-                return id
+                row = cursor.fetchone()
 
-            subspace_size = id_features.subspace_size(subspace)
+                # If there is such a row, update the `atime` and return the `id`.
+                if row:
+                    id = row[0]
+                    cursor.execute(
+                        f"UPDATE {namespace} SET atime=? WHERE id=?",
+                        (atime.isoformat(), id),
+                    )
+                    return id
 
-            # If the subspace is small enough, we will select all the rows and
-            # identify unused IDs.
-            if subspace_size <= min(1024, self.max_ids_per_subspace):
-                # First check the count of rows in the subspace. If the subspace
-                # is full, select the oldest row and update it.
-                if self.count(id_features, subspace) >= subspace_size:
-                    self.cursor.execute(
-                        f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
-                            ORDER BY atime ASC LIMIT 1
-                        """,
+                subspace_size = id_features.subspace_size(subspace)
+
+                # If the subspace is small enough, we will select all the rows and
+                # identify unused IDs.
+                if subspace_size <= min(1024, self.max_ids_per_subspace):
+                    # First check the count of rows in the subspace. If the subspace
+                    # is full, select the oldest row and update it.
+                    if self.count(id_features, subspace) >= subspace_size:
+                        cursor.execute(
+                            f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
+                                ORDER BY atime ASC LIMIT 1
+                            """,
+                            (
+                                id_features.subspace_byte_mask(),
+                                begin,
+                                end - 1,
+                            ),
+                        )
+                        id = cursor.fetchone()[0]
+                        self.set_id(
+                            id,
+                            description=description,
+                            atime=atime,
+                        )
+                        return id
+                    cursor.execute(
+                        f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
                         (
                             id_features.subspace_byte_mask(),
                             begin,
                             end - 1,
                         ),
                     )
-                    id = self.cursor.fetchone()[0]
+                    available_ids = set(id_features.all_ids(subspace))
+                    oldest_atime_id: Optional[Tuple[int, datetime]] = None
+                    for row in cursor.fetchall():
+                        row_id = row[0]
+                        row_atime = datetime.fromisoformat(row[1])
+                        available_ids.remove(row_id)
+                        if oldest_atime_id is None or row_atime < oldest_atime_id[1]:
+                            oldest_atime_id = (row_id, row_atime)
+                    if available_ids:
+                        id = secrets.choice(list(available_ids))
+                    else:
+                        assert oldest_atime_id is not None
+                        id = oldest_atime_id[0]
                     self.set_id(
                         id,
                         description=description,
                         atime=atime,
                     )
                     return id
-                self.cursor.execute(
-                    f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
-                    (
-                        id_features.subspace_byte_mask(),
-                        begin,
-                        end - 1,
-                    ),
-                )
-                available_ids = set(id_features.all_ids(subspace))
-                oldest_atime_id: Optional[Tuple[int, datetime]] = None
-                for row in self.cursor.fetchall():
-                    row_id = row[0]
-                    row_atime = datetime.fromisoformat(row[1])
-                    available_ids.remove(row_id)
-                    if oldest_atime_id is None or row_atime < oldest_atime_id[1]:
-                        oldest_atime_id = (row_id, row_atime)
-                if available_ids:
-                    id = secrets.choice(list(available_ids))
-                else:
-                    assert oldest_atime_id is not None
-                    id = oldest_atime_id[0]
-                self.set_id(
-                    id,
-                    description=description,
-                    atime=atime,
-                )
-                return id
 
         # If the subspace is too large, try rejection sampling. We will try to
         # do it several times, and if we fail, we will do a cleanup and try
         # again. Cleanups are progressively more aggressive.
         for frac in [0.75, 0.6, 0.5, 0]:
             with self.conn:
-                self.conn.execute("BEGIN")
+                self.conn.execute("BEGIN IMMEDIATE")
                 id = None
-                # Run rejection sampling.
-                for j in range(8):
-                    id = id_features.gen_random_id(subspace)
-                    self.cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
-                    if not self.cursor.fetchone():
-                        break
-                    id = None
-                # If it succeeded, insert the row and return the id.
-                if id is not None:
-                    self.set_id(
-                        id,
-                        description=description,
-                        atime=atime,
-                    )
-                    return id
+                with closing(self.conn.cursor()) as cursor:
+                    # Run rejection sampling.
+                    for j in range(8):
+                        id = id_features.gen_random_id(subspace)
+                        cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
+                        if not cursor.fetchone():
+                            break
+                        id = None
+                    # If it succeeded, insert the row and return the id.
+                    if id is not None:
+                        self.set_id(
+                            id,
+                            description=description,
+                            atime=atime,
+                        )
+                        return id
             if frac == 0:
                 break
             # If it failed, try do a cleanup.
@@ -649,51 +660,53 @@ class IDManager:
             max_ids = self.max_ids_per_subspace
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
-        self.cursor.execute(
-            f"""DELETE FROM {namespace}
-                WHERE id IN (
-                    SELECT id FROM {namespace}
-                    WHERE (id & ?) BETWEEN ? AND ?
-                    ORDER BY atime ASC
-                    LIMIT (
-                        SELECT MAX(COUNT(*) - ?, 0) FROM {namespace}
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""DELETE FROM {namespace}
+                    WHERE id IN (
+                        SELECT id FROM {namespace}
                         WHERE (id & ?) BETWEEN ? AND ?
+                        ORDER BY atime ASC
+                        LIMIT (
+                            SELECT MAX(COUNT(*) - ?, 0) FROM {namespace}
+                            WHERE (id & ?) BETWEEN ? AND ?
+                        )
                     )
-                )
-            """,
-            (
-                id_features.subspace_byte_mask(),
-                begin,
-                end - 1,
-                max_ids,
-                id_features.subspace_byte_mask(),
-                begin,
-                end - 1,
-            ),
-        )
+                """,
+                (
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                    max_ids,
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                ),
+            )
 
     def get_upload_info(self, id: int, terminal: str) -> Optional[UploadInfo]:
-        self.cursor.execute(
-            """
-            SELECT description, upload_time, size FROM upload
-            WHERE id=? AND terminal=?
-            """,
-            (id, terminal),
-        )
-        row = self.cursor.fetchone()
-        if not row:
-            return None
-        description, upload_time_str, size = row
-        if size is None:
-            size = 0
-        self.cursor.execute(
-            """
-            SELECT COUNT(*), SUM(size) FROM upload
-            WHERE terminal = ? AND upload_time > ?
-            """,
-            (terminal, upload_time_str),
-        )
-        uploads_ago, bytes_ago = self.cursor.fetchone()
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                """
+                SELECT description, upload_time, size FROM upload
+                WHERE id=? AND terminal=?
+                """,
+                (id, terminal),
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            description, upload_time_str, size = row
+            if size is None:
+                size = 0
+            cursor.execute(
+                """
+                SELECT COUNT(*), SUM(size) FROM upload
+                WHERE terminal = ? AND upload_time > ?
+                """,
+                (terminal, upload_time_str),
+            )
+            uploads_ago, bytes_ago = cursor.fetchone()
         return UploadInfo(
             id=id,
             description=description,
@@ -705,20 +718,21 @@ class IDManager:
         )
 
     def get_upload_infos(self, id: int) -> List[UploadInfo]:
-        self.cursor.execute(
-            """
-            SELECT terminal FROM upload
-            WHERE id=?
-            """,
-            (id,),
-        )
-        res = []
-        for row in self.cursor.fetchall():
-            terminal = row[0]
-            upload_info = self.get_upload_info(id, terminal)
-            if upload_info:
-                res.append(upload_info)
-        return res
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                """
+                SELECT terminal FROM upload
+                WHERE id=?
+                """,
+                (id,),
+            )
+            res = []
+            for row in cursor.fetchall():
+                terminal = row[0]
+                upload_info = self.get_upload_info(id, terminal)
+                if upload_info:
+                    res.append(upload_info)
+            return res
 
     def needs_uploading(
         self,
@@ -757,57 +771,60 @@ class IDManager:
         info = self.get_info(id)
         if info is None:
             return
-        self.cursor.execute(
-            f"""INSERT INTO upload
-                (id, description, size, terminal, upload_time)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT(id, terminal) DO UPDATE SET
-                    description=excluded.description,
-                    size=excluded.size,
-                    upload_time=excluded.upload_time
-            """,
-            (
-                id,
-                info.description,
-                size,
-                terminal,
-                upload_time.isoformat(),
-            ),
-        )
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""INSERT INTO upload
+                    (id, description, size, terminal, upload_time)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(id, terminal) DO UPDATE SET
+                        description=excluded.description,
+                        size=excluded.size,
+                        upload_time=excluded.upload_time
+                """,
+                (
+                    id,
+                    info.description,
+                    size,
+                    terminal,
+                    upload_time.isoformat(),
+                ),
+            )
 
     def cleanup_uploads(
         self,
         max_uploads: int = 1024,
     ):
-        self.cursor.execute(
-            f"""DELETE FROM upload WHERE (id, terminal) NOT IN (
-                    SELECT id, terminal FROM upload
-                    ORDER BY upload_time DESC LIMIT ?
-                )
-            """,
-            (max_uploads,),
-        )
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""DELETE FROM upload WHERE (id, terminal) NOT IN (
+                        SELECT id, terminal FROM upload
+                        ORDER BY upload_time DESC LIMIT ?
+                    )
+                """,
+                (max_uploads,),
+            )
 
     def get_all_with_upload_info(
         self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
     ) -> List[ImageInfo]:
         namespace = id_features.namespace_name()
         begin, end = id_features.subspace_masked_range(subspace)
-        self.cursor.execute(
-            f"""SELECT id, description, atime FROM {namespace}
-                WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
-            """,
-            (
-                id_features.subspace_byte_mask(),
-                begin,
-                end - 1,
-            ),
-        )
-        return [
-            ImageInfo(
-                id=row[0],
-                description=row[1],
-                atime=datetime.fromisoformat(row[4]),
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"""SELECT id, description, atime FROM {namespace}
+                    WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
+                """,
+                (
+                    id_features.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                ),
             )
-            for row in self.cursor.fetchall()
-        ]
+            return [
+                ImageInfo(
+                    id=row[0],
+                    description=row[1],
+                    atime=datetime.fromisoformat(row[4]),
+                )
+                for row in cursor.fetchall()
+            ]

@@ -3,7 +3,7 @@ import os
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 
 import tupimage
 from tupimage.id_manager import IDFeatures
@@ -106,10 +106,27 @@ def parse_as_id(image: str) -> Optional[int]:
         return None
 
 
-def display(args):
-    tupiterm = tupimage.TupimageTerminal()
+def display(
+    command: str,
+    images: List[str],
+    rows: Optional[int],
+    cols: Optional[int],
+    force_upload: bool,
+    out_display: str,
+    max_cols: str,
+    max_rows: str,
+):
+    _ = command
+    tupiterm = tupimage.TupimageTerminal(
+        out_display=out_display if out_display else None,
+        config_overrides={
+            "force_upload": force_upload,
+            "max_cols": max_cols,
+            "max_rows": max_rows,
+        },
+    )
     errors = False
-    for image in args.images:
+    for image in images:
         if not os.path.exists(image):
             id = parse_as_id(image)
             if id is not None:
@@ -120,10 +137,10 @@ def display(args):
                     )
                     errors = True
                     continue
-                tupiterm.upload_and_display(inst)
+                tupiterm.upload_and_display(inst, rows=rows, cols=cols)
                 continue
         try:
-            tupiterm.upload_and_display(image)
+            tupiterm.upload_and_display(image, rows=rows, cols=cols)
         except FileNotFoundError:
             printerr(tupiterm, f"File not found: {image}")
             errors = True
@@ -131,19 +148,20 @@ def display(args):
         sys.exit(1)
 
 
-def list_images(command, max_cols, max_rows):
+def list_images(command: str, max_cols: str, max_rows: str, out_display: str):
     _ = command
     tupiterm = tupimage.TupimageTerminal(
-        config_overrides={"max_cols": max_cols, "max_rows": max_rows}
+        out_display=out_display if out_display else None,
+        config_overrides={"max_cols": max_cols, "max_rows": max_rows},
     )
-    max_cols, max_rows = tupiterm.get_max_cols_and_rows()
+    max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
     for iminfo in tupiterm.id_manager.get_all():
         id = iminfo.id
         space = str(IDFeatures.from_id(id))
         subspace_byte = IDFeatures.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
         print(
-            f"\033[1mID: {id}\033[0m ({hex(id)}) space: {space} subspace_byte: {subspace_byte} atime: {iminfo.atime} ({ago})"
+            f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})"
         )
         print(f"  {iminfo.description}")
         uploads = tupiterm.id_manager.get_upload_infos(id)
@@ -169,52 +187,56 @@ def list_images(command, max_cols, max_rows):
                     f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m"
                 )
             else:
-                if inst.cols > max_cols or inst.rows > max_rows:
-                    print(
-                        f"  Note: cropped to {min(inst.cols, max_cols)}x{min(inst.rows, max_rows)}"
-                    )
                 tupiterm.display_only(
-                    inst, end_col=max_cols, end_row=max_rows, allow_expansion=False
+                    inst,
+                    end_col=max_cols_int,
+                    end_row=max_rows_int,
+                    allow_expansion=False,
                 )
-            print("-" * min(max_cols, 80))
+                if inst.cols > max_cols_int or inst.rows > max_rows_int:
+                    print(
+                        f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}"
+                    )
+            print("-" * min(max_cols_int, 80))
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
-    subparsers = parser.add_subparsers(dest="command")
 
+    # Subcommands
+    subparsers = parser.add_subparsers(dest="command")
     parser_dump_config = subparsers.add_parser(
         "dump-config", help="Dump the config state."
     )
-
     parser_status = subparsers.add_parser("status", help="Display the status.")
-
-    parser_display = subparsers.add_parser("display", help="Display an image.")
-
+    parser_display = subparsers.add_parser(
+        "display", help="Display an image. (default)"
+    )
     parser_upload = subparsers.add_parser(
         "upload", help="Upload an image without displaying."
     )
-
     parser_assign_id = subparsers.add_parser(
         "assign-id",
         help="Assigns an id to an image without displaying or uploading it.",
     )
-
     parser_list = subparsers.add_parser(
         "list",
         help="List all known images.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+
     parser_list.add_argument(
         "--max-cols",
+        metavar="W",
         type=str,
         default="auto",
         help="Maximum number of columns to display each listed image. 'auto' to use the terminal width.",
     )
     parser_list.add_argument(
         "--max-rows",
+        metavar="H",
         type=str,
         default="4",
         help="Maximum number of rows to display each listed image. 'auto' to use the terminal height.",
@@ -222,6 +244,51 @@ def main():
 
     for p in [parser_display, parser_upload, parser_assign_id]:
         p.add_argument("images", nargs="*", type=str)
+        p.add_argument(
+            "--cols",
+            "-c",
+            metavar="W",
+            type=int,
+            default=None,
+            help="Number of columns to fit the image to.",
+        )
+        p.add_argument(
+            "--rows",
+            "-r",
+            metavar="H",
+            type=int,
+            default=None,
+            help="Number of rows to fit the image to.",
+        )
+        p.add_argument(
+            "--max-cols",
+            metavar="W",
+            type=str,
+            default="auto",
+            help="Maximum number of columns when computing the image size. 'auto' to use the terminal width.",
+        )
+        p.add_argument(
+            "--max-rows",
+            metavar="H",
+            type=str,
+            default="auto",
+            help="Maximum number of rows when computing the image size. 'auto' to use the terminal width.",
+        )
+
+    for p in [parser_display, parser_upload]:
+        p.add_argument(
+            "--force-upload", "-f", action="store_true", help="Force (re)upload."
+        )
+
+    for p in [parser_display, parser_list]:
+        p.add_argument(
+            "--out-display",
+            "-o",
+            metavar="FILE",
+            type=str,
+            default="",
+            help="The tty/file/pipe to print the image placeholder to. If not specified, stdout will be used.",
+        )
 
     parser_icat = subparsers.add_parser(
         "icat", help="A CLI compatible with the icat kitten."
@@ -334,22 +401,40 @@ def main():
         help="The image id to use.",
     )
 
+    # Handle the default command case.
+    all_commands = subparsers.choices.keys()
+    contains_help = False
+    for arg in sys.argv[1:]:
+        if arg in ["-h", "--help"]:
+            contains_help = True
+        if arg in all_commands:
+            break
+    else:
+        # It's not a known command.
+        if not contains_help:
+            # If it doesn't contain help, add the display command.
+            sys.argv.insert(1, "display")
+        else:
+            # Otherwise show the help.
+            sys.argv.insert(1, "--help")
+
     # Parse the arguments
     args = parser.parse_args()
 
     # Execute the function associated with the chosen subcommand
     if args.command == "icat":
-        icat(args)
+        icat(**vars(args))
     elif args.command == "dump-config":
-        dump_config(args)
+        dump_config(**vars(args))
     elif args.command == "status":
-        status(args)
+        status(**vars(args))
     elif args.command == "display":
-        display(args)
+        display(**vars(args))
     elif args.command == "list":
         list_images(**vars(args))
     else:
-        parser.print_help()
+        print(f"Command not implemented: {args.command}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
