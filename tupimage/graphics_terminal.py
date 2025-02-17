@@ -473,9 +473,9 @@ class GraphicsTerminal:
                     return GraphicsResponse(is_valid=False, non_response=buffer)
             # Now parse the response
             res = GraphicsResponse(is_valid=True)
-            non_response, response = buffer.split(b"\033_G", 2)
+            non_response, response = buffer.split(b"\033_G", 1)
             res.non_response = non_response
-            resp_and_message = response[:-2].split(b";", 2)
+            resp_and_message = response[:-2].split(b";", 1)
             if len(resp_and_message) > 1:
                 res.message = resp_and_message[1].decode("utf-8")
                 res.is_ok = resp_and_message[1] == b"OK"
@@ -488,7 +488,7 @@ class GraphicsTerminal:
                     elif part.startswith(b"p="):
                         res.placement_id = int(part[2:])
                     else:
-                        key_and_val = part.split(b"=", 2)
+                        key_and_val = part.split(b"=", 1)
                         res.additional_data[key_and_val[0].decode("utf-8")] = (
                             key_and_val[1].decode("utf-8")
                             if len(key_and_val) > 1
