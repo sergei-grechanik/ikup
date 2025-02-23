@@ -160,7 +160,8 @@ class ShellScriptBinaryIOHelper(BinaryIO):
 class GraphicsTerminal:
     def __init__(
         self,
-        tty_filename: Optional[str] = None, *,
+        tty_filename: Optional[str] = None,
+        *,
         out_command: Union[BinaryIO, str, None] = None,
         out_display: Union[BinaryIO, str, None] = None,
         in_response: Union[BinaryIO, str, None] = None,

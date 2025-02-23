@@ -344,3 +344,202 @@ def everything(ctx: TestingContext):
         f"Wrong response: {response}",
     )
     ctx.take_screenshot("ENOENT response, no assertion failures.")
+
+
+@screenshot_test
+def underneath_text_restoration(ctx: TestingContext):
+    term = ctx.term
+    cmd = TransmitCommand(
+        medium=tupimage.TransmissionMedium.FILE,
+        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        format=tupimage.Format.PNG,
+    )
+    # First create some placeholder images.
+    id1 = 0x12345678
+    id2 = 0xFF000000
+    term.send_command(
+        cmd.clone_with(image_id=id1)
+        .set_placement(rows=19, cols=40, virtual=True)
+        .set_filename(ctx.get_transparency_png())
+    )
+    term.send_command(
+        cmd.clone_with(image_id=id2)
+        .set_placement(rows=19, cols=40, virtual=True)
+        .set_filename(ctx.get_diagonal_png())
+    )
+    term.print_placeholder(image_id=id1, end_col=40, end_row=19, pos=(0, 0))
+    term.print_placeholder(image_id=id2, end_col=40, end_row=19, pos=(40, 0))
+    # Also add some text. Include wide characters.
+    term.move_cursor_abs(col=0, row=20)
+    term.write("Hello 😀😁😂😃😄😅 " * 10)
+    ctx.take_screenshot("Just two placeholder images and some text.")
+
+    # Now upload some images for classic placements.
+    id3 = 0xFF0000FF
+    id4 = 42
+    term.send_command(cmd.clone_with(image_id=id3).set_filename(ctx.get_tux_png()))
+    term.send_command(
+        cmd.clone_with(image_id=id4).set_filename(ctx.get_wikipedia_png())
+    )
+
+    # Create some classic placements.
+    term.move_cursor_abs(col=0, row=0)
+    term.send_command(
+        PutCommand(
+            image_id=id3,
+            placement_id=1,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=6, row=6)
+    term.send_command(
+        PutCommand(
+            image_id=id4,
+            placement_id=1,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=12, row=12)
+    term.send_command(
+        PutCommand(
+            image_id=id3,
+            placement_id=2,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=18, row=18)
+    term.send_command(
+        PutCommand(
+            image_id=id1,
+            placement_id=1,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+
+    # Create more classic placements.
+    term.move_cursor_abs(col=70, row=0)
+    term.send_command(
+        PutCommand(
+            image_id=id4,
+            placement_id=2,
+            rows=6,
+            cols=12,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    # This one overrides the previous one. It's intentional.
+    term.move_cursor_abs(col=70, row=4)
+    term.send_command(
+        PutCommand(
+            image_id=id4,
+            placement_id=2,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=70, row=8)
+    term.send_command(
+        PutCommand(
+            image_id=id3,
+            placement_id=3,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=70, row=12)
+    term.send_command(
+        PutCommand(
+            image_id=id4,
+            placement_id=3,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=70, row=16)
+    term.send_command(
+        PutCommand(
+            image_id=id4,
+            placement_id=4,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+    term.move_cursor_abs(col=70, row=20)
+    term.send_command(
+        PutCommand(
+            image_id=id1,
+            placement_id=2,
+            rows=10,
+            cols=20,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+    )
+
+    ctx.take_screenshot("Classic placements over placeholders.")
+
+    # Now delete some placements.
+    term.send_command(
+        DeleteCommand(
+            image_id=id4,
+            placement_id=1,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            delete_data=True,
+        )
+    )
+    term.send_command(
+        DeleteCommand(
+            image_id=id4,
+            placement_id=3,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            delete_data=True,
+        )
+    )
+
+    ctx.take_screenshot("Deleted one wiki on the left and one on the right.")
+
+    # Now delete all penguins.
+    term.send_command(
+        DeleteCommand(
+            image_id=id3,
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            delete_data=True,
+        )
+    )
+
+    ctx.take_screenshot("Deleted all tuxes.")
+
+    # Now delete everything visible.
+    term.send_command(
+        DeleteCommand(
+            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            what=tupimage.WhatToDelete.VISIBLE_PLACEMENTS,
+            delete_data=True,
+        )
+    )
+
+    ctx.take_screenshot("Deleted all classic placements.")
