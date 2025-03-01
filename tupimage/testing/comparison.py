@@ -22,6 +22,7 @@ class ScreenshotComparison:
 
 @dataclass
 class ComparisonReport:
+    tests_with_errors: List[dict] = field(default_factory=list)
     no_reference_tests: List[dict] = field(default_factory=list)
     missing_tests: List[dict] = field(default_factory=list)
     incompatible_tests: List[Tuple[dict, dict]] = field(default_factory=list)
@@ -38,17 +39,23 @@ class ComparisonReport:
 
     def to_html(self, diff_threshold: float = 0.001) -> str:
         html = ""
+        if self.tests_with_errors:
+            html += '<h2 style="color: red">Tests with errors</h2>\n'
+            for test in self.tests_with_errors:
+                html += f"<h3>{test['name']}</h3>\n"
+                for error in test["errors"]:
+                    html += f"<p>{error}</p>\n"
         if self.missing_tests:
-            html += "<h2>Reference tests that didn't run</h2>\n"
+            html += '<h2 style="color: red">Reference tests that didn\'t run</h2>\n'
             for test in self.missing_tests:
                 html += f"<h3>{test['name']}</h3>\n"
         if self.no_reference_tests:
-            html += "<h2>Tests without reference</h2>\n"
+            html += '<h2 style="color: red">Tests without reference</h2>\n'
             for test in self.no_reference_tests:
                 html += f"<h3>{test['name']}</h3>\n"
                 html += self.screenshots_to_html(test["screenshots"])
         if self.incompatible_tests:
-            html += "<h2>Incompatible tests</h2>\n"
+            html += '<h2 style="color: red">Incompatible tests</h2>\n'
             for test, ref_test in self.incompatible_tests:
                 html += f"<h3>{test['name']}</h3>\n"
                 test_shots = test["screenshots"]
@@ -154,6 +161,8 @@ def create_screenshot_comparison_report(
         if ref_test["name"] not in out_by_name:
             report.missing_tests.append(ref_test)
     for test in out_json_data:
+        if test["errors"]:
+            report.tests_with_errors.append(test)
         if test["name"] not in ref_by_name:
             report.no_reference_tests.append(test)
             continue

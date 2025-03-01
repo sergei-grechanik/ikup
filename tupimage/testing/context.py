@@ -143,7 +143,7 @@ class TestingContext:
     def _start_test(self, name: str):
         self.test_name = name
         os.makedirs(os.path.join(self.output_dir, self.test_name), exist_ok=True)
-        self.current_test_data = {"name": name, "screenshots": []}
+        self.current_test_data = {"name": name, "screenshots": [], "errors": []}
         self.screenshot_index = 0
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n\n# {name}")
@@ -308,13 +308,15 @@ class TestingContext:
 
     def assert_equal(self, lhs, rhs):
         if lhs != rhs:
-            raise AssertionError(f"{lhs} != {rhs}")
+            message = f"Assertion failed: {lhs} != {rhs}"
+            self.current_test_data["errors"].append(message)
+            self.term.write(message + "\n")
 
     def assert_true(self, value: bool, description: Optional[str] = None):
         if not value:
-            raise AssertionError(
-                "Assertion failed" + (": " + description if description else "")
-            )
+            message = "Assertion failed" + (": " + description if description else "")
+            self.current_test_data["errors"].append(message)
+            self.term.write(message + "\n")
 
     def print_results(self):
         print("Output dir: " + os.path.relpath(self.output_dir))
