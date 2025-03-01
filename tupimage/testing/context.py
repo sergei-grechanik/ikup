@@ -77,7 +77,6 @@ class TestingContext:
         self.screenshot_width: int = term_size[0] * screenshot_cell_size[0]
         self.screenshot_height: int = term_size[1] * screenshot_cell_size[1]
         os.makedirs(self.data_dir, exist_ok=True)
-        self.report_file: Optional[TextIO] = None
         self.current_test_data: dict = {}
         self.screenshot_index: int = 0
         self.test_name: Optional[str] = None
@@ -144,13 +143,8 @@ class TestingContext:
     def _start_test(self, name: str):
         self.test_name = name
         os.makedirs(os.path.join(self.output_dir, self.test_name), exist_ok=True)
-        if self.report_file is None:
-            self.report_file = open(
-                os.path.join(self.output_dir, "report.html"), "w", buffering=1
-            )
         self.current_test_data = {"name": name, "screenshots": []}
         self.screenshot_index = 0
-        self.report_file.write(f"<h2>{name}</h2>\n")
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n\n# {name}")
             self.term.shellscript_out.write(" {{{\n\n")
