@@ -16,7 +16,7 @@ from tupimage import GraphicsTerminal
 
 
 def take_screenshot(
-    filename: str, width: int = 480, height: int = 288, window_id: Optional[str] = None
+    filename: str, num_pixels: int = 480 * 288, window_id: Optional[str] = None
 ):
     if window_id is None:
         window_id = os.getenv("WINDOWID")
@@ -28,7 +28,7 @@ def take_screenshot(
             "-depth",
             "8",
             "-resize",
-            "{}x{}".format(width, height),
+            "{}@".format(num_pixels),
             "-window",
             window_id,
             filename,
@@ -64,7 +64,7 @@ class TestingContext:
         output_dir: str,
         data_dir: str,
         term_size: Tuple[int, int] = (80, 24),
-        screenshot_cell_size: Tuple[int, int] = (4, 8),
+        screenshot_pixels: int = 480 * 288,
         pause_after_screenshot: bool = False,
         pause_before_test: bool = False,
         take_screenshots: bool = True,
@@ -74,8 +74,7 @@ class TestingContext:
         self.term: GraphicsTerminal = term
         self.output_dir: str = output_dir
         self.data_dir: str = data_dir
-        self.screenshot_width: int = term_size[0] * screenshot_cell_size[0]
-        self.screenshot_height: int = term_size[1] * screenshot_cell_size[1]
+        self.screenshot_pixels: int = screenshot_pixels
         os.makedirs(self.data_dir, exist_ok=True)
         self.current_test_data: dict = {}
         self.screenshot_index: int = 0
@@ -286,8 +285,7 @@ class TestingContext:
             time.sleep(0.5)
             take_screenshot(
                 filename,
-                width=self.screenshot_width,
-                height=self.screenshot_height,
+                num_pixels=self.screenshot_pixels,
                 window_id=self.window_id,
             )
             self.current_test_data["screenshots"].append(

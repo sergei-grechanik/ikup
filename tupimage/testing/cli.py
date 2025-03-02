@@ -54,9 +54,9 @@ def run(args):
     if args.reset_by_scrolling:
         term.reset_by_scrolling = True
 
+    real_term_size = term.get_size()
+    real_cell_size = term.get_cell_size()
     if not args.ignore_size:
-        real_term_size = term.get_size()
-        real_cell_size = term.get_cell_size()
         if (
             real_term_size[0] != args.term_size[0]
             or real_term_size[1] != args.term_size[1]
@@ -106,12 +106,18 @@ def run(args):
     if args.data_dir is None:
         args.data_dir = f".tupimage-testing/data"
 
+    # The max number of pixels in a screenshot.
+    screenshot_pixels = (
+        args.cell_size[0] * args.cell_size[1] * real_term_size[0] * real_term_size[1]
+        + (real_term_size[0] + real_term_size[1]) * 2
+    )
+
     ctx = TestingContext(
         term,
         output_dir=args.output_dir,
         data_dir=args.data_dir,
         term_size=args.term_size,
-        screenshot_cell_size=args.cell_size,
+        screenshot_pixels=screenshot_pixels,
         pause_after_screenshot=args.pause,
         pause_before_test=args.pause,
         take_screenshots=not args.no_screenshots,
