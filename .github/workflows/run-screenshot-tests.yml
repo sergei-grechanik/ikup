@@ -42,11 +42,13 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e uv run python -m tupimage.testing.cli run -o runlogs
+            ./st-graphics/st -e sh -c 'uv run python -m tupimage.testing.cli run -o runlogs 2> errors.txt'
 
       - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: runlogs
-          path: ./runlogs/
+          path: |
+            ./runlogs/
+            errors.txt
