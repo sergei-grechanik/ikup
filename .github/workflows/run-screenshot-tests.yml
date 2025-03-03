@@ -1,0 +1,44 @@
+name: Python application
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install st-graphics dependencies
+        run: |
+          sudo apt update
+
+      - name: Clone st-graphics
+        run: |
+          git clone https://github.com/sergei-grechanik/st-graphics.git
+
+      - name: Build st-graphics
+        run: |
+          cd st-graphics
+          make
+
+      - name: Install the project
+        run: uv sync --all-extras --dev
+
+      - name: Run screenshot tests
+        uses: coactions/setup-xvfb@v1
+        with:
+          run: |
+            ./st-graphics/st -e uv run python -m tupimage.testing.cli run *underneath*

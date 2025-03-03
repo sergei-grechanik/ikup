@@ -7,7 +7,7 @@ name = "tupimage"
 description = "A tool for displaying images in the terminal using the kitty graphics protocol."
 readme = "README.md"
 dynamic = ["version"]
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 dependencies = [
     "Pillow",
     "platformdirs",
