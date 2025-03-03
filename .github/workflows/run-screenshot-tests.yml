@@ -1,4 +1,4 @@
-name: Python application
+name: Screenshot tests
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  screenshot-tests:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
       - name: Install st-graphics dependencies
         run: |
           sudo apt update
-          sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev
+          sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev libfreetype-dev libfontconfig-dev
 
       - name: Clone st-graphics
         run: |
