@@ -42,7 +42,7 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e uv run python -m tupimage.testing.cli run *underneath* -o runlogs
+            ./st-graphics/st -e uv run python -m tupimage.testing.cli run -o runlogs
 
       - name: Keep the report
         if: always()
