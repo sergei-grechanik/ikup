@@ -24,6 +24,7 @@ jobs:
       - name: Install st-graphics dependencies
         run: |
           sudo apt update
+          sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev
 
       - name: Clone st-graphics
         run: |
