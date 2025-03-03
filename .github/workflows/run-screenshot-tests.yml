@@ -19,12 +19,12 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
 
       - name: Install st-graphics dependencies
         run: |
           sudo apt update
-          sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev libfreetype-dev libfontconfig-dev
+          sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev libfreetype-dev libfontconfig-dev libxft-dev
 
       - name: Clone st-graphics
         run: |
