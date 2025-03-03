@@ -42,5 +42,10 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e ls
-            ./st-graphics/st -e sh -c "uv run python -m tupimage.testing.cli run *underneath* &> log.txt"
+            ./st-graphics/st -e uv run python -m tupimage.testing.cli run *underneath* -o runlogs || true
+
+      - name: Keep the report
+        uses: actions/upload-artifact@v4
+        with:
+          name: runlogs
+          path: ./runlogs/
