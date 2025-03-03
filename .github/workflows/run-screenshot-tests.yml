@@ -43,10 +43,9 @@ jobs:
         with:
           run: |
             ./st-graphics/st -e uv run python -m tupimage.testing.cli run *underneath* -o runlogs
-            echo "Lalalala"
-            true
 
       - name: Keep the report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: runlogs
