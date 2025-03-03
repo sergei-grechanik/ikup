@@ -38,12 +38,9 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: Run screenshot tests incorrectly
-        run: uv run python -m tupimage.testing.cli run *underneath*
-
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1
         with:
           run: |
             ./st-graphics/st -e ls
-            # ./st-graphics/st -e uv run python -m tupimage.testing.cli run *underneath*
+            ./st-graphics/st -e sh -c "uv run python -m tupimage.testing.cli run *underneath* &> log.txt"
