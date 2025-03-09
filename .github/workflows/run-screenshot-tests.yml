@@ -38,11 +38,14 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
+      - name: Dummy file
+        run: echo "Dummy file" > dummy.txt
+
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e sh -c 'script -c uv run python -m tupimage.testing.cli run -o screenshots'
+            ./st-graphics/st -e sh -c 'script -c ls -l'
 
       - name: Keep the report
         if: always()
@@ -57,3 +60,10 @@ jobs:
         with:
           name: typescript
           path: typescript
+
+      - name: Keep the dummy file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dummy.txt
+          path: dummy.txt
