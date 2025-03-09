@@ -42,7 +42,7 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e sh -c 'uv run python -m tupimage.testing.cli run -o screenshots'
+            ./st-graphics/st -e sh -c 'script -c uv run python -m tupimage.testing.cli run -o screenshots'
 
       - name: Keep the report
         if: always()
@@ -51,9 +51,9 @@ jobs:
           name: screenshots
           path: ./screenshots/
 
-      - name: Keep the errors
+      - name: Keep the outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: errors
-          path: errors.txt
+          name: typescript
+          path: typescript
