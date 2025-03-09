@@ -46,7 +46,8 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
-            ./st-graphics/st -e script -e -c "uv run python -m tupimage.testing.cli run *basics* -o screenshots"
+            mkdir report
+            ./st-graphics/st -e script -e -c "uv run python -m tupimage.testing.cli run *basics* -o report/screenshots"
 
       - name: Dump the tail of the output
         run: |
@@ -54,12 +55,19 @@ jobs:
           echo
           ls -l screenshots
 
-      - name: Keep the screenshots
+      - name: Verify the screenshots and create a report
+        run: |
+          git clone https://github.com/sergei-grechanik/terminal-reference-screenshots.git
+          cp -r terminal-reference-screenshots/st/ report/
+          cd report
+          uv run python -m tupimage.testing.cli compare screenshots/ st/ -o report.html
+
+      - name: Keep the report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: screenshots
-          path: ./screenshots/
+          name: report
+          path: ./report/
 
       - name: Keep the outputs
         if: always()
