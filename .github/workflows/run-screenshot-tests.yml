@@ -51,9 +51,9 @@ jobs:
 
       - name: Dump the tail of the output
         run: |
-          tail -20 typescript
+          tail -20 typescript || true
           echo
-          ls -l screenshots
+          ls -l report/screenshots || true
 
       - name: Verify the screenshots and create a report
         run: |
