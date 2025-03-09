@@ -211,4 +211,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        open("errors.txt", "w").write(str(e))
+        raise e
