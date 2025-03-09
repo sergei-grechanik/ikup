@@ -42,7 +42,7 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e touch typescript
+            ./st-graphics/st -e sh -c "touch typescript"
 
       - name: Keep the report
         if: always()
