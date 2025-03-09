@@ -63,3 +63,8 @@ jobs:
         with:
           name: typescript
           path: typescript
+
+      - name: Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
+
