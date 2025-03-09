@@ -46,7 +46,9 @@ jobs:
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e sh -c "script -c uv run python -m tupimage.testing.cli run -o screenshots"
+            ./st-graphics/st -e sh -c "script -e -c ls -l"
+
+      # ./st-graphics/st -e sh -c "script -e -c uv run python -m tupimage.testing.cli run -o screenshots"
 
       - name: Keep the screenshots
         if: always()
