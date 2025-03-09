@@ -38,14 +38,11 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
-      - name: Dummy file
-        run: echo "Dummy file" > dummy.txt
-
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1
         with:
           run: |
-            ./st-graphics/st -e sh -c 'script -c ls -l'
+            ./st-graphics/st -e sh -c 'ls -l > typescript'
 
       - name: Keep the report
         if: always()
@@ -60,10 +57,3 @@ jobs:
         with:
           name: typescript
           path: typescript
-
-      - name: Keep the dummy file
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dummy.txt
-          path: dummy.txt
