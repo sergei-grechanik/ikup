@@ -32,7 +32,7 @@ jobs:
 
       - name: Install additional dependencies
         run: |
-          sudo apt install -y bsdutils
+          sudo apt install -y bsdutils imagemagick
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
@@ -47,6 +47,12 @@ jobs:
         with:
           run: |
             ./st-graphics/st -e script -e -c "uv run python -m tupimage.testing.cli run *basics* -o screenshots"
+
+      - name: Dump the tail of the output
+        run: |
+          tail -20 typescript
+          echo
+          ls -l screenshots
 
       - name: Keep the screenshots
         if: always()
