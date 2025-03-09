@@ -44,9 +44,16 @@ jobs:
           run: |
             ./st-graphics/st -e sh -c "uv run python -m tupimage.testing.cli run -o screenshots"
 
-      - name: Keep the report
+      - name: Keep the screenshots
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: screenshots
           path: ./screenshots/
+
+      - name: Keep the outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typescript
+          path: typescript
