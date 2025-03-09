@@ -30,6 +30,10 @@ jobs:
           cd st-graphics
           make
 
+      - name: Install additional dependencies
+        run: |
+          sudo apt install -y bsdutils
+
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
