@@ -43,10 +43,10 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Run screenshot tests
-        uses: coactions/setup-xvfb@v1
+        uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
-            ./st-graphics/st -e sh -c "script -e -c ls -l"
+            ./st-graphics/st -e sh -c "script -c ls -a"
 
       # ./st-graphics/st -e sh -c "script -e -c uv run python -m tupimage.testing.cli run -o screenshots"
 
@@ -64,7 +64,7 @@ jobs:
           name: typescript
           path: typescript
 
-      - name: Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
+      # - name: Setup tmate session
+      #   if: always()
+      #   uses: mxschmitt/action-tmate@v3
 
