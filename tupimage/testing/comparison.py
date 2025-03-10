@@ -124,7 +124,8 @@ def compare_images(
     img_orig = Image.open(filename).convert("RGB")
     refimg_orig = Image.open(ref_filename).convert("RGB")
 
-    # Crop the images. Positive margins mean we crop the test image, negative margins mean we crop the reference image.
+    # Crop the images. Positive margins mean we crop the test image, negative margins
+    # mean we crop the reference image.
     img_margins = tuple(max(0, m) for m in margins)
     refimg_margins = tuple(-min(0, m) for m in margins)
     img_box = (

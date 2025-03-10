@@ -21,18 +21,11 @@ jobs:
           sudo apt update
           sudo apt install -y libimlib2-dev libx11-dev zlib1g-dev libfreetype-dev libfontconfig-dev libxft-dev
 
-      - name: Clone st-graphics
+      - name: Clone and build st-graphics
         run: |
           git clone https://github.com/sergei-grechanik/st-graphics.git
-
-      - name: Build st-graphics
-        run: |
           cd st-graphics
           make
-
-      - name: Install additional dependencies
-        run: |
-          sudo apt install -y bsdutils imagemagick
 
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
@@ -46,8 +39,10 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
+            sudo apt install -y bsdutils imagemagick xdotool
             mkdir report
             ./st-graphics/st -e script -e -c ./run-screenshot-tests.sh
+            cp typescript report/
 
       - name: Dump the tail of the output
         run: |

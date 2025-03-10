@@ -1,4 +1,4 @@
 #!/bin/sh
 
-xdotool windowactivate $WINDOWID
+xdotool windowactivate --sync $WINDOWID
 uv run python -m tupimage.testing.cli run *basics* -o report/screenshots
