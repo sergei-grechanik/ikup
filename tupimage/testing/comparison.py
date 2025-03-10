@@ -143,6 +143,9 @@ def compare_images(
     img = img_orig.crop(img_box)
     refimg = refimg_orig.crop(refimg_box)
 
+    print(img_orig.size, refimg_orig.size)
+    print(img.size, refimg.size)
+
     # Resize the images to the same size.
     size = refimg.size
     W = 80
@@ -152,6 +155,8 @@ def compare_images(
     ch = size[1] // H
     img = img.resize(size)
     refimg = refimg.resize(size)
+
+    print(img.size, refimg.size)
 
     img = np.array(img).astype(np.float32) / 255.0
     refimg = np.array(refimg).astype(np.float32) / 255.0
