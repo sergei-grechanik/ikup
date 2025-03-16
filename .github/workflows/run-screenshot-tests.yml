@@ -39,7 +39,7 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
-            sudo apt install -y bsdutils imagemagick xdotool
+            sudo apt install -y bsdutils imagemagick xdotool fonts-noto-color-emoji
             mkdir report
             ./st-graphics/st -e script -e -c ./run-screenshot-tests.sh
             cp typescript report/
@@ -47,8 +47,10 @@ jobs:
       - name: Dump the tail of the output
         if: always()
         run: |
-          tail -20 typescript || true
+          echo "=== Last 100 lines of the typescript ==="
+          tail -100 typescript || true
           echo
+          echo "=== The contents of report/screenshots ==="
           ls -l report/screenshots || true
 
       - name: Verify the screenshots and create a report

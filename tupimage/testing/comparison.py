@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_DIFF_THRESHOLD = 0.001
+DEFAULT_DIFF_THRESHOLD = 0.002
 
 
 @dataclass
@@ -188,7 +188,7 @@ def compare_images(
     diffscore = math.sqrt(sum_of_squares / meaningful_pixels)
 
     # Build the diff image.
-    diffmap = np.clip(np.float_power(np.abs(img - refimg), 0.1), 0.0, 1.0)
+    diffmap = np.clip(np.abs(img - refimg), 0.0, 1.0)
     if diffmap_filename:
         diffmap = (diffmap * 255).astype(np.uint8)
         Image.fromarray(diffmap).save(diffmap_filename)

@@ -364,6 +364,9 @@ class UploadInfo:
 class IDManager:
     def __init__(self, database_file: str, *, max_ids_per_subspace: int = 1024):
         self.database_file = database_file
+        directory = os.path.dirname(database_file)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
         self.conn = sqlite3.connect(database_file, isolation_level=None)
         self.max_ids_per_subspace: int = max_ids_per_subspace
 
