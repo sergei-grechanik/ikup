@@ -40,6 +40,7 @@ jobs:
         with:
           run: |
             sudo apt install -y bsdutils imagemagick xdotool fonts-noto-color-emoji
+            fc-cache -f -v
             mkdir report
             ./st-graphics/st -e script -e -c ./run-screenshot-tests.sh
             cp typescript report/

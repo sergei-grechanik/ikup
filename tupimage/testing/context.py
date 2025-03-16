@@ -269,20 +269,21 @@ class TestingContext:
             raise KeyboardInterrupt()
 
     def take_screenshot(self, description: Optional[str] = None, diff_threshold: Optional[float] = None):
+        sleep_time = 0.2
         if self.test_name is None:
             raise RuntimeError("No test running")
         self.dump_unexpected_responses()
         self.term.out_display.flush()
         if self.term.shellscript_out is not None:
             self.term.shellscript_out.write(f"\n# Screenshot: {description}\n")
-            self.term.shellscript_out.write("sleep 0.5\n\n")
+            self.term.shellscript_out.write("sleep {sleep_time}\n\n")
         rel_filename = os.path.join(
             self.test_name,
             f"screenshot-{self.screenshot_index}.png",
         )
         filename = os.path.join(self.output_dir, rel_filename)
         if self.take_screenshots:
-            time.sleep(0.5)
+            time.sleep(sleep_time)
             take_screenshot(
                 filename,
                 num_pixels=self.screenshot_pixels,
