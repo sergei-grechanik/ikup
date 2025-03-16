@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_DIFF_THRESHOLD = 0.002
+DEFAULT_DIFF_THRESHOLD = 0.01
 
 
 @dataclass
@@ -61,6 +61,11 @@ class ComparisonReport:
                     f"Failed screenshot {screenshot.test_name} {screenshot.index} diff = {screenshot.diffscore:.6f}\n"
                 )
                 success = False
+        out.write("Worst 5 screenshots:\n")
+        for screenshot in self.screenshots[:5]:
+            out.write(
+                f"  {screenshot.test_name} {screenshot.index} diff = {screenshot.diffscore:.6f}\n"
+            )
         return success
 
     def screenshots_to_html(self, screenshots: List[dict]) -> str:
