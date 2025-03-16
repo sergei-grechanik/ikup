@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+from sys import stdout
 import warnings
 from fnmatch import fnmatch
 from typing import List
@@ -163,6 +164,9 @@ def compare(args):
     )
     with open(args.output, "w") as f:
         f.write(report.to_html())
+    success = report.print_summary(stdout)
+    if not success:
+        exit(1)
 
 
 def main():

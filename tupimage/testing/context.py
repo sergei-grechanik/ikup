@@ -268,7 +268,7 @@ class TestingContext:
             self.term.write(b"\033[0m")
             raise KeyboardInterrupt()
 
-    def take_screenshot(self, description: Optional[str] = None):
+    def take_screenshot(self, description: Optional[str] = None, diff_threshold: Optional[float] = None):
         if self.test_name is None:
             raise RuntimeError("No test running")
         self.dump_unexpected_responses()
@@ -293,6 +293,7 @@ class TestingContext:
                     "filename": rel_filename,
                     "index": self.screenshot_index,
                     "description": description or "",
+                    **({"diff_threshold": diff_threshold} if diff_threshold else {})
                 }
             )
         self.screenshot_index += 1

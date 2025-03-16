@@ -2,11 +2,14 @@ import json
 import math
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, TextIO, Tuple
 import random
 
 import numpy as np
 from PIL import Image
+
+
+DEFAULT_DIFF_THRESHOLD = 0.001
 
 
 @dataclass
@@ -19,6 +22,7 @@ class ScreenshotComparison:
     ref_description: str = ""
     diffmap_filename: str = ""
     diffscore: float = float("inf")
+    diff_threshold: float = DEFAULT_DIFF_THRESHOLD
 
 
 @dataclass
@@ -29,6 +33,36 @@ class ComparisonReport:
     incompatible_tests: List[Tuple[dict, dict]] = field(default_factory=list)
     screenshots: List[ScreenshotComparison] = field(default_factory=list)
 
+    def print_summary(self, out: TextIO) -> bool:
+        success = True;
+        if self.tests_with_errors:
+            out.write("Tests with errors:\n")
+            for test in self.tests_with_errors:
+                out.write(f"  {test['name']}\n")
+            success = False
+        if self.no_reference_tests:
+            out.write("Tests without reference:\n")
+            for test in self.no_reference_tests:
+                out.write(f"  {test['name']}\n")
+            success = False
+        if self.missing_tests:
+            out.write("Reference tests that didn't run:\n")
+            for test in self.missing_tests:
+                out.write(f"  {test['name']}\n")
+            success = False
+        if self.incompatible_tests:
+            out.write("Incompatible tests:\n")
+            for test, _ in self.incompatible_tests:
+                out.write(f"  {test['name']}\n")
+            success = False
+        for screenshot in self.screenshots:
+            if screenshot.diffscore >= screenshot.diff_threshold:
+                out.write(
+                    f"Failed screenshot {screenshot.test_name} {screenshot.index} diff = {screenshot.diffscore:.6f}\n"
+                )
+                success = False
+        return success
+
     def screenshots_to_html(self, screenshots: List[dict]) -> str:
         html = ""
         for screenshot in screenshots:
@@ -38,7 +72,7 @@ class ComparisonReport:
             html += f'<img src="{filename}">\n'
         return html
 
-    def to_html(self, diff_threshold: float = 0.001) -> str:
+    def to_html(self) -> str:
         html = ""
         if self.tests_with_errors:
             html += '<h2 style="color: red">Tests with errors</h2>\n'
@@ -76,7 +110,7 @@ class ComparisonReport:
         if self.screenshots:
             html += "<h2>Screenshots</h2>\n"
             for screenshot in self.screenshots:
-                if screenshot.diffscore < diff_threshold:
+                if screenshot.diffscore < screenshot.diff_threshold:
                     html += '<h3 style="color: green">(PASSED) '
                 else:
                     html += '<h3 style="color: red">(FAILED) '
@@ -119,63 +153,42 @@ def compare_images(
     filename: str,
     ref_filename: str,
     diffmap_filename: Optional[str] = None,
-    margins: Tuple[int, int, int, int] = (0, 0, 0, 0),
 ) -> float:
-    img_orig = Image.open(filename).convert("RGB")
-    refimg_orig = Image.open(ref_filename).convert("RGB")
-
-    # Crop the images. Positive margins mean we crop the test image, negative margins
-    # mean we crop the reference image.
-    img_margins = tuple(max(0, m) for m in margins)
-    refimg_margins = tuple(-min(0, m) for m in margins)
-    img_box = (
-        img_margins[0],
-        img_margins[1],
-        img_orig.width - img_margins[2],
-        img_orig.height - img_margins[3],
-    )
-    refimg_box = (
-        refimg_margins[0],
-        refimg_margins[1],
-        refimg_orig.width - refimg_margins[2],
-        refimg_orig.height - refimg_margins[3],
-    )
-    img = img_orig.crop(img_box)
-    refimg = refimg_orig.crop(refimg_box)
-
-    print(img_orig.size, refimg_orig.size)
-    print(img.size, refimg.size)
+    img = Image.open(filename).convert("RGB")
+    refimg = Image.open(ref_filename).convert("RGB")
 
     # Resize the images to the same size.
+    # TODO: We may want to crop instead of resizing to avoid distortion.
     size = refimg.size
-    W = 80
-    H = 24
-    size = (math.ceil(size[0] / W) * W, math.ceil(size[1] / H) * H)
-    cw = size[0] // W
-    ch = size[1] // H
     img = img.resize(size)
-    refimg = refimg.resize(size)
-
-    print(img.size, refimg.size)
 
     img = np.array(img).astype(np.float32) / 255.0
     refimg = np.array(refimg).astype(np.float32) / 255.0
 
+    W = 80
+    cw = size[0] / W
+    ch = cw
+
     # Compute the diffscore.
     meaningful_pixels = 0
     sum_of_squares = 0
-    for x in range(0, size[0], cw):
-        for y in range(0, size[1], ch):
-            cell1 = img[y : y + ch, x : x + cw]
-            cell2 = refimg[y : y + ch, x : x + cw]
+    x = 0
+    while x < size[0]:
+        y = 0
+        while y < size[1]:
+            cell1 = img[int(y) : int(y + ch), int(x) : int(x + cw)]
+            cell2 = refimg[int(y) : int(y + ch), int(x) : int(x + cw)]
             if np.max(cell1) < 0.001 and np.max(cell2) < 0.001:
+                y += ch
                 continue
             meaningful_pixels += ch * cw
             sum_of_squares += np.sum((cell1 - cell2) ** 2)
+            y += ch
+        x += cw
     diffscore = math.sqrt(sum_of_squares / meaningful_pixels)
 
     # Build the diff image.
-    diffmap = np.maximum(np.abs(img - refimg), 0.05)
+    diffmap = np.clip(np.float_power(np.abs(img - refimg), 0.1), 0.0, 1.0)
     if diffmap_filename:
         diffmap = (diffmap * 255).astype(np.uint8)
         Image.fromarray(diffmap).save(diffmap_filename)
@@ -211,6 +224,7 @@ def create_screenshot_comparison_report(
         for screenshot, ref_screenshot in zip(
             test["screenshots"], ref_test["screenshots"]
         ):
+            diff_threshold = screenshot.get("diff_threshold", DEFAULT_DIFF_THRESHOLD)
             diffmap_filename = os.path.join(
                 diffmap_dir, f"diffmap-{test['name']}-{index}.png"
             )
@@ -229,6 +243,7 @@ def create_screenshot_comparison_report(
                     ref_description=ref_screenshot["description"],
                     diffscore=diffscore,
                     diffmap_filename=diffmap_filename,
+                    diff_threshold=diff_threshold
                 )
             )
             index += 1
