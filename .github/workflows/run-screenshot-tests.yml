@@ -45,12 +45,14 @@ jobs:
             cp typescript report/
 
       - name: Dump the tail of the output
+        if: always()
         run: |
           tail -20 typescript || true
           echo
           ls -l report/screenshots || true
 
       - name: Verify the screenshots and create a report
+        if: always()
         run: |
           git clone https://github.com/sergei-grechanik/terminal-reference-screenshots.git
           cp -r terminal-reference-screenshots/st/ report/
