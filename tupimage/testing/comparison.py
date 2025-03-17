@@ -34,7 +34,7 @@ class ComparisonReport:
     screenshots: List[ScreenshotComparison] = field(default_factory=list)
 
     def print_summary(self, out: TextIO) -> bool:
-        success = True;
+        success = True
         if self.tests_with_errors:
             out.write("Tests with errors:\n")
             for test in self.tests_with_errors:
@@ -158,7 +158,7 @@ def compare_images(
     filename: str,
     ref_filename: str,
     diffmap_filename: Optional[str] = None,
-    abs_diff_threshold: float = 0.03
+    abs_diff_threshold: float = 0.03,
 ) -> float:
     img = Image.open(filename).convert("RGB")
     refimg = Image.open(ref_filename).convert("RGB")
@@ -190,7 +190,7 @@ def compare_images(
             meaningful_pixels += ch * cw
             diff = np.abs(cell1 - cell2)
             diff = np.where(diff < abs_diff_threshold, 0, diff)
-            sum_of_squares += np.sum(diff ** 2)
+            sum_of_squares += np.sum(diff**2)
             y += ch
         x += cw
     diffscore = math.sqrt(sum_of_squares / meaningful_pixels)
@@ -251,7 +251,7 @@ def create_screenshot_comparison_report(
                     ref_description=ref_screenshot["description"],
                     diffscore=diffscore,
                     diffmap_filename=diffmap_filename,
-                    diff_threshold=diff_threshold
+                    diff_threshold=diff_threshold,
                 )
             )
             index += 1
