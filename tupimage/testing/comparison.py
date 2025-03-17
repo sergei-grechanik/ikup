@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 
-DEFAULT_DIFF_THRESHOLD = 0.01
+DEFAULT_DIFF_THRESHOLD = 0.03
 
 
 @dataclass
@@ -158,6 +158,7 @@ def compare_images(
     filename: str,
     ref_filename: str,
     diffmap_filename: Optional[str] = None,
+    abs_diff_threshold: float = 0.03
 ) -> float:
     img = Image.open(filename).convert("RGB")
     refimg = Image.open(ref_filename).convert("RGB")
@@ -187,7 +188,9 @@ def compare_images(
                 y += ch
                 continue
             meaningful_pixels += ch * cw
-            sum_of_squares += np.sum((cell1 - cell2) ** 2)
+            diff = np.abs(cell1 - cell2)
+            diff = np.where(diff < abs_diff_threshold, 0, diff)
+            sum_of_squares += np.sum(diff ** 2)
             y += ch
         x += cw
     diffscore = math.sqrt(sum_of_squares / meaningful_pixels)

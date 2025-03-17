@@ -269,7 +269,7 @@ class TestingContext:
             raise KeyboardInterrupt()
 
     def take_screenshot(self, description: Optional[str] = None, diff_threshold: Optional[float] = None):
-        sleep_time = 0.2
+        sleep_time = 0.25
         if self.test_name is None:
             raise RuntimeError("No test running")
         self.dump_unexpected_responses()
