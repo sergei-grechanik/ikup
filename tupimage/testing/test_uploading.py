@@ -506,6 +506,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
                         do_not_move_cursor=True,
                     )
                 )
+        time.sleep(0.2)
         ctx.take_screenshot(
             "Redisplayed large images. We expect that some of them are missing."
         )

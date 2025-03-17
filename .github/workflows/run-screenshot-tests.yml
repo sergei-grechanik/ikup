@@ -39,10 +39,7 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
-            sudo apt install -y bsdutils imagemagick xdotool fonts-noto-color-emoji
-            mkdir -p ~/.config/fontconfig/conf.d/
-            cp fontconfig-emoji.conf ~/.config/fontconfig/conf.d/01-emoji.conf
-            fc-cache -f -v
+            sudo apt install -y bsdutils imagemagick xdotool
             mkdir report
             ./st-graphics/st -e script -e -c ./run-screenshot-tests.sh
             cp typescript report/
