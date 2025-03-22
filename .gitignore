@@ -4,6 +4,7 @@ tags
 massif.out*
 gmon.out
 typescript
+.aider*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
