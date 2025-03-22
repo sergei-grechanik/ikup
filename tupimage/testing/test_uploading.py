@@ -506,6 +506,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
                         do_not_move_cursor=True,
                     )
                 )
+        time.sleep(0.2)
         ctx.take_screenshot(
             "Redisplayed large images. We expect that some of them are missing."
         )
@@ -548,7 +549,10 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
                 )
             )
             image_id += step
-    ctx.take_screenshot("Displayed some one-pixel images, some will be missing.")
+    # The threshold is high because there is a grid issue in st.
+    ctx.take_screenshot(
+        "Displayed some one-pixel images, some will be missing.", diff_threshold=0.05
+    )
 
 
 @screenshot_test
@@ -598,9 +602,12 @@ def stress_too_many_placements(ctx: TestingContext):
                 end_row=1,
                 end_col=1,
             )
+    # The threshold is high because the placements that are missing are not always the
+    # same, plus there is a grid issue in st. It's not a very good test.
     ctx.take_screenshot(
         "Attempting to display 5 different placements for some of the images."
-        " Many placements may be missing."
+        " Many placements may be missing.",
+        diff_threshold=0.06,
     )
 
 

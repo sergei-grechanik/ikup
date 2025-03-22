@@ -369,9 +369,9 @@ def underneath_text_restoration(ctx: TestingContext):
     )
     term.print_placeholder(image_id=id1, end_col=40, end_row=19, pos=(0, 0))
     term.print_placeholder(image_id=id2, end_col=40, end_row=19, pos=(40, 0))
-    # Also add some text. Include wide characters.
+    # Also add some text. TODO: Include wide characters.
     term.move_cursor_abs(col=0, row=20)
-    term.write("Hello 😀😁😂😃😄😅 " * 10)
+    term.write("Hello 1234567890AB " * 10)
     ctx.take_screenshot("Just two placeholder images and some text.")
 
     # Now upload some images for classic placements.

@@ -133,6 +133,7 @@ def id_reclaiming(ctx: TestingContext):
                 abs_pos=(min(i * 4, 76), y * 4),
             )
         if i in [254, 255, 260, 299]:
+            time.sleep(0.2)
             ctx.take_screenshot(
                 f"Demo of ID reclaiming, step {i + 1}, lines 1 and 4 may start"
                 " to be overridden with new images from the left"

@@ -100,4 +100,5 @@ def text_underline(ctx: TestingContext):
                 ctx.write("ygg_A ")
         ctx.write("\n")
 
-    ctx.take_screenshot("")
+    # The threshold is very small because the underlines are very thin.
+    ctx.take_screenshot("", diff_threshold=0.001)
