@@ -145,15 +145,15 @@ class IDFeatures:
     @staticmethod
     def from_string(s: str) -> "IDFeatures":
         """Parses an IDFeatures from a string."""
-        if s == "32bit":
+        if s in ("32", "32bit"):
             return IDFeatures(24, True)
-        if s == "24bit":
+        if s in ("24", "24bit"):
             return IDFeatures(24, False)
-        if s == "8bit_diacritic":
+        if s in ("8d", "8bit_diacritic"):
             return IDFeatures(0, True)
-        if s == "8bit":
+        if s in ("8", "8bit", "256"):
             return IDFeatures(8, False)
-        if s == "16bit":
+        if s in ("16", "16d", "16bit", "16bit_diacritic"):
             return IDFeatures(8, True)
         raise ValueError(f"Invalid IDFeatures string: {s}")
 

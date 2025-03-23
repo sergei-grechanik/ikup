@@ -35,13 +35,29 @@ jobs:
       - name: Install the project
         run: uv sync --all-extras --dev
 
+      - name: Run cli output tests
+        uses: coactions/setup-xvfb@v1.0.1
+        with:
+          run: |
+            ./st-graphics/st -e script -e -c ./test_scripts/run-cli-tests.sh
+            mv typescript cli-tests.output
+            ./test_scripts/postprocess-cli-typescript.sh cli-tests.output
+            uv run python -m tupimage.testing.output_comparison cli-tests.output ./data/cli-tests.reference
+
+      - name: Keep the cli test outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-tests.output
+          path: cli-tests.output
+
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
             sudo apt install -y bsdutils imagemagick xdotool
             mkdir report
-            ./st-graphics/st -e script -e -c ./run-screenshot-tests.sh
+            ./st-graphics/st -e script -e -c ./test_scripts/run-screenshot-tests.sh
             cp typescript report/
 
       - name: Dump the tail of the output
@@ -67,13 +83,6 @@ jobs:
         with:
           name: report
           path: ./report/
-
-      - name: Keep the outputs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: typescript
-          path: typescript
 
       # - name: Setup tmate session
       #   if: always()

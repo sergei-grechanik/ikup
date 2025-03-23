@@ -10,7 +10,6 @@ import select
 import subprocess
 import tempfile
 import typing
-import zlib
 from dataclasses import dataclass, field
 from typing import Any, BinaryIO, Callable, List, Literal, Optional, Tuple, Union
 
@@ -42,9 +41,8 @@ FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 @dataclass
 class TupimageConfig:
     # Id allocation options.
+    id_space: IDFeatures = IDFeatures()
     id_subspace: IDSubspace = IDSubspace()
-    id_color_bits: Literal[0, 8, 24] = 24
-    id_use_3rd_diacritic: bool = True
     max_ids_per_subspace: int = 1024
     id_database_dir: str = platformdirs.user_state_dir("tupimage")
 
@@ -78,10 +76,31 @@ class TupimageConfig:
     # General options.
     ignore_unknown_attributes: bool = False
 
-    def to_toml_string(self) -> str:
+    def __post_init__(self):
+        self._provenance = {}
+        self._current_provenance = None
+
+    def get_provenance(self, name: str) -> str:
+        provenance = self._provenance.get(name)
+        if provenance is not None:
+            return provenance
+        field_obj = TupimageConfig.__dataclass_fields__[name]
+        if getattr(self, name) == field_obj.default:
+            return "default"
+        return "set in code"
+
+    def __setattr__(self, name: str, value: Any):
+        super().__setattr__(name, value)
+        if name[0] != "_":
+            if hasattr(self, "_current_provenance"):
+                self._provenance[name] = self._current_provenance
+
+    def to_toml_string(self, with_provenance: bool = False) -> str:
         dic = dataclasses.asdict(self)
         if isinstance(self.id_subspace, IDSubspace):
             dic["id_subspace"] = str(self.id_subspace)
+        if isinstance(self.id_space, IDFeatures):
+            dic["id_space"] = str(self.id_space)
         if isinstance(self.cell_size, tuple):
             dic["cell_size"] = f"{self.cell_size[0]}x{self.cell_size[1]}"
         if isinstance(self.default_cell_size, tuple):
@@ -90,35 +109,72 @@ class TupimageConfig:
             )
         if isinstance(self.upload_method, TransmissionMedium):
             dic["upload_method"] = self.upload_method.value
-        return toml.dumps(dic)
+        if not with_provenance:
+            return toml.dumps(dic)
+        # Add provenance information as a comment after each key-value pair.
+        lines = [toml.dumps({name: value}).strip() for name, value in dic.items()]
+        maxlen = min(32, max(len(l) for l in lines))
+        lines = [
+            l + " " * (maxlen - len(l)) + f"  # {self.get_provenance(name)}"
+            for name, l in zip(dic.keys(), lines)
+        ]
+        return "\n".join(lines) + "\n"
 
-    def override_from_toml_file(self, filename: str):
+    def override_from_toml_file(self, filename: str, provenance: Optional[str] = None):
+        if provenance is None:
+            provenance = f"set from file {os.path.abspath(filename)}"
         with open(filename, "r") as f:
-            self.override_from_toml_string(f.read())
+            self.override_from_toml_string(f.read(), provenance=provenance)
 
-    def override_from_toml_string(self, string: str):
+    def override_from_toml_string(self, string: str, provenance: Optional[str] = None):
+        if provenance is None:
+            provenance = "set from toml string"
+        self._current_provenance = provenance
         config = toml.loads(string)
         unknown_keys = set()
         for key, value in config.items():
             if key not in TupimageConfig.__annotations__:
                 unknown_keys.add(key)
                 continue
-            normalized = TupimageConfig.validate_and_normalize(key, value)
+            normalized = TupimageConfig.validate_and_normalize(key, value, provenance)
             setattr(self, key, normalized)
+        self._current_provenance = None
         if unknown_keys and not self.ignore_unknown_attributes:
             raise KeyError(f"Unknown config keys: {', '.join(unknown_keys)}")
 
-    def override_from_dict(self, config: dict):
+    def override_from_dict(self, config: dict, provenance: Optional[str] = None):
+        if provenance is None:
+            provenance = config.get("provenance", "set from dict")
+        self._current_provenance = provenance
         for key, value in config.items():
+            if key == "provenance":
+                continue
             if value is not None:
-                normalized = TupimageConfig.validate_and_normalize(key, value)
+                normalized = TupimageConfig.validate_and_normalize(
+                    key, value, provenance
+                )
                 setattr(self, key, normalized)
+        self._current_provenance = None
 
-    def override(self, **kwargs):
-        self.override_from_dict(kwargs)
+    def override_from_env(self):
+        for name in TupimageConfig.__annotations__:
+            env_var_name = f"TUPIMAGE_{name.upper()}"
+            env_value = os.environ.get(env_var_name)
+            if env_value is not None:
+                self._current_provenance = f"set via {env_var_name}"
+                normalized = TupimageConfig.validate_and_normalize(
+                    name, env_value, self._current_provenance
+                )
+                setattr(self, name, normalized)
+        self._current_provenance = None
+
+    def override(self, provenance: Optional[str] = None, **kwargs):
+        self.override_from_dict(kwargs, provenance=provenance)
 
     @staticmethod
-    def validate_and_normalize(name: str, value: Any) -> Any:
+    def validate_and_normalize(
+        name: str, value: Any, provenance: Optional[str] = None
+    ) -> Any:
         if name not in TupimageConfig.__annotations__:
             raise KeyError(f"Unknown config key: {name}")
         field_type = TupimageConfig.__annotations__[name]
@@ -126,32 +182,37 @@ class TupimageConfig:
         # Normalize values specified as strings.
         if isinstance(value, str) and value != "auto":
             if field_type is IDSubspace:
-                return IDSubspace.from_string(value)
+                value = IDSubspace.from_string(value)
+            if field_type is IDFeatures:
+                value = IDFeatures.from_string(value)
             if name == "cell_size" or name == "default_cell_size":
-                return tupimage.utils.validate_size(value)
+                value = tupimage.utils.validate_size(value)
             if name == "id_database_dir" and value == "":
-                return platformdirs.user_state_dir("tupimage")
+                value = platformdirs.user_state_dir("tupimage")
             if name == "upload_method":
-                return TransmissionMedium.from_string(value)
+                value = TransmissionMedium.from_string(value)
             if name in ["max_rows", "max_cols", "num_tmux_layers"]:
-                return int(value)
+                value = int(value)
             if name == "supported_formats":
-                return re.split(r"[, ]+", value)
+                value = re.split(r"[, ]+", value)
+
+        provenance = f"({provenance})" if provenance else "(set in code)"
 
         # Verify the type.
         if not TupimageConfig._verify_type(value, field_type):
             raise ValueError(
                 f"Field {name} has type {field_type}, but got"
-                f" {value} of type {type(value)}"
+                f" {value} of type {type(value)} {provenance}"
             )
 
         # Verify additional constraints.
         if isinstance(value, int):
             if name == "max_cols" and value <= 0:
-                raise ValueError(f"max_cols must be positive: {value}")
+                raise ValueError(f"max_cols must be positive: {value} {provenance}")
             if name == "max_rows" and not (0 < value <= 256):
                 raise ValueError(
-                    "max_rows must be positive and not greater than 256:" f" {value}"
+                    "max_rows must be positive and not greater than 256:"
+                    f" {value} {provenance}"
                 )
 
         return value
@@ -294,17 +355,22 @@ class TupimageTerminal:
             else:
                 config = TupimageConfig().override_from_toml_file(config)
         assert config is not None
+        config.override_from_env()
         config.override_from_dict(kwargs)
         config.override_from_dict(config_overrides)
 
         self.final_cursor_pos: FinalCursorPos = final_cursor_pos
 
         if config.num_tmux_layers == "auto":
+            config._current_provenance = (
+                f"expanded from 'auto' ({config.get_provenance('num_tmux_layers')})"
+            )
             term = os.environ.get("TERM", "")
             if os.environ.get("TMUX") and ("screen" in term or "tmux" in term):
                 config.num_tmux_layers = 1
             else:
                 config.num_tmux_layers = 0
+            config._current_provenance = None
 
         self.inside_ssh: bool = (
             os.environ.get("SSH_CLIENT") is not None
@@ -331,7 +397,7 @@ class TupimageTerminal:
 
         if id_database is None:
             os.makedirs(os.path.dirname(config.id_database_dir), exist_ok=True)
-            id_database = f"{config.id_database_dir}/{self._session_id}.sqlite"
+            id_database = f"{config.id_database_dir}/{self._session_id}.db"
 
         self.id_manager = IDManager(
             database_file=id_database,
@@ -341,8 +407,7 @@ class TupimageTerminal:
     max_cols = _config_property("max_cols")
     max_rows = _config_property("max_rows")
     scale = _config_property("scale")
-    id_color_bits = _config_property("id_color_bits")
-    id_use_3rd_diacritic = _config_property("id_use_3rd_diacritic")
+    id_space = _config_property("id_space")
     id_subspace = _config_property("id_subspace")
     check_response = _config_property("check_response")
     check_response_timeout = _config_property("check_response_timeout")
@@ -531,19 +596,15 @@ class TupimageTerminal:
             md5sum = hashlib.md5(image.tobytes()).hexdigest()
             return f":tupimage:{md5sum}", datetime.datetime.fromtimestamp(0)
 
-    def get_id_features(
+    def get_id_space(
         self,
-        id_color_bits: Optional[int] = None,
-        id_use_3rd_diacritic: Optional[bool] = None,
+        id_space: Union[IDFeatures, str, int, None] = None,
     ) -> IDFeatures:
-        if id_color_bits is None:
-            id_color_bits = self._config.id_color_bits
-        if id_use_3rd_diacritic is None:
-            id_use_3rd_diacritic = self._config.id_use_3rd_diacritic
-        return IDFeatures(
-            color_bits=id_color_bits,
-            use_3rd_diacritic=id_use_3rd_diacritic,
-        )
+        if id_space is None:
+            id_space = self._config.id_space
+        if isinstance(id_space, IDFeatures):
+            return id_space
+        return IDFeatures.from_string(str(id_space))
 
     def get_subspace(
         self, id_subspace: Union[IDSubspace, str, None] = None
@@ -563,8 +624,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_color_bits: Optional[int] = None,
-        id_use_3rd_diacritic: Optional[bool] = None,
+        id_space: Union[IDFeatures, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
     ) -> ImageInstance:
@@ -582,10 +642,7 @@ class TupimageTerminal:
             self.id_manager.set_id(force_id, descr)
             inst.id = force_id
             return inst
-        id_features = self.get_id_features(
-            id_color_bits=id_color_bits,
-            id_use_3rd_diacritic=id_use_3rd_diacritic,
-        )
+        id_features = self.get_id_space(id_space)
         id_subspace = self.get_subspace(id_subspace)
         inst.id = self.id_manager.get_id(descr, id_features, subspace=id_subspace)
         return inst
@@ -619,8 +676,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_color_bits: Optional[int] = None,
-        id_use_3rd_diacritic: Optional[bool] = None,
+        id_space: Union[IDFeatures, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
         force_upload: Optional[bool] = None,
@@ -647,8 +703,7 @@ class TupimageTerminal:
                 max_cols=max_cols,
                 max_rows=max_rows,
                 scale=scale,
-                id_color_bits=id_color_bits,
-                id_use_3rd_diacritic=id_use_3rd_diacritic,
+                id_space=id_space,
                 id_subspace=id_subspace,
                 force_id=force_id,
             )
@@ -828,8 +883,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_color_bits: Optional[int] = None,
-        id_use_3rd_diacritic: Optional[bool] = None,
+        id_space: Union[IDFeatures, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
         force_upload: Optional[bool] = None,
@@ -847,8 +901,7 @@ class TupimageTerminal:
             max_cols=max_cols,
             max_rows=max_rows,
             scale=scale,
-            id_color_bits=id_color_bits,
-            id_use_3rd_diacritic=id_use_3rd_diacritic,
+            id_space=id_space,
             id_subspace=id_subspace,
             force_id=force_id,
             force_upload=force_upload,

@@ -1,5 +1,6 @@
 tags
 .tupimage-testing
+.cli-tests-data
 /_*
 massif.out*
 gmon.out

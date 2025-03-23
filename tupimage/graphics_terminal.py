@@ -188,9 +188,11 @@ class GraphicsTerminal:
         # If a tty_filename is provided, open it for reading an writing and use it as
         # the default tty.
         if tty_filename is not None:
+            # Note that we use closefd=False to avoid closing it twice(for tty_out and
+            # tty_in)
             fd = os.open(tty_filename, os.O_RDWR | os.O_NOCTTY)
             tty_out = os.fdopen(fd, "wb", buffering=0)
-            tty_in = os.fdopen(fd, "rb", buffering=0)
+            tty_in = os.fdopen(fd, "rb", buffering=0, closefd=False)
             if out_command is None:
                 out_command = tty_out
             if out_display is None:
