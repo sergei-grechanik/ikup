@@ -2,6 +2,7 @@ import argparse
 import os
 import sys
 import time
+import PIL
 from datetime import datetime, timedelta
 from typing import Optional, List
 
@@ -42,12 +43,14 @@ def icat(args):
     pass
 
 
-def dump_config(args):
+def dump_config(command: str, provenance: bool):
+    _ = command
     tupiterm = tupimage.TupimageTerminal()
-    print(tupiterm._config.to_toml_string(), end="")
+    print(tupiterm._config.to_toml_string(with_provenance=provenance), end="")
 
 
-def status(args):
+def status(command: str):
+    _ = command
     tupiterm = tupimage.TupimageTerminal()
     print(f"Config file: {tupiterm._config_file}")
     print(f"num_tmux_layers: {tupiterm.num_tmux_layers}")
@@ -56,11 +59,11 @@ def status(args):
     print(f"terminal_id: {tupiterm._terminal_id}")
     print(f"session_id: {tupiterm._session_id}")
     print(f"database_file: {tupiterm.id_manager.database_file}")
-    print(f"Default ID space: {tupiterm.get_id_features()}")
+    print(f"Default ID space: {tupiterm.get_id_space()}")
     print(f"Default subspace: {tupiterm.get_subspace()}")
     print(f"Total IDs in the session db: {tupiterm.id_manager.count()}")
     print(
-        f"IDs in the subspace: {tupiterm.id_manager.count(tupiterm.get_id_features(), tupiterm.get_subspace())}"
+        f"IDs in the subspace: {tupiterm.id_manager.count(tupiterm.get_id_space(), tupiterm.get_subspace())}"
     )
     print(f"Supported formats: {tupiterm.get_supported_formats()}")
     print(f"Default uploading method: {tupiterm.get_upload_method()}")
@@ -69,12 +72,12 @@ def status(args):
     cellw, cellh = tupiterm.get_cell_size()
     print(f"(Assumed) cell size in pixels (w x h): {cellw} x {cellh}")
 
-    print(f"\nOther databases in {tupiterm._config.id_database_dir}")
+    print(f"\nAll databases in {tupiterm._config.id_database_dir}")
     assert tupiterm._config.id_database_dir
     db_files = []
     for db_name in os.listdir(tupiterm._config.id_database_dir):
         db_path = os.path.join(tupiterm._config.id_database_dir, db_name)
-        if os.path.isfile(db_path):
+        if os.path.isfile(db_path) and db_name.endswith(".db"):
             atime = os.path.getatime(db_path)
             size_kib = os.path.getsize(db_path) // 1024
             db_files.append((db_name, atime, size_kib))
@@ -113,8 +116,10 @@ def display(
     cols: Optional[int],
     force_upload: bool,
     out_display: str,
-    max_cols: str,
-    max_rows: str,
+    max_cols: Optional[str],
+    max_rows: Optional[str],
+    scale: Optional[float],
+    dump_config: bool,
 ):
     _ = command
     tupiterm = tupimage.TupimageTerminal(
@@ -123,8 +128,12 @@ def display(
             "force_upload": force_upload,
             "max_cols": max_cols,
             "max_rows": max_rows,
+            "scale": scale,
+            "provenance": "set via command line",
         },
     )
+    if dump_config:
+        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
     errors = False
     for image in images:
         if not os.path.exists(image):
@@ -144,16 +153,31 @@ def display(
         except FileNotFoundError:
             printerr(tupiterm, f"File not found: {image}")
             errors = True
+        except PIL.UnidentifiedImageError:
+            printerr(tupiterm, f"Cannot identify image: {image}")
+            errors = True
     if errors:
         sys.exit(1)
 
 
-def list_images(command: str, max_cols: str, max_rows: str, out_display: str):
+def list_images(
+    command: str,
+    max_cols: Optional[str],
+    max_rows: Optional[str],
+    out_display: str,
+    dump_config: bool,
+):
     _ = command
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
-        config_overrides={"max_cols": max_cols, "max_rows": max_rows},
+        config_overrides={
+            "max_cols": max_cols,
+            "max_rows": max_rows,
+            "provenance": "set via command line",
+        },
     )
+    if dump_config:
+        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
     max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
     for iminfo in tupiterm.id_manager.get_all():
         id = iminfo.id
@@ -207,26 +231,38 @@ def main():
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command")
+
     parser_dump_config = subparsers.add_parser(
         "dump-config", help="Dump the config state."
     )
+    parser_dump_config.add_argument(
+        "--no-provenance",
+        "-n",
+        action="store_false",
+        dest="provenance",
+        help="Exclude the provenance of settings as comments.",
+    )
+
     parser_status = subparsers.add_parser("status", help="Display the status.")
+
     parser_display = subparsers.add_parser(
         "display", help="Display an image. (default)"
     )
+
     parser_upload = subparsers.add_parser(
         "upload", help="Upload an image without displaying."
     )
+
     parser_assign_id = subparsers.add_parser(
         "assign-id",
         help="Assigns an id to an image without displaying or uploading it.",
     )
+
     parser_list = subparsers.add_parser(
         "list",
         help="List all known images.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-
     parser_list.add_argument(
         "--max-cols",
         metavar="W",
@@ -241,6 +277,14 @@ def main():
         default="4",
         help="Maximum number of rows to display each listed image. 'auto' to use the terminal height.",
     )
+
+    for p in [parser_display, parser_upload, parser_assign_id, parser_list]:
+        p.add_argument(
+            "--dump-config",
+            action="store_true",
+            dest="dump_config",
+            help="Dump the config to stdout before executing the action.",
+        )
 
     for p in [parser_display, parser_upload, parser_assign_id]:
         p.add_argument("images", nargs="*", type=str)
@@ -264,15 +308,23 @@ def main():
             "--max-cols",
             metavar="W",
             type=str,
-            default="auto",
+            default=None,
             help="Maximum number of columns when computing the image size. 'auto' to use the terminal width.",
         )
         p.add_argument(
             "--max-rows",
             metavar="H",
             type=str,
-            default="auto",
+            default=None,
             help="Maximum number of rows when computing the image size. 'auto' to use the terminal width.",
+        )
+        p.add_argument(
+            "--scale",
+            "-s",
+            metavar="S",
+            type=float,
+            default=None,
+            help="Scale images by this factor.",
         )
 
     for p in [parser_display, parser_upload]:
@@ -411,7 +463,7 @@ def main():
             break
     else:
         # It's not a known command.
-        if not contains_help:
+        if not contains_help and len(sys.argv) > 1:
             # If it doesn't contain help, add the display command.
             sys.argv.insert(1, "display")
         else:
