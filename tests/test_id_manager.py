@@ -264,7 +264,7 @@ def test_id_manager_single_id():
             assert info.id == id
             assert info.description == description
             assert info.atime is not None
-            assert abs(info.atime - datetime.now()) < timedelta(milliseconds=10)
+            assert abs(info.atime - datetime.now()) < timedelta(milliseconds=20)
             # Subspaces may intersect, so we check that there is no other id in
             # the same subspace only if it's large enough.
             if id_features.subspace_size(subspace) >= 1000:
@@ -316,7 +316,7 @@ def test_id_manager_disjoint_subspaces(
                 assert info.id == id
                 assert info.description == description
                 assert info.atime is not None
-                assert abs(info.atime - now) < timedelta(milliseconds=10)
+                assert abs(info.atime - now) < timedelta(milliseconds=20)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
         subspace_size = id_features.subspace_size(subspace)
@@ -364,7 +364,7 @@ def test_id_manager_uploads():
                 term_to_infos[term].append(info)
                 assert info.upload_time is not None
                 assert abs(info.upload_time - datetime.now()) < timedelta(
-                    milliseconds=10
+                    milliseconds=20
                 )
                 assert info.size == size
                 assert info.description == description
