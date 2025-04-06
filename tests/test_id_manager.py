@@ -136,125 +136,125 @@ def test_subspace_split(subsp: IDSubspace):
             assert subs[j].end == subs[j + 1].begin
 
 
-def test_id_features_init():
-    # These are all the possible values of IDFeatures.
+def test_id_space_init():
+    # These are all the possible values of IDSpace.
     all_vals = {
-        IDFeatures(0),
-        IDFeatures(8),
-        IDFeatures(24),
-        IDFeatures(8, False),
-        IDFeatures(24, False),
+        IDSpace(0),
+        IDSpace(8),
+        IDSpace(24),
+        IDSpace(8, False),
+        IDSpace(24, False),
     }
-    assert all_vals == set(IDFeatures.all_values())
+    assert all_vals == set(IDSpace.all_values())
     assert len(set(idf.namespace_name() for idf in all_vals)) == len(all_vals)
 
 
-@pytest.mark.parametrize("id_features", IDFeatures.all_values())
+@pytest.mark.parametrize("id_space", IDSpace.all_values())
 @pytest.mark.parametrize(
     "subspace",
     several_interesting_subspaces(),
 )
-def test_id_features_all_ids(id_features: IDFeatures, subspace: IDSubspace):
-    """Partially test the correctness of IDFeatures.all_ids()."""
+def test_id_space_all_ids(id_space: IDSpace, subspace: IDSubspace):
+    """Partially test the correctness of IDSpace.all_ids()."""
     ids = []
     # We check only some prefix of all_ids.
-    for id in islice(id_features.all_ids(subspace), 10000):
+    for id in islice(id_space.all_ids(subspace), 10000):
         ids.append(id)
         # Check basics.
         assert id > 0
         assert id.bit_length() <= 32
-        # Check that it's in the correct id feature space.
-        assert id_features.contains(id)
-        assert IDFeatures.from_id(id) == id_features
+        # Check that it's in the correct id space.
+        assert id_space.contains(id)
+        assert IDSpace.from_id(id) == id_space
         # Check that it's in the correct subspace using different methods.
-        begin, end = id_features.subspace_masked_range(subspace)
-        assert begin <= (id & id_features.subspace_byte_mask()) < end
-        assert id_features.contains_and_in_subspace(id, subspace)
-        # Check that it's not in any other id feature space.
-        for other in IDFeatures.all_values():
-            if other != id_features:
+        begin, end = id_space.subspace_masked_range(subspace)
+        assert begin <= (id & id_space.subspace_byte_mask()) < end
+        assert id_space.contains_and_in_subspace(id, subspace)
+        # Check that it's not in any other id space.
+        for other in IDSpace.all_values():
+            if other != id_space:
                 assert not other.contains(id)
         # Check that certain bits are zero or non-zero.
-        if id_features.use_3rd_diacritic:
+        if id_space.use_3rd_diacritic:
             assert id & 0xFF000000 != 0
         else:
             assert id & 0xFF000000 == 0
-        if id_features.color_bits == 0:
+        if id_space.color_bits == 0:
             assert id & 0x00FFFFFF == 0
-        if id_features.color_bits == 8:
+        if id_space.color_bits == 8:
             assert id & 0x00FFFF00 == 0
             assert id & 0x000000FF != 0
-        if id_features.color_bits == 24:
+        if id_space.color_bits == 24:
             assert id & 0x00FFFF00 != 0
-    assert len(ids) <= id_features.subspace_size(subspace)
+    assert len(ids) <= id_space.subspace_size(subspace)
     assert len(ids) == len(set(ids))
     # If the subspace is small enough, we expect all ids to be generated.
-    if id_features.subspace_size(subspace) < 10000:
-        assert len(ids) == id_features.subspace_size(subspace)
+    if id_space.subspace_size(subspace) < 10000:
+        assert len(ids) == id_space.subspace_size(subspace)
 
 
-@pytest.mark.parametrize("id_features", IDFeatures.all_values())
+@pytest.mark.parametrize("id_space", IDSpace.all_values())
 @pytest.mark.parametrize(
     "subspace",
     several_interesting_subspaces(),
 )
-def test_id_features_gen_random_id(id_features: IDFeatures, subspace: IDSubspace):
+def test_id_space_gen_random_id(id_space: IDSpace, subspace: IDSubspace):
     """Test random generation of ids in a subspace."""
     ids = set()
     for i in range(10000):
-        id = id_features.gen_random_id(subspace)
+        id = id_space.gen_random_id(subspace)
         ids.add(id)
         # Check basics.
         assert id > 0
         assert id.bit_length() <= 32
-        # Check that it's in the correct id feature space and subspace.
-        assert id_features.contains(id)
-        assert id_features.contains_and_in_subspace(id, subspace)
-        begin, end = id_features.subspace_masked_range(subspace)
-        assert begin <= (id & id_features.subspace_byte_mask()) < end
-        assert IDFeatures.from_id(id) == id_features
-        # Check that it's not in any other id feature space.
-        for other in IDFeatures.all_values():
-            if other != id_features:
+        # Check that it's in the correct id space and subspace.
+        assert id_space.contains(id)
+        assert id_space.contains_and_in_subspace(id, subspace)
+        begin, end = id_space.subspace_masked_range(subspace)
+        assert begin <= (id & id_space.subspace_byte_mask()) < end
+        assert IDSpace.from_id(id) == id_space
+        # Check that it's not in any other id space.
+        for other in IDSpace.all_values():
+            if other != id_space:
                 assert not other.contains(id)
         # Check that certain bits are zero or non-zero.
-        if id_features.use_3rd_diacritic:
+        if id_space.use_3rd_diacritic:
             assert id & 0xFF000000 != 0
         else:
             assert id & 0xFF000000 == 0
-        if id_features.color_bits == 0:
+        if id_space.color_bits == 0:
             assert id & 0x00FFFFFF == 0
-        if id_features.color_bits == 8:
+        if id_space.color_bits == 8:
             assert id & 0x00FFFF00 == 0
             assert id & 0x000000FF != 0
-        if id_features.color_bits == 24:
+        if id_space.color_bits == 24:
             assert id & 0x00FFFF00 != 0
-    assert len(ids) <= id_features.subspace_size(subspace)
+    assert len(ids) <= id_space.subspace_size(subspace)
     # If the subspace is small enough, we expect all ids to be generated.
-    if id_features.subspace_size(subspace) < 1000:
-        assert len(ids) == id_features.subspace_size(subspace)
+    if id_space.subspace_size(subspace) < 1000:
+        assert len(ids) == id_space.subspace_size(subspace)
 
 
 def test_id_manager_single_id():
-    """Generate a single id for some subspaces in each id-feature space.
+    """Generate a single id for some subspaces in each id space.
     Subspaces may intersect."""
     subspaces = list(several_interesting_subspaces())
     idman = IDManager(":memory:")
-    for id_features in IDFeatures.all_values():
+    for id_space in IDSpace.all_values():
         for subspace in subspaces:
             # The description is just the space and subspace names.
-            description = str(id_features) + " " + str(subspace)
+            description = str(id_space) + " " + str(subspace)
             # Get an id and check that it's correct.
             id = idman.get_id(
                 description=description,
-                id_features=id_features,
+                id_space=id_space,
                 subspace=subspace,
             )
-            assert id_features.contains_and_in_subspace(id, subspace)
+            assert id_space.contains_and_in_subspace(id, subspace)
             # Check that we get the same id if we call get_id() again.
             id2 = idman.get_id(
                 description=description,
-                id_features=id_features,
+                id_space=id_space,
                 subspace=subspace,
             )
             assert id == id2
@@ -267,10 +267,10 @@ def test_id_manager_single_id():
             assert abs(info.atime - datetime.now()) < timedelta(milliseconds=20)
             # Subspaces may intersect, so we check that there is no other id in
             # the same subspace only if it's large enough.
-            if id_features.subspace_size(subspace) >= 1000:
+            if id_space.subspace_size(subspace) >= 1000:
                 another_id = id
                 while id == another_id:
-                    another_id = id_features.gen_random_id(subspace)
+                    another_id = id_space.gen_random_id(subspace)
                 assert idman.get_info(another_id) is None
                 # Check that set_id() works for non-existing IDs.
                 idman.set_id(another_id, description="another")
@@ -284,13 +284,13 @@ def test_id_manager_single_id():
             assert idman.get_info(id).description == "new"
 
 
-@pytest.mark.parametrize("id_features", IDFeatures.all_values())
+@pytest.mark.parametrize("id_space", IDSpace.all_values())
 @pytest.mark.parametrize("big_subspace_end", [8, 14, 15, 255, 256])
 @pytest.mark.parametrize("num_subspaces", [1, 2, 7])
 def test_id_manager_disjoint_subspaces(
-    id_features: IDFeatures, big_subspace_end: int, num_subspaces: int
+    id_space: IDSpace, big_subspace_end: int, num_subspaces: int
 ):
-    """Generate many ids for disjoint subspaces in each id-feature space."""
+    """Generate many ids for disjoint subspaces in each id space."""
     subspaces = IDSubspace(0, big_subspace_end).split(num_subspaces)
     # We will have 1100 distinct "image" descriptions, so some of the descriptions will be
     # repeated 2 or 3 times.
@@ -306,11 +306,11 @@ def test_id_manager_disjoint_subspaces(
                 # Get an id and check its basic correctness.
                 id = idman.get_id(
                     description=description,
-                    id_features=id_features,
+                    id_space=id_space,
                     subspace=subspace,
                 )
                 now = datetime.now()
-                assert id_features.contains_and_in_subspace(id, subspace)
+                assert id_space.contains_and_in_subspace(id, subspace)
                 info = idman.get_info(id)
                 assert info
                 assert info.id == id
@@ -319,9 +319,9 @@ def test_id_manager_disjoint_subspaces(
                 assert abs(info.atime - now) < timedelta(milliseconds=20)
     # Now check the IDs stored in the database.
     for subspace in subspaces:
-        subspace_size = id_features.subspace_size(subspace)
+        subspace_size = id_space.subspace_size(subspace)
         stored_descriptions = [
-            info.description for info in idman.get_all(id_features, subspace)
+            info.description for info in idman.get_all(id_space, subspace)
         ]
         stored_descriptions.reverse()
         original_descriptions = subspace_to_descriptions[subspace]
@@ -351,7 +351,7 @@ def test_id_manager_uploads():
         size = random.randint(0, 100000)
         id = idman.get_id(
             description=description,
-            id_features=IDFeatures(),
+            id_space=IDSpace(),
         )
         for term in terminals:
             assert idman.needs_uploading(id, term)
@@ -389,10 +389,10 @@ def test_id_manager_uploads_example():
     """Test marking IDs as uploaded to terminals again."""
     idman = IDManager(":memory:")
     # Generate some IDs.
-    id1 = idman.get_id("1", IDFeatures())
-    id2 = idman.get_id("2", IDFeatures())
-    id3 = idman.get_id("3", IDFeatures())
-    id4 = idman.get_id("4", IDFeatures())
+    id1 = idman.get_id("1", IDSpace())
+    id2 = idman.get_id("2", IDSpace())
+    id3 = idman.get_id("3", IDSpace())
+    id4 = idman.get_id("4", IDSpace())
     # Mark them as uploaded to term1 and term2.
     idman.mark_uploaded(id1, "term1", size=100)
     idman.mark_uploaded(id1, "term2", size=100)

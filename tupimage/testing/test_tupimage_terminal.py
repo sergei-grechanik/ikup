@@ -3,7 +3,7 @@ import time
 from PIL import Image, ImageOps
 
 import tupimage
-from tupimage import IDFeatures, IDSubspace, TupimageTerminal
+from tupimage import IDSpace, IDSubspace, TupimageTerminal
 from tupimage.testing import TestingContext, screenshot_test
 
 
@@ -18,7 +18,7 @@ def upload_and_display_from_file(ctx: TestingContext):
             for id_use_3rd_diacritic in [True, False]:
                 if id_color_bits == 0 and not id_use_3rd_diacritic:
                     continue
-                tupiterm.id_space = IDFeatures(id_color_bits, id_use_3rd_diacritic)
+                tupiterm.id_space = IDSpace(id_color_bits, id_use_3rd_diacritic)
                 tupiterm.upload_and_display(
                     ctx.get_wikipedia_png(),
                     rows=8,
@@ -46,7 +46,7 @@ def upload_and_display_from_image(ctx: TestingContext):
             for id_use_3rd_diacritic in [True, False]:
                 if id_color_bits == 0 and not id_use_3rd_diacritic:
                     continue
-                tupiterm.id_space = IDFeatures(id_color_bits, id_use_3rd_diacritic)
+                tupiterm.id_space = IDSpace(id_color_bits, id_use_3rd_diacritic)
                 tupiterm.upload_and_display(
                     img1,
                     rows=8,
@@ -75,7 +75,7 @@ def upload_and_display_jpeg(ctx: TestingContext):
             for id_use_3rd_diacritic in [True, False]:
                 if id_color_bits == 0 and not id_use_3rd_diacritic:
                     continue
-                tupiterm.id_space = IDFeatures(id_color_bits, id_use_3rd_diacritic)
+                tupiterm.id_space = IDSpace(id_color_bits, id_use_3rd_diacritic)
                 tupiterm.upload_and_display(img1, rows=8, cols=20)
                 tupiterm.upload_and_display(img2, rows=8, cols=20)
             tupiterm.term.move_cursor(down=7)
@@ -101,7 +101,7 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
             for id_use_3rd_diacritic in [True, False]:
                 if id_color_bits == 0 and not id_use_3rd_diacritic:
                     continue
-                tupiterm.id_space = IDFeatures(id_color_bits, id_use_3rd_diacritic)
+                tupiterm.id_space = IDSpace(id_color_bits, id_use_3rd_diacritic)
                 tupiterm.upload_and_display(img1, rows=8, cols=20)
                 tupiterm.upload_and_display(img2, rows=8, cols=20)
             tupiterm.term.move_cursor(down=7)
@@ -119,7 +119,7 @@ def id_reclaiming(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_upload=False)
     for i in range(300):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
-        for y, idf in enumerate(IDFeatures.all_values()):
+        for y, idf in enumerate(IDSpace.all_values()):
             tupiterm.upload_and_display(
                 img,
                 cols=4,
@@ -139,10 +139,10 @@ def id_reclaiming(ctx: TestingContext):
 def id_reclaiming_subspace(ctx: TestingContext):
     tupiterm = TupimageTerminal(config="DEFAULT", force_upload=False)
     tupiterm.id_subspace = IDSubspace(100, 104)
-    assert IDFeatures(8, True).subspace_size(tupiterm._config.id_subspace) == 1020
+    assert IDSpace(8, True).subspace_size(tupiterm._config.id_subspace) == 1020
     for i in range(1100):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
-        for y, idf in enumerate(IDFeatures.all_values()):
+        for y, idf in enumerate(IDSpace.all_values()):
             tupiterm.id_space = idf
             if i % 4 == 0:
                 tupiterm.upload_and_display(

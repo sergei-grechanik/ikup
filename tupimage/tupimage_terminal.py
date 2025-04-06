@@ -23,7 +23,7 @@ from tupimage import (
     GraphicsCommand,
     GraphicsResponse,
     GraphicsTerminal,
-    IDFeatures,
+    IDSpace,
     IDManager,
     IDSubspace,
     ImagePlaceholder,
@@ -41,7 +41,7 @@ FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 @dataclass
 class TupimageConfig:
     # Id allocation options.
-    id_space: IDFeatures = IDFeatures()
+    id_space: IDSpace = IDSpace()
     id_subspace: IDSubspace = IDSubspace()
     max_ids_per_subspace: int = 1024
     id_database_dir: str = platformdirs.user_state_dir("tupimage")
@@ -101,7 +101,7 @@ class TupimageConfig:
         dic = dataclasses.asdict(self)
         if isinstance(self.id_subspace, IDSubspace):
             dic["id_subspace"] = str(self.id_subspace)
-        if isinstance(self.id_space, IDFeatures):
+        if isinstance(self.id_space, IDSpace):
             dic["id_space"] = str(self.id_space)
         if isinstance(self.cell_size, tuple):
             dic["cell_size"] = f"{self.cell_size[0]}x{self.cell_size[1]}"
@@ -196,8 +196,8 @@ class TupimageConfig:
         if isinstance(value, str) and value != "auto":
             if field_type is IDSubspace:
                 value = IDSubspace.from_string(value)
-            if field_type is IDFeatures:
-                value = IDFeatures.from_string(value)
+            if field_type is IDSpace:
+                value = IDSpace.from_string(value)
             if name == "cell_size" or name == "default_cell_size":
                 value = tupimage.utils.validate_size(value)
             if name == "id_database_dir" and value == "":
@@ -611,13 +611,13 @@ class TupimageTerminal:
 
     def get_id_space(
         self,
-        id_space: Union[IDFeatures, str, int, None] = None,
-    ) -> IDFeatures:
+        id_space: Union[IDSpace, str, int, None] = None,
+    ) -> IDSpace:
         if id_space is None:
             id_space = self._config.id_space
-        if isinstance(id_space, IDFeatures):
+        if isinstance(id_space, IDSpace):
             return id_space
-        return IDFeatures.from_string(str(id_space))
+        return IDSpace.from_string(str(id_space))
 
     def get_subspace(
         self, id_subspace: Union[IDSubspace, str, None] = None
@@ -637,7 +637,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_space: Union[IDFeatures, str, int, None] = None,
+        id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
     ) -> ImageInstance:
@@ -655,9 +655,9 @@ class TupimageTerminal:
             self.id_manager.set_id(force_id, descr)
             inst.id = force_id
             return inst
-        id_features = self.get_id_space(id_space)
+        id_space = self.get_id_space(id_space)
         id_subspace = self.get_subspace(id_subspace)
-        inst.id = self.id_manager.get_id(descr, id_features, subspace=id_subspace)
+        inst.id = self.id_manager.get_id(descr, id_space, subspace=id_subspace)
         return inst
 
     def get_image_instance(self, id: int) -> Optional[ImageInstance]:
@@ -689,7 +689,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_space: Union[IDFeatures, str, int, None] = None,
+        id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
         force_upload: Optional[bool] = None,
@@ -896,7 +896,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_space: Union[IDFeatures, str, int, None] = None,
+        id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
         force_upload: Optional[bool] = None,

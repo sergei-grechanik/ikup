@@ -11,9 +11,9 @@ from contextlib import closing
 @dataclass(frozen=True)
 class IDSubspace:
     """A subspace of ids, defined by a range of a certain byte (depending on the
-    IDFeatures space).
+    IDSpace space).
 
-    The restricted byte is the most significant byte that can be used in an IDFeatures
+    The restricted byte is the most significant byte that can be used in an IDSpace
     space. It is guaranteed that the subspace will contain at least `end - begin` ids
     and that the subspace will not overlap if their ranges don't overlap.
 
@@ -104,17 +104,18 @@ class IDSubspace:
 
 
 @dataclass(frozen=True)
-class IDFeatures:
-    """The features that can be used to represent an image ID.
+class IDSpace:
+    """A space of image IDs described as the features that can be used to represent an
+    image ID.
 
-    When displaying an image using Unicode placeholders, the image ID may be
-    represented with the fg color (24 or 8 bits) and the 3rd diacritic (8 bits).
-    Some applications may not support all of the features, so all IDs are broken
-    down into non-intersecting IDFeatures spaces, each space contains only IDs
-    that can be represented with the given features.
+    When displaying an image using Unicode placeholders, the image ID may be represented
+    with the fg color (24 or 8 bits) and the 3rd diacritic (8 bits). Some applications
+    may not support all of the features, so all IDs are broken down into
+    non-intersecting IDSpace spaces, each space contains only IDs that can be
+    represented with the given features.
 
-    Note that since we want the IDFeatures spaces to be disjoint, certain bytes
-    of the IDs belonging to bigger subspaces may be required to be non-zero.
+    Note that since we want the IDSpace spaces to be disjoint, certain bytes of the IDs
+    belonging to bigger subspaces may be required to be non-zero.
 
     Attributes:
         color_bits: The number of color bits. Must be 0, 8 or 24.
@@ -143,23 +144,23 @@ class IDFeatures:
         return f"{bits}bit"
 
     @staticmethod
-    def from_string(s: str) -> "IDFeatures":
-        """Parses an IDFeatures from a string."""
+    def from_string(s: str) -> "IDSpace":
+        """Parses an IDSpace from a string."""
         if s in ("32", "32bit"):
-            return IDFeatures(24, True)
+            return IDSpace(24, True)
         if s in ("24", "24bit"):
-            return IDFeatures(24, False)
+            return IDSpace(24, False)
         if s in ("8d", "8bit_diacritic"):
-            return IDFeatures(0, True)
+            return IDSpace(0, True)
         if s in ("8", "8bit", "256"):
-            return IDFeatures(8, False)
+            return IDSpace(8, False)
         if s in ("16", "16d", "16bit", "16bit_diacritic"):
-            return IDFeatures(8, True)
-        raise ValueError(f"Invalid IDFeatures string: {s}")
+            return IDSpace(8, True)
+        raise ValueError(f"Invalid IDSpace string: {s}")
 
     @staticmethod
-    def from_id(id: int) -> "IDFeatures":
-        """Get the IDFeatures space an image ID belongs to."""
+    def from_id(id: int) -> "IDSpace":
+        """Get the IDSpace space an image ID belongs to."""
         if id <= 0 or id > 0xFFFFFFFF:
             raise ValueError(f"Invalid id, must be non-zero 32-bit: {id}")
         use_3rd_diacritic = (id & 0xFF000000) != 0
@@ -169,14 +170,14 @@ class IDFeatures:
                 color_bits = 24
             else:
                 color_bits = 8
-        return IDFeatures(color_bits, use_3rd_diacritic)
+        return IDSpace(color_bits, use_3rd_diacritic)
 
     def num_nonzero_bits(self) -> int:
         """Get the number of bits of an ID that may be nonzero in this space."""
         return (8 if self.use_3rd_diacritic else 0) + self.color_bits
 
     def namespace_name(self) -> str:
-        """Get the name of this IDFeatures space that can be used as an
+        """Get the name of this IDSpace space that can be used as an
         identifier or a file name."""
         if self.use_3rd_diacritic:
             return f"ids_{self}"
@@ -317,17 +318,17 @@ class IDFeatures:
     @staticmethod
     def get_subspace_byte(id: int) -> int:
         """Returns the byte to which the subspace is applied in the given ID."""
-        offset = IDFeatures.from_id(id).subspace_byte_offset()
+        offset = IDSpace.from_id(id).subspace_byte_offset()
         return (id >> offset) & 0xFF
 
     @staticmethod
-    def all_values() -> Iterator["IDFeatures"]:
-        """Generates all IDFeatures spaces."""
+    def all_values() -> Iterator["IDSpace"]:
+        """Generates all IDSpace spaces."""
         for use_3rd_diacritic in [True, False]:
             for color_bits in [0, 8, 24]:
                 if color_bits == 0 and not use_3rd_diacritic:
                     continue
-                yield IDFeatures(color_bits, use_3rd_diacritic)
+                yield IDSpace(color_bits, use_3rd_diacritic)
 
 
 @dataclass
@@ -375,8 +376,8 @@ class IDManager:
             cursor.execute("PRAGMA journal_mode=WAL")
             cursor.execute("PRAGMA busy_timeout = 30000")
             # Make sure we have tables for all ID namespaces.
-            for id_features in IDFeatures.all_values():
-                namespace = id_features.namespace_name()
+            for id_space in IDSpace.all_values():
+                namespace = id_space.namespace_name()
                 cursor.execute(
                     f"""
                         CREATE TABLE IF NOT EXISTS {namespace} (
@@ -420,8 +421,8 @@ class IDManager:
         self.conn.close()
 
     def get_info(self, id: int) -> Optional[ImageInfo]:
-        id_features = IDFeatures.from_id(id)
-        namespace = id_features.namespace_name()
+        id_space = IDSpace.from_id(id)
+        namespace = id_space.namespace_name()
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 f"""SELECT description, atime FROM {namespace}
@@ -441,22 +442,22 @@ class IDManager:
 
     def get_all(
         self,
-        id_features: Optional[IDFeatures] = None,
+        id_space: Optional[IDSpace] = None,
         subspace: IDSubspace = IDSubspace(),
     ) -> List[ImageInfo]:
-        if id_features is None:
-            spaces = [self.get_all(s, subspace) for s in IDFeatures.all_values()]
+        if id_space is None:
+            spaces = [self.get_all(s, subspace) for s in IDSpace.all_values()]
             return list(heapq.merge(*spaces, key=lambda x: x.atime, reverse=True))
 
-        namespace = id_features.namespace_name()
-        begin, end = id_features.subspace_masked_range(subspace)
+        namespace = id_space.namespace_name()
+        begin, end = id_space.subspace_masked_range(subspace)
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 f"""SELECT id, description, atime FROM {namespace}
                     WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
                 """,
                 (
-                    id_features.subspace_byte_mask(),
+                    id_space.subspace_byte_mask(),
                     begin,
                     end - 1,
                 ),
@@ -472,21 +473,21 @@ class IDManager:
 
     def count(
         self,
-        id_features: Optional[IDFeatures] = None,
+        id_space: Optional[IDSpace] = None,
         subspace: IDSubspace = IDSubspace(),
     ) -> int:
-        if id_features is None:
-            return sum(self.count(s, subspace) for s in IDFeatures.all_values())
+        if id_space is None:
+            return sum(self.count(s, subspace) for s in IDSpace.all_values())
 
-        namespace = id_features.namespace_name()
-        begin, end = id_features.subspace_masked_range(subspace)
+        namespace = id_space.namespace_name()
+        begin, end = id_space.subspace_masked_range(subspace)
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 f"""SELECT COUNT(*) FROM {namespace}
                     WHERE (id & ?) BETWEEN ? AND ?
                 """,
                 (
-                    id_features.subspace_byte_mask(),
+                    id_space.subspace_byte_mask(),
                     begin,
                     end - 1,
                 ),
@@ -500,8 +501,8 @@ class IDManager:
         *,
         atime: Optional[datetime] = None,
     ):
-        id_features = IDFeatures.from_id(id)
-        namespace = id_features.namespace_name()
+        id_space = IDSpace.from_id(id)
+        namespace = id_space.namespace_name()
         if atime is None:
             atime = datetime.now()
         with closing(self.conn.cursor()) as cursor:
@@ -517,8 +518,8 @@ class IDManager:
             )
 
     def del_id(self, id: int):
-        id_features = IDFeatures.from_id(id)
-        namespace = id_features.namespace_name()
+        id_space = IDSpace.from_id(id)
+        namespace = id_space.namespace_name()
         with self.conn:
             with closing(self.conn.cursor()) as cursor:
                 self.conn.execute("BEGIN IMMEDIATE")
@@ -527,12 +528,12 @@ class IDManager:
     def get_id(
         self,
         description: str,
-        id_features: IDFeatures,
+        id_space: IDSpace,
         *,
         subspace: IDSubspace = IDSubspace(),
     ) -> int:
-        namespace = id_features.namespace_name()
-        begin, end = id_features.subspace_masked_range(subspace)
+        namespace = id_space.namespace_name()
+        begin, end = id_space.subspace_masked_range(subspace)
 
         atime = datetime.now()
 
@@ -546,7 +547,7 @@ class IDManager:
                     """,
                     (
                         description,
-                        id_features.subspace_byte_mask(),
+                        id_space.subspace_byte_mask(),
                         begin,
                         end - 1,
                     ),
@@ -562,20 +563,20 @@ class IDManager:
                     )
                     return id
 
-                subspace_size = id_features.subspace_size(subspace)
+                subspace_size = id_space.subspace_size(subspace)
 
                 # If the subspace is small enough, we will select all the rows and
                 # identify unused IDs.
                 if subspace_size <= min(1024, self.max_ids_per_subspace):
                     # First check the count of rows in the subspace. If the subspace
                     # is full, select the oldest row and update it.
-                    if self.count(id_features, subspace) >= subspace_size:
+                    if self.count(id_space, subspace) >= subspace_size:
                         cursor.execute(
                             f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
                                 ORDER BY atime ASC LIMIT 1
                             """,
                             (
-                                id_features.subspace_byte_mask(),
+                                id_space.subspace_byte_mask(),
                                 begin,
                                 end - 1,
                             ),
@@ -590,12 +591,12 @@ class IDManager:
                     cursor.execute(
                         f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
                         (
-                            id_features.subspace_byte_mask(),
+                            id_space.subspace_byte_mask(),
                             begin,
                             end - 1,
                         ),
                     )
-                    available_ids = set(id_features.all_ids(subspace))
+                    available_ids = set(id_space.all_ids(subspace))
                     oldest_atime_id: Optional[Tuple[int, datetime]] = None
                     for row in cursor.fetchall():
                         row_id = row[0]
@@ -625,7 +626,7 @@ class IDManager:
                 with closing(self.conn.cursor()) as cursor:
                     # Run rejection sampling.
                     for j in range(8):
-                        id = id_features.gen_random_id(subspace)
+                        id = id_space.gen_random_id(subspace)
                         cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
                         if not cursor.fetchone():
                             break
@@ -642,27 +643,27 @@ class IDManager:
                 break
             # If it failed, try do a cleanup.
             self.cleanup(
-                id_features,
+                id_space,
                 subspace,
                 max_ids=min(int(subspace_size * frac), self.max_ids_per_subspace),
             )
 
         raise RuntimeError(
             "Failed to find an unused id, row count:"
-            f" {self.count(id_features, subspace)}, subspace size:"
+            f" {self.count(id_space, subspace)}, subspace size:"
             f" {subspace_size}"
         )
 
     def cleanup(
         self,
-        id_features: IDFeatures,
+        id_space: IDSpace,
         subspace: IDSubspace = IDSubspace(),
         max_ids: Optional[int] = None,
     ):
         if max_ids is None:
             max_ids = self.max_ids_per_subspace
-        namespace = id_features.namespace_name()
-        begin, end = id_features.subspace_masked_range(subspace)
+        namespace = id_space.namespace_name()
+        begin, end = id_space.subspace_masked_range(subspace)
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 f"""DELETE FROM {namespace}
@@ -677,11 +678,11 @@ class IDManager:
                     )
                 """,
                 (
-                    id_features.subspace_byte_mask(),
+                    id_space.subspace_byte_mask(),
                     begin,
                     end - 1,
                     max_ids,
-                    id_features.subspace_byte_mask(),
+                    id_space.subspace_byte_mask(),
                     begin,
                     end - 1,
                 ),
@@ -808,17 +809,17 @@ class IDManager:
             )
 
     def get_all_with_upload_info(
-        self, id_features: IDFeatures, subspace: IDSubspace = IDSubspace()
+        self, id_space: IDSpace, subspace: IDSubspace = IDSubspace()
     ) -> List[ImageInfo]:
-        namespace = id_features.namespace_name()
-        begin, end = id_features.subspace_masked_range(subspace)
+        namespace = id_space.namespace_name()
+        begin, end = id_space.subspace_masked_range(subspace)
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 f"""SELECT id, description, atime FROM {namespace}
                     WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
                 """,
                 (
-                    id_features.subspace_byte_mask(),
+                    id_space.subspace_byte_mask(),
                     begin,
                     end - 1,
                 ),

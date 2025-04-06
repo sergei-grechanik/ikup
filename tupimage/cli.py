@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Optional, List
 
 import tupimage
-from tupimage.id_manager import IDFeatures
+from tupimage.id_manager import IDSpace
 from tupimage.utils import *
 
 
@@ -184,8 +184,8 @@ def list_images(
     max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
     for iminfo in tupiterm.id_manager.get_all():
         id = iminfo.id
-        space = str(IDFeatures.from_id(id))
-        subspace_byte = IDFeatures.get_subspace_byte(id)
+        space = str(IDSpace.from_id(id))
+        subspace_byte = IDSpace.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
         print(
             f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})"
