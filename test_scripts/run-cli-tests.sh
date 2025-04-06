@@ -95,6 +95,11 @@ subtest "Config"
 run_command dump-config
 subtest "Config without provenance"
 run_command dump-config --no-provenance
+subtest "Config without defaults"
+run_command dump-config --skip-default
+subtest "Config without defaults and provenance"
+run_command dump-config --skip-default --no-provenance
+
 
 subtest "Status"
 run_command status

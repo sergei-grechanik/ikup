@@ -43,10 +43,13 @@ def icat(args):
     pass
 
 
-def dump_config(command: str, provenance: bool):
+def dump_config(command: str, provenance: bool, skip_default: bool):
     _ = command
     tupiterm = tupimage.TupimageTerminal()
-    print(tupiterm._config.to_toml_string(with_provenance=provenance), end="")
+    toml_str = tupiterm._config.to_toml_string(
+        with_provenance=provenance, skip_default=skip_default
+    )
+    print(toml_str, end="")
 
 
 def status(command: str):
@@ -241,6 +244,12 @@ def main():
         action="store_false",
         dest="provenance",
         help="Exclude the provenance of settings as comments.",
+    )
+    parser_dump_config.add_argument(
+        "--skip-default",
+        "-d",
+        action="store_true",
+        help="Skip unchanged options (with 'default' provenance).",
     )
 
     parser_status = subparsers.add_parser("status", help="Display the status.")

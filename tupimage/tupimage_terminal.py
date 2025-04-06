@@ -95,7 +95,9 @@ class TupimageConfig:
             if hasattr(self, "_current_provenance"):
                 self._provenance[name] = self._current_provenance
 
-    def to_toml_string(self, with_provenance: bool = False) -> str:
+    def to_toml_string(
+        self, with_provenance: bool = False, skip_default: bool = False
+    ) -> str:
         dic = dataclasses.asdict(self)
         if isinstance(self.id_subspace, IDSubspace):
             dic["id_subspace"] = str(self.id_subspace)
@@ -109,15 +111,26 @@ class TupimageConfig:
             )
         if isinstance(self.upload_method, TransmissionMedium):
             dic["upload_method"] = self.upload_method.value
+
+        # First collect all non-default lines if skipping
+        kv_lines = []
+        provenances = []
+        for name, value in dic.items():
+            provenance = self.get_provenance(name)
+            if skip_default and provenance == "default":
+                continue
+            kv_lines.append(toml.dumps({name: value}).strip())
+            provenances.append(provenance)
+
         if not with_provenance:
-            return toml.dumps(dic)
-        # Add provenance information as a comment after each key-value pair.
-        lines = [toml.dumps({name: value}).strip() for name, value in dic.items()]
-        maxlen = min(32, max(len(l) for l in lines))
-        lines = [
-            l + " " * (maxlen - len(l)) + f"  # {self.get_provenance(name)}"
-            for name, l in zip(dic.keys(), lines)
-        ]
+            return "\n".join(kv_lines) + "\n"
+
+        # Calculate max line length for alignment (up to 32 chars)
+        maxlen = min(32, max(len(l) for l in kv_lines)) if kv_lines else 0
+        lines = []
+        for l, prov in zip(kv_lines, provenances):
+            lines.append(f"{l}{' ' * (maxlen - len(l))}  # {prov}")
+
         return "\n".join(lines) + "\n"
 
     def override_from_toml_file(self, filename: str, provenance: Optional[str] = None):

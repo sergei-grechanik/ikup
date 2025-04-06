@@ -93,6 +93,20 @@ placeholder_char = "\U0010eeee"
 background = "none"
 ignore_unknown_attributes = false
 
+---------- SUBTEST Config without defaults ----------
+
+tupimage dump-config --skip-default
+id_space = "24bit"                # set via TUPIMAGE_ID_SPACE
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"  # set via TUPIMAGE_ID_DATABASE_DIR
+num_tmux_layers = 0               # expanded from 'auto' (default)
+
+---------- SUBTEST Config without defaults and provenance ----------
+
+tupimage dump-config --skip-default --no-provenance
+id_space = "24bit"
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
+num_tmux_layers = 0
+
 ---------- SUBTEST Status ----------
 
 tupimage status
