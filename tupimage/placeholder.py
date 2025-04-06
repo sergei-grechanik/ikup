@@ -580,15 +580,19 @@ class ImagePlaceholder:
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
+        use_line_feeds: bool = False,
     ):
         lines = self.to_lines(mode, formatting)
         stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
-            if use_save_cursor and idx != len(lines) - 1:
+            if not use_line_feeds and use_save_cursor and idx != len(lines) - 1:
                 # Save the cursor position at the beginning of the current row.
                 stream.write(b"\033[s")
             stream.write(line)
             if idx != len(lines) - 1:
+                if use_line_feeds:
+                    stream.write(b"\n")
+                    continue
                 if use_save_cursor:
                     # Restore the cursor to go back to the beginning of the row.
                     stream.write(b"\033[u")
@@ -608,8 +612,13 @@ class ImagePlaceholder:
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
+        use_line_feeds: bool = False,
     ):
         if pos is not None:
+            if use_line_feeds:
+                raise ValueError("use_line_feeds=True cannot be used with pos")
             self.to_stream_abs_position(stream, pos, mode, formatting)
         else:
-            self.to_stream_at_cursor(stream, mode, formatting, use_save_cursor)
+            self.to_stream_at_cursor(
+                stream, mode, formatting, use_save_cursor, use_line_feeds=use_line_feeds
+            )

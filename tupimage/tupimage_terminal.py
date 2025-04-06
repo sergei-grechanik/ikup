@@ -906,6 +906,7 @@ class TupimageTerminal:
         background: Optional[Callable[[int, int], bytes]] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
+        use_line_feeds: bool = False,
     ) -> ImagePlaceholder:
         inst = self.upload(
             image,
@@ -927,6 +928,7 @@ class TupimageTerminal:
             background=background,
             abs_pos=abs_pos,
             final_cursor_pos=final_cursor_pos,
+            use_line_feeds=use_line_feeds,
         )
 
     def get_image_placeholder_mode(
@@ -982,6 +984,7 @@ class TupimageTerminal:
         background: Optional[BackgroundLike] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
+        use_line_feeds: bool = False,
     ) -> ImagePlaceholder:
         placement_id = 0
         if isinstance(id, ImagePlaceholder):
@@ -1030,8 +1033,13 @@ class TupimageTerminal:
                 end_row=end_row,
                 mode=mode,
                 formatting=formatting,
+                use_line_feeds=use_line_feeds,
             )
         else:
+            if use_line_feeds:
+                raise ValueError(
+                    "Cannot specify use_line_feeds=True when abs_pos is specified"
+                )
             if abs_pos[0] < 0 or abs_pos[1] < 0:
                 raise ValueError(
                     "Absolute position must be non-negative (unless"
@@ -1052,6 +1060,7 @@ class TupimageTerminal:
             end_col - start_col,
             end_row - start_row,
             final_cursor_pos,
+            use_line_feeds=use_line_feeds,
         )
         return ImagePlaceholder(
             image_id=id,
@@ -1063,7 +1072,11 @@ class TupimageTerminal:
         )
 
     def _move_cursor_to_final_position(
-        self, cols: int, rows: int, final_cursor_pos: Optional[FinalCursorPos]
+        self,
+        cols: int,
+        rows: int,
+        final_cursor_pos: Optional[FinalCursorPos],
+        use_line_feeds: bool = False,
     ):
         if final_cursor_pos is None:
             final_cursor_pos = self.final_cursor_pos
@@ -1071,12 +1084,25 @@ class TupimageTerminal:
         if final_cursor_pos == "bottom-right":
             return
         elif final_cursor_pos == "top-right":
+            if use_line_feeds:
+                raise ValueError(
+                    "Cannot specify use_line_feeds=True when final_cursor_pos is"
+                    " top-right"
+                )
             self.term.move_cursor(up=rows - 1)
         elif final_cursor_pos == "top-left":
+            if use_line_feeds:
+                raise ValueError(
+                    "Cannot specify use_line_feeds=True when final_cursor_pos is"
+                    " top-left"
+                )
             self.term.move_cursor(up=rows - 1, left=cols)
         elif final_cursor_pos == "bottom-left":
-            self.term.move_cursor(left=cols)
-            # This sequence moves the cursor down, maybe creating a newline.
-            self.term.write(b"\033D")
+            if use_line_feeds:
+                self.term.write(b"\n")
+            else:
+                self.term.move_cursor(left=cols)
+                # This sequence moves the cursor down, maybe creating a newline.
+                self.term.write(b"\033D")
         else:
             raise ValueError(f"Invalid final_cursor_pos: {final_cursor_pos}")

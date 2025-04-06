@@ -287,6 +287,7 @@ class GraphicsTerminal:
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
+        use_line_feeds: bool = False,
     ):
         # Copy the placeholder.
         if placeholder is None:
@@ -313,6 +314,7 @@ class GraphicsTerminal:
             mode=mode,
             formatting=formatting,
             use_save_cursor=use_save_cursor,
+            use_line_feeds=use_line_feeds,
         )
 
         if self.shellscript_out is not None:
@@ -323,6 +325,7 @@ class GraphicsTerminal:
                 mode=mode,
                 formatting=formatting,
                 use_save_cursor=use_save_cursor,
+                use_line_feeds=use_line_feeds,
             )
             self.shellscript_out.write("\n")
 

@@ -123,6 +123,7 @@ def display(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    use_line_feeds: str,
 ):
     _ = command
     tupiterm = tupimage.TupimageTerminal(
@@ -138,6 +139,10 @@ def display(
     if dump_config:
         print(tupiterm._config.to_toml_string(with_provenance=True), end="")
     errors = False
+
+    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+        use_line_feeds = "yes"
+
     for image in images:
         if not os.path.exists(image):
             id = parse_as_id(image)
@@ -152,7 +157,12 @@ def display(
                 tupiterm.upload_and_display(inst, rows=rows, cols=cols)
                 continue
         try:
-            tupiterm.upload_and_display(image, rows=rows, cols=cols)
+            tupiterm.upload_and_display(
+                image,
+                rows=rows,
+                cols=cols,
+                use_line_feeds=(use_line_feeds == "yes"),
+            )
         except FileNotFoundError:
             printerr(tupiterm, f"File not found: {image}")
             errors = True
@@ -169,6 +179,7 @@ def list_images(
     max_rows: Optional[str],
     out_display: str,
     dump_config: bool,
+    use_line_feeds: str,
 ):
     _ = command
     tupiterm = tupimage.TupimageTerminal(
@@ -182,6 +193,10 @@ def list_images(
     if dump_config:
         print(tupiterm._config.to_toml_string(with_provenance=True), end="")
     max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
+
+    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+        use_line_feeds = "yes"
+
     for iminfo in tupiterm.id_manager.get_all():
         id = iminfo.id
         space = str(IDSpace.from_id(id))
@@ -219,6 +234,7 @@ def list_images(
                     end_col=max_cols_int,
                     end_row=max_rows_int,
                     allow_expansion=False,
+                    use_line_feeds=(use_line_feeds == "yes"),
                 )
                 if inst.cols > max_cols_int or inst.rows > max_rows_int:
                     print(
@@ -349,6 +365,12 @@ def main():
             type=str,
             default="",
             help="The tty/file/pipe to print the image placeholder to. If not specified, stdout will be used.",
+        )
+        p.add_argument(
+            "--use-line-feeds",
+            choices=["auto", "yes", "no"],
+            default="auto",
+            help="Use line feeds instead of curson movement commands (auto: enable if output is not a TTY and there is no explicit positioning)",
         )
 
     parser_icat = subparsers.add_parser(
