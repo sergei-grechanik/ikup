@@ -502,6 +502,10 @@ class ImagePlaceholder:
         # Print the placeholder.
         for row in range(self.start_row, self.end_row):
             line = b""
+            # Reset formatting before and after each line. This prevents color bleeding
+            # when used with utilities like head or tail.
+            if not no_escape:
+                line += b"\033[0m"
             # Start the line with the custom row formatting.
             if row_formatting is not None:
                 line += row_formatting(row)
@@ -541,6 +545,9 @@ class ImagePlaceholder:
                         line += ROWCOLUMN_DIACRITICS_UTF8[col]
                         if othercol_diacritic_count >= 3:
                             line += image_id_4thbyte_diacritic
+            # Reset formatting.
+            if not no_escape:
+                line += b"\033[0m"
             result.append(line)
         return result
 
@@ -552,13 +559,9 @@ class ImagePlaceholder:
         no_escape: bool = False,
     ):
         lines = self.to_lines(mode, formatting, no_escape=no_escape)
-        if not no_escape:
-            stream.write(b"\033[0m")
         for line in lines:
             stream.write(line)
             stream.write(b"\n")
-        if not no_escape:
-            stream.write(b"\033[0m")
 
     def to_stream_abs_position(
         self,
@@ -568,11 +571,9 @@ class ImagePlaceholder:
         formatting: AdditionalFormatting = None,
     ):
         lines = self.to_lines(mode, formatting)
-        stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
             stream.write(b"\033[%d;%dH" % (pos[1] + idx + 1, pos[0] + 1))
             stream.write(line)
-        stream.write(b"\033[0m")
 
     def to_stream_at_cursor(
         self,
@@ -583,7 +584,6 @@ class ImagePlaceholder:
         use_line_feeds: bool = False,
     ):
         lines = self.to_lines(mode, formatting)
-        stream.write(b"\033[0m")
         for idx, line in enumerate(lines):
             if not use_line_feeds and use_save_cursor and idx != len(lines) - 1:
                 # Save the cursor position at the beginning of the current row.
@@ -603,7 +603,6 @@ class ImagePlaceholder:
                     stream.write(b"\033[%dD" % (self.end_col - self.start_col))
                 # This sequence moves the cursor down, maybe creating a newline.
                 stream.write(b"\033D")
-        stream.write(b"\033[0m")
 
     def to_stream(
         self,

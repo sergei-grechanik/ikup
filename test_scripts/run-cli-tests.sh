@@ -145,4 +145,3 @@ run_command list | head -10
 
 subtest "Display with use-line-feeds"
 run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=yes
-sleep 20
