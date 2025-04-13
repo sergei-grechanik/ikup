@@ -173,21 +173,20 @@ class GraphicsTerminal:
         shellscript_out: Optional[TextIO] = None,
         reset_by_scrolling: bool = False,
     ):
-        # If none of the tty_* arguments are provided, use /dev/tty for everything
-        # except for the display output (for which stdout will be used by default).
+        # If tty_filename is not provided, we will use stdout as the default out_display
+        # and /dev/tty for everything else.
+        if tty_filename is None:
+            if out_display is None:
+                out_display = sys.stdout.buffer
+            tty_filename = "/dev/tty"
+
+        # If some of the streams are missing, use tty_filename as the default.
         if (
             out_command is None
-            and out_display is None
-            and in_response is None
-            and in_userinput is None
-            and tty_filename is None
+            or out_display is None
+            or in_response is None
+            or in_userinput is None
         ):
-            tty_filename = "/dev/tty"
-            out_display = sys.stdout.buffer
-
-        # If a tty_filename is provided, open it for reading an writing and use it as
-        # the default tty.
-        if tty_filename is not None:
             # Note that we use closefd=False to avoid closing it twice(for tty_out and
             # tty_in)
             fd = os.open(tty_filename, os.O_RDWR | os.O_NOCTTY)
@@ -219,7 +218,10 @@ class GraphicsTerminal:
     @staticmethod
     def _open(filename: Union[str, BinaryIO, None], write: bool) -> BinaryIO:
         if isinstance(filename, str):
-            fd = os.open(filename, os.O_RDWR | os.O_NOCTTY)
+            fd = os.open(
+                filename,
+                (os.O_WRONLY if write else os.O_RDONLY) | os.O_NOCTTY | os.O_CREAT,
+            )
             return os.fdopen(fd, "wb" if write else "rb", buffering=0)
         if filename is None:
             return open(os.devnull, "wb" if write else "rb")

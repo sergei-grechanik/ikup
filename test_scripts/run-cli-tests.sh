@@ -134,3 +134,15 @@ done
 subtest "Test scaling via -s and --scale"
 run_command $DATA_DIR/wikipedia.png -s 0.5
 run_command $DATA_DIR/wikipedia.png --scale 0.2
+
+subtest "Display through file"
+run_command $DATA_DIR/tux.png -o $TMPDIR/tux.txt
+cat $TMPDIR/tux.txt
+
+subtest "Display through pipe"
+run_command $DATA_DIR/wikipedia.png -r 2 | cat
+run_command list | head -10
+
+subtest "Display with use-line-feeds"
+run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=yes
+sleep 20

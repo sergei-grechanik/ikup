@@ -197,36 +197,40 @@ def list_images(
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
         use_line_feeds = "yes"
 
+    write = tupiterm.term.write
+
     for iminfo in tupiterm.id_manager.get_all():
         id = iminfo.id
         space = str(IDSpace.from_id(id))
         subspace_byte = IDSpace.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
-        print(
-            f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})"
+        write(
+            f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})\n"
         )
-        print(f"  {iminfo.description}")
+        write(f"  {iminfo.description}\n")
         uploads = tupiterm.id_manager.get_upload_infos(id)
         for upload in uploads:
             needs_uploading = ""
             if tupiterm.needs_uploading(id):
                 needs_uploading = "\033[1mNEEDS UPLOADING\033[0m "
-            print(
+            write(
                 f"  {needs_uploading}Uploaded to {upload.terminal}"
                 f" at {upload.upload_time} ({time_ago(upload.upload_time)})"
                 f"  size: {upload.size} bytes"
-                f" bytes_ago: {upload.bytes_ago} uploads_ago: {upload.uploads_ago}"
+                f" bytes_ago: {upload.bytes_ago} uploads_ago: {upload.uploads_ago}\n"
             )
             if upload.id != id:
-                print(f"    \033[1m\033[38;5;1mINVALID ID! {upload.id} != {id}\033[0m")
+                write(
+                    f"    \033[1m\033[38;5;1mINVALID ID! {upload.id} != {id}\033[0m\n"
+                )
             if upload.description != iminfo.description:
-                print(
-                    f"    \033[1m\033[38;5;1mINVALID DESCRIPTION! {upload.description} != {iminfo.description}\033[0m"
+                write(
+                    f"    \033[1m\033[38;5;1mINVALID DESCRIPTION! {upload.description} != {iminfo.description}\033[0m\n"
                 )
             inst = tupiterm.get_image_instance(id)
             if inst is None:
-                print(
-                    f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m"
+                write(
+                    f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
                 )
             else:
                 tupiterm.display_only(
@@ -237,13 +241,13 @@ def list_images(
                     use_line_feeds=(use_line_feeds == "yes"),
                 )
                 if inst.cols > max_cols_int or inst.rows > max_rows_int:
-                    print(
-                        f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}"
+                    write(
+                        f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}\n"
                     )
-            print("-" * min(max_cols_int, 80))
+            write("-" * min(max_cols_int, 80) + "\n")
 
 
-def main():
+def main_unwrapped():
     parser = argparse.ArgumentParser(
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -517,6 +521,16 @@ def main():
         list_images(**vars(args))
     else:
         print(f"Command not implemented: {args.command}", file=sys.stderr)
+        sys.exit(1)
+
+
+def main():
+    try:
+        main_unwrapped()
+        sys.stdout.flush()
+    except BrokenPipeError:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        os.dup2(devnull, sys.stdout.fileno())
         sys.exit(1)
 
 
