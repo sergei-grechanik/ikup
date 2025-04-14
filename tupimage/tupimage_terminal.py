@@ -50,6 +50,7 @@ class TupimageConfig:
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
     default_cell_size: Tuple[int, int] = (8, 16)
     scale: float = 1.0
+    global_scale: float = 1.0
     max_rows: Union[int, Literal["auto"]] = "auto"
     max_cols: Union[int, Literal["auto"]] = "auto"
 
@@ -206,6 +207,8 @@ class TupimageConfig:
                 value = TransmissionMedium.from_string(value)
             if name in ["max_rows", "max_cols", "num_tmux_layers"]:
                 value = int(value)
+            if name in ["scale", "global_scale"]:
+                value = float(value)
             if name == "supported_formats":
                 value = re.split(r"[, ]+", value)
 
@@ -214,8 +217,8 @@ class TupimageConfig:
         # Verify the type.
         if not TupimageConfig._verify_type(value, field_type):
             raise ValueError(
-                f"Field {name} has type {field_type}, but got"
-                f" {value} of type {type(value)} {provenance}"
+                f"Option '{name}' has type {field_type}, but got"
+                f" '{value}' of type {type(value)} {provenance}"
             )
 
         # Verify additional constraints.
@@ -363,10 +366,11 @@ class TupimageTerminal:
                     config = TupimageConfig()
         if isinstance(config, str):
             self._config_file: str = config
-            if config == "DEFAULT":
+            if config == "DEFAULT" or config == "":
                 config = TupimageConfig()
             else:
-                config = TupimageConfig().override_from_toml_file(config)
+                config = TupimageConfig()
+                config.override_from_toml_file(self._config_file)
         assert config is not None
         config.override_from_env()
         config.override_from_dict(kwargs)
@@ -420,6 +424,7 @@ class TupimageTerminal:
     max_cols = _config_property("max_cols")
     max_rows = _config_property("max_rows")
     scale = _config_property("scale")
+    global_scale = _config_property("global_scale")
     id_space = _config_property("id_space")
     id_subspace = _config_property("id_subspace")
     check_response = _config_property("check_response")
@@ -522,9 +527,13 @@ class TupimageTerminal:
             max_cols=max_cols, max_rows=max_rows
         )
         cell_width, cell_height = self.get_cell_size()
-        scale = scale or self._config.scale or 1.0
-        width *= scale
-        height *= scale
+        # Combine global and local scale factors
+        local_scale = scale or self._config.scale
+        effective_scale = self._config.global_scale * (
+            local_scale if local_scale is not None else 1.0
+        )
+        width *= effective_scale
+        height *= effective_scale
 
         cols_auto_computed = cols is None
         rows_auto_computed = rows is None

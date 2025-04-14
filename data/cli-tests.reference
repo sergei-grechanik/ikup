@@ -43,6 +43,7 @@ id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"  # set via TUPIMAGE_ID_DA
 cell_size = "auto"                # default
 default_cell_size = "8x16"        # default
 scale = 1.0                       # default
+global_scale = 1.0                # default
 max_rows = "auto"                 # default
 max_cols = "auto"                 # default
 max_command_size = 4096           # default
@@ -73,6 +74,7 @@ id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
 cell_size = "auto"
 default_cell_size = "8x16"
 scale = 1.0
+global_scale = 1.0
 max_rows = "auto"
 max_cols = "auto"
 max_command_size = 4096
@@ -297,5 +299,31 @@ tupimage list
 tupimage ./.cli-tests-data/wikipedia.png -r 2 --use-line-feeds=yes
 [0m[38;2;[[wr2id]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
 [0m[38;2;[[wr2id]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+
+========== TEST Scaling ==========
+
+
+---------- SUBTEST Global scale 0.5 via config ----------
+
+_G{{.*}}\
+1
+
+---------- SUBTEST Global scale 0.5 with CLI scale 2 (total 1.0) ----------
+
+_G{{.*}}\
+2
+
+---------- SUBTEST scale 0.5 via config ----------
+
+1
+
+---------- SUBTEST scale 0.5 via config overridden by CLI scale 2 ----------
+
+_G{{.*}}\
+3
+
+---------- SUBTEST combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 ----------
+
+3
 
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]

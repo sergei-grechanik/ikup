@@ -69,6 +69,8 @@ run_command() {
     curl -o $DATA_DIR/flower.jpg "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
 [ -f $DATA_DIR/a_panorama.jpg ] || \
     curl -o $DATA_DIR/a_panorama.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/2560px-Kazbeg_Panorama.jpg"
+[ -f $DATA_DIR/small_arrow.png ] || \
+    curl -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
 
 ################################################################################
 
@@ -145,3 +147,25 @@ run_command list | head -10
 
 subtest "Display with use-line-feeds"
 run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=yes
+
+################################################################################
+
+start_test "Scaling"
+
+subtest "Global scale 0.5 via config"
+echo "global_scale = 0.5" > $TMPDIR/global_scale.toml
+TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+
+subtest "Global scale 0.5 with CLI scale 2 (total 1.0)"
+TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png --scale 2 | wc -l
+
+subtest "scale 0.5 via config"
+echo "scale = 0.5" > $TMPDIR/global_scale.toml
+TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+
+subtest "scale 0.5 via config overridden by CLI scale 2"
+echo "scale = 0.5" > $TMPDIR/global_scale.toml
+TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png --scale 2 | wc -l
+
+subtest "combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20"
+TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
