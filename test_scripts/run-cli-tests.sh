@@ -182,5 +182,3 @@ run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png --max-rows 3
 
 subtest "Max rows and cols"
 run_command display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
-
-sleep 20
