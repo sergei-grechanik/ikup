@@ -66,8 +66,8 @@ class TupimageConfig:
     check_response: bool = False
     check_response_timeout: float = 3.0
     redetect_terminal: bool = True
-    stream_max_size: int = 1 * 1024 * 1024
-    file_max_size: int = 2 * 1024 * 1024
+    stream_max_size: int = 2 * 1024 * 1024
+    file_max_size: int = 10 * 1024 * 1024
 
     # Image display options.
     fewer_diacritics: bool = False
