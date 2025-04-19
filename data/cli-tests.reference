@@ -57,8 +57,8 @@ upload_method = "auto"            # default
 check_response = false            # default
 check_response_timeout = 3.0      # default
 redetect_terminal = true          # default
-stream_max_size = 1048576         # default
-file_max_size = 2097152           # default
+stream_max_size = 2097152         # default
+file_max_size = 10485760          # default
 fewer_diacritics = false          # default
 placeholder_char = "\U0010eeee"   # default
 background = "none"               # default
@@ -88,8 +88,8 @@ upload_method = "auto"
 check_response = false
 check_response_timeout = 3.0
 redetect_terminal = true
-stream_max_size = 1048576
-file_max_size = 2097152
+stream_max_size = 2097152
+file_max_size = 10485760
 fewer_diacritics = false
 placeholder_char = "\U0010eeee"
 background = "none"
@@ -325,5 +325,36 @@ tupimage ./.cli-tests-data/wikipedia.png -r 2 --use-line-feeds=yes
 ---------- SUBTEST combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 ----------
 
 3
+
+========== TEST Max rows/cols and multiple images ==========
+
+
+---------- SUBTEST Max cols ----------
+
+tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-cols 3
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3DD
+[s[0m[38;2;[[arrow_id?:.*]]m􎻮̅̅􎻮̅̍[0m[uD
+[0m[38;2;[[arrow_id?:.*]]m􎻮̍̅􎻮̍̍[0m[2DD
+
+---------- SUBTEST Max rows ----------
+
+tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-rows 3
+[s[0m[38;2;226;109;108m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾[0m[uD
+[s[0m[38;2;226;109;108m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾[0m[uD
+[0m[38;2;226;109;108m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽􎻮̎̾[0m[7DD
+[s[0m[38;2;[[arrow_id?:.*]]m􎻮̅̅􎻮̅̍[0m[uD
+[0m[38;2;[[arrow_id?:.*]]m􎻮̍̅􎻮̍̍[0m[2DD
+
+---------- SUBTEST Max rows and cols ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3D_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=4,c=3;{{.*}}\
+D
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎[0m[uD
+[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍􎻮̐̎[0m[3DD
 
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]

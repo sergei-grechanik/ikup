@@ -353,7 +353,7 @@ def main_unwrapped():
             metavar="S",
             type=float,
             default=None,
-            help="Scale images by this factor (multiplied with global scale from config).",
+            help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
 
     for p in [parser_display, parser_upload]:

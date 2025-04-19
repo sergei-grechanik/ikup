@@ -169,3 +169,18 @@ TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png --
 
 subtest "combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20"
 TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+
+################################################################################
+
+start_test "Max rows/cols and multiple images"
+
+subtest "Max cols"
+run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png --max-cols 3
+
+subtest "Max rows"
+run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png --max-rows 3
+
+subtest "Max rows and cols"
+run_command display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
+
+sleep 20
