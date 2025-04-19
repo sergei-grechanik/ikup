@@ -182,3 +182,25 @@ run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png --max-rows 3
 
 subtest "Max rows and cols"
 run_command display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
+
+################################################################################
+
+start_test "Separate id assignment and uploading"
+
+subtest "No upload and force upload cannot be used together"
+run_command $DATA_DIR/wikipedia.png --no-upload --force-upload
+
+subtest "Alloc ID, then upload and display"
+ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 2)
+run_command display $ID
+
+subtest "Alloc ID, then display, then upload"
+ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 3)
+run_command display $ID --no-upload
+run_command upload $ID
+
+subtest "Alloc ID, then display, then upload by filename"
+ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 4)
+echo $ID
+run_command display $DATA_DIR/small_arrow.png -r 4 --no-upload
+run_command upload $DATA_DIR/small_arrow.png -r 4

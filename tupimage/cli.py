@@ -8,6 +8,7 @@ from typing import Optional, List
 
 import tupimage
 from tupimage.id_manager import IDSpace
+from tupimage.tupimage_terminal import ImageInstance
 from tupimage.utils import *
 
 
@@ -112,12 +113,13 @@ def parse_as_id(image: str) -> Optional[int]:
         return None
 
 
-def display(
+def handle_command(
     command: str,
     images: List[str],
     rows: Optional[int],
     cols: Optional[int],
     force_upload: bool,
+    no_upload: bool,
     out_display: str,
     max_cols: Optional[str],
     max_rows: Optional[str],
@@ -125,7 +127,6 @@ def display(
     dump_config: bool,
     use_line_feeds: str,
 ):
-    _ = command
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
         config_overrides={
@@ -144,25 +145,49 @@ def display(
         use_line_feeds = "yes"
 
     for image in images:
+        # Handle the case where image is an id, not a filename.
         if not os.path.exists(image):
             id = parse_as_id(image)
             if id is not None:
-                inst = tupiterm.get_image_instance(id)
-                if inst is None:
+                # image is ImageInstance from now on (containing id, rows and cols).
+                image = tupiterm.get_image_instance(id)
+                if image is None:
                     printerr(
                         tupiterm, f"ID is not assigned or assignment is broken: {id}"
                     )
                     errors = True
                     continue
-                tupiterm.upload_and_display(inst, rows=rows, cols=cols)
-                continue
+        # Handle the command itself. Don't stop on errors.
         try:
-            tupiterm.upload_and_display(
-                image,
-                rows=rows,
-                cols=cols,
-                use_line_feeds=(use_line_feeds == "yes"),
-            )
+            if command == "display" and not no_upload:
+                tupiterm.upload_and_display(
+                    image,
+                    rows=rows,
+                    cols=cols,
+                    use_line_feeds=(use_line_feeds == "yes"),
+                )
+            elif command == "upload":
+                tupiterm.upload(
+                    image,
+                    rows=rows,
+                    cols=cols,
+                )
+            elif command == "assign-id" or (command == "display" and no_upload):
+                if isinstance(image, ImageInstance):
+                    instance = image
+                else:
+                    instance = tupiterm.assign_id(
+                        image,
+                        rows=rows,
+                        cols=cols,
+                    )
+                if command == "assign-id":
+                    print(instance.id)
+                if command == "display":
+                    tupiterm.display_only(
+                        instance,
+                        use_line_feeds=(use_line_feeds == "yes"),
+                    )
         except FileNotFoundError:
             printerr(tupiterm, f"File not found: {image}")
             errors = True
@@ -171,6 +196,89 @@ def display(
             errors = True
     if errors:
         sys.exit(1)
+
+
+def display(
+    command: str,
+    images: List[str],
+    rows: Optional[int],
+    cols: Optional[int],
+    force_upload: bool,
+    no_upload: bool,
+    out_display: str,
+    max_cols: Optional[str],
+    max_rows: Optional[str],
+    scale: Optional[float],
+    dump_config: bool,
+    use_line_feeds: str,
+):
+    handle_command(
+        command=command,
+        images=images,
+        rows=rows,
+        cols=cols,
+        force_upload=force_upload,
+        no_upload=no_upload,
+        out_display=out_display,
+        max_cols=max_cols,
+        max_rows=max_rows,
+        scale=scale,
+        dump_config=dump_config,
+        use_line_feeds=use_line_feeds,
+    )
+
+
+def upload(
+    command: str,
+    images: List[str],
+    rows: Optional[int],
+    cols: Optional[int],
+    force_upload: bool,
+    max_cols: Optional[str],
+    max_rows: Optional[str],
+    scale: Optional[float],
+    dump_config: bool,
+):
+    handle_command(
+        command=command,
+        images=images,
+        rows=rows,
+        cols=cols,
+        force_upload=force_upload,
+        no_upload=False,
+        out_display="",
+        max_cols=max_cols,
+        max_rows=max_rows,
+        scale=scale,
+        dump_config=dump_config,
+        use_line_feeds="no",
+    )
+
+
+def assign_id(
+    command: str,
+    images: List[str],
+    rows: Optional[int],
+    cols: Optional[int],
+    max_cols: Optional[str],
+    max_rows: Optional[str],
+    scale: Optional[float],
+    dump_config: bool,
+):
+    handle_command(
+        command=command,
+        images=images,
+        rows=rows,
+        cols=cols,
+        force_upload=False,
+        no_upload=True,
+        out_display="",
+        max_cols=max_cols,
+        max_rows=max_rows,
+        scale=scale,
+        dump_config=dump_config,
+        use_line_feeds="no",
+    )
 
 
 def list_images(
@@ -356,9 +464,21 @@ def main_unwrapped():
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
 
-    for p in [parser_display, parser_upload]:
+    for p in [parser_upload]:
         p.add_argument(
             "--force-upload", "-f", action="store_true", help="Force (re)upload."
+        )
+
+    for p in [parser_display]:
+        group = p.add_mutually_exclusive_group()
+        group.add_argument(
+            "--force-upload", "-f", action="store_true", help="Force (re)upload."
+        )
+        group.add_argument(
+            "--no-upload",
+            "-n",
+            action="store_true",
+            help="Disable uploading (just assign ID and display placeholder).",
         )
 
     for p in [parser_display, parser_list]:
@@ -517,6 +637,10 @@ def main_unwrapped():
         status(**vars(args))
     elif args.command == "display":
         display(**vars(args))
+    elif args.command == "upload":
+        upload(**vars(args))
+    elif args.command == "assign-id":
+        assign_id(**vars(args))
     elif args.command == "list":
         list_images(**vars(args))
     else:

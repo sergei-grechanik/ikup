@@ -352,9 +352,44 @@ tupimage display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
 [0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3D_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=4,c=3;{{.*}}\
 D
-[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
-[s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[uD
-[s[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎[0m[uD
-[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍􎻮̐̎[0m[3DD
+[s[0m[38;2;[[column_id?:.*]]m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[s[0m[38;2;[[column_id?:.*]]m􎻮̍̅􎻮̍̍􎻮̍̎[0m[uD
+[s[0m[38;2;[[column_id?:.*]]m􎻮̎̅􎻮̎̍􎻮̎̎[0m[uD
+[0m[38;2;[[column_id?:.*]]m􎻮̐̅􎻮̐̍􎻮̐̎[0m[3DD
 
+========== TEST Separate id assignment and uploading ==========
+
+
+---------- SUBTEST No upload and force upload cannot be used together ----------
+
+tupimage ./.cli-tests-data/wikipedia.png --no-upload --force-upload
+{{:SKIP_LINES:}}
+tupimage display: error: argument --force-upload/-f: not allowed with argument --no-upload/-n
+
+---------- SUBTEST Alloc ID, then upload and display ----------
+
+tupimage display [[id:.*]]
+_Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=2,c=4;{{.*}}\
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+
+---------- SUBTEST Alloc ID, then display, then upload ----------
+
+tupimage display [[id:.*]] --no-upload
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[s[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒[0m[5DD
+tupimage upload [[id]]
+_Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=3,c=5;{{.*}}\
+
+---------- SUBTEST Alloc ID, then display, then upload by filename ----------
+
+[[id:.*]]
+tupimage display ./.cli-tests-data/small_arrow.png -r 4 --no-upload
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾[0m[uD
+[s[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾[0m[uD
+[s[0m[38;2;[[rgb(id)]]m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽􎻮̎̾[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̐̅􎻮̐̍􎻮̐̎􎻮̐̐􎻮̐̒􎻮̐̽􎻮̐̾[0m[7DD
+tupimage upload ./.cli-tests-data/small_arrow.png -r 4
+_Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=4,c=7;{{.*}}\
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]
