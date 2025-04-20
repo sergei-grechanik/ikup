@@ -6,16 +6,18 @@
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,display,upload,assign-id,list,icat} ...
+                {dump-config,status,display,upload,assign-id,placeholder,list,icat} ...
 
 positional arguments:
-  {dump-config,status,display,upload,assign-id,list,icat}
+  {dump-config,status,display,upload,assign-id,placeholder,list,icat}
     dump-config         Dump the config state.
     status              Display the status.
     display             Display an image. (default)
     upload              Upload an image without displaying.
-    assign-id           Assigns an id to an image without displaying or
+    assign-id           Assign an id to an image without displaying or
                         uploading it.
+    placeholder         Print a placeholder for the given id, rows and
+                        columns.
     list                List all known images.
     icat                A CLI compatible with the icat kitten.
 
@@ -392,4 +394,13 @@ tupimage display ./.cli-tests-data/small_arrow.png -r 4 --no-upload
 [0m[38;2;[[rgb(id)]]m􎻮̐̅􎻮̐̍􎻮̐̎􎻮̐̐􎻮̐̒􎻮̐̽􎻮̐̾[0m[7DD
 tupimage upload ./.cli-tests-data/small_arrow.png -r 4
 _Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=4,c=7;{{.*}}\
+
+---------- SUBTEST The placeholder command ----------
+
+[[id:.*]]
+tupimage placeholder [[id]] -r 3 -c 50
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇􎻮̅֒􎻮̅֓􎻮̅֔􎻮̅֕􎻮̅֗􎻮̅֘􎻮̅֙􎻮̅֜􎻮̅֝􎻮̅֞􎻮̅֟􎻮̅֠􎻮̅֡􎻮̅֨􎻮̅֩[0m[uD
+[s[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾􎻮̍̿􎻮̍͆􎻮̍͊􎻮̍͋􎻮̍͌􎻮̍͐􎻮̍͑􎻮̍͒􎻮̍͗􎻮̍͛􎻮̍ͣ􎻮̍ͤ􎻮̍ͥ􎻮̍ͦ􎻮̍ͧ􎻮̍ͨ􎻮̍ͩ􎻮̍ͪ􎻮̍ͫ􎻮̍ͬ􎻮̍ͭ􎻮̍ͮ􎻮̍ͯ􎻮̍҃􎻮̍҄􎻮̍҅􎻮̍҆􎻮̍҇􎻮̍֒􎻮̍֓􎻮̍֔􎻮̍֕􎻮̍֗􎻮̍֘􎻮̍֙􎻮̍֜􎻮̍֝􎻮̍֞􎻮̍֟􎻮̍֠􎻮̍֡􎻮̍֨􎻮̍֩[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽􎻮̎̾􎻮̎̿􎻮̎͆􎻮̎͊􎻮̎͋􎻮̎͌􎻮̎͐􎻮̎͑􎻮̎͒􎻮̎͗􎻮̎͛􎻮̎ͣ􎻮̎ͤ􎻮̎ͥ􎻮̎ͦ􎻮̎ͧ􎻮̎ͨ􎻮̎ͩ􎻮̎ͪ􎻮̎ͫ􎻮̎ͬ􎻮̎ͭ􎻮̎ͮ􎻮̎ͯ􎻮̎҃􎻮̎҄􎻮̎҅􎻮̎҆􎻮̎҇􎻮̎֒􎻮̎֓􎻮̎֔􎻮̎֕􎻮̎֗􎻮̎֘􎻮̎֙􎻮̎֜􎻮̎֝􎻮̎֞􎻮̎֟􎻮̎֠􎻮̎֡􎻮̎֨􎻮̎֩[0m[50DD
+
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]

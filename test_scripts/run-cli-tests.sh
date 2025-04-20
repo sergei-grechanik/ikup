@@ -204,3 +204,8 @@ ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 4)
 echo $ID
 run_command display $DATA_DIR/small_arrow.png -r 4 --no-upload
 run_command upload $DATA_DIR/small_arrow.png -r 4
+
+subtest "The placeholder command"
+ID=$($TUPIMAGE assign-id $DATA_DIR/wikipedia.png)
+echo $ID
+run_command placeholder $ID -r 3 -c 50

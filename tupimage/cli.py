@@ -281,6 +281,41 @@ def assign_id(
     )
 
 
+def placeholder(
+    command: str,
+    id: List[str],
+    rows: int,
+    cols: int,
+    out_display: str,
+    dump_config: bool,
+    use_line_feeds: str,
+):
+    _ = command
+    tupiterm = tupimage.TupimageTerminal(
+        out_display=out_display if out_display else None,
+        config_overrides={
+            "provenance": "set via command line",
+        },
+    )
+    if dump_config:
+        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
+
+    id_int = parse_as_id(id[0])
+    if id_int is None:
+        printerr(tupiterm, f"ID is incorrect: {id[0]}")
+        exit(1)
+
+    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+        use_line_feeds = "yes"
+
+    tupiterm.display_only(
+        id_int,
+        end_col=cols,
+        end_row=rows,
+        use_line_feeds=(use_line_feeds == "yes"),
+    )
+
+
 def list_images(
     command: str,
     max_cols: Optional[str],
@@ -392,7 +427,12 @@ def main_unwrapped():
 
     parser_assign_id = subparsers.add_parser(
         "assign-id",
-        help="Assigns an id to an image without displaying or uploading it.",
+        help="Assign an id to an image without displaying or uploading it.",
+    )
+
+    parser_placeholder = subparsers.add_parser(
+        "placeholder",
+        help="Print a placeholder for the given id, rows and columns.",
     )
 
     parser_list = subparsers.add_parser(
@@ -415,12 +455,37 @@ def main_unwrapped():
         help="Maximum number of rows to display each listed image. 'auto' to use the terminal height.",
     )
 
-    for p in [parser_display, parser_upload, parser_assign_id, parser_list]:
+    for p in [
+        parser_display,
+        parser_upload,
+        parser_assign_id,
+        parser_placeholder,
+        parser_list,
+    ]:
         p.add_argument(
             "--dump-config",
             action="store_true",
             dest="dump_config",
             help="Dump the config to stdout before executing the action.",
+        )
+
+    for p in [parser_placeholder]:
+        p.add_argument("id", nargs=1, type=str)
+        p.add_argument(
+            "--cols",
+            "-c",
+            metavar="W",
+            type=int,
+            required=True,
+            help="Number of columns of the placeholder.",
+        )
+        p.add_argument(
+            "--rows",
+            "-r",
+            metavar="H",
+            type=int,
+            required=True,
+            help="Number of rows of the placeholder.",
         )
 
     for p in [parser_display, parser_upload, parser_assign_id]:
@@ -481,7 +546,7 @@ def main_unwrapped():
             help="Disable uploading (just assign ID and display placeholder).",
         )
 
-    for p in [parser_display, parser_list]:
+    for p in [parser_display, parser_placeholder, parser_list]:
         p.add_argument(
             "--out-display",
             "-o",
@@ -641,6 +706,8 @@ def main_unwrapped():
         upload(**vars(args))
     elif args.command == "assign-id":
         assign_id(**vars(args))
+    elif args.command == "placeholder":
+        placeholder(**vars(args))
     elif args.command == "list":
         list_images(**vars(args))
     else:
