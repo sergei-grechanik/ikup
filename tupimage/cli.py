@@ -172,7 +172,7 @@ def handle_command(
                     rows=rows,
                     cols=cols,
                 )
-            elif command == "assign-id" or (command == "display" and no_upload):
+            elif command == "get-id" or (command == "display" and no_upload):
                 if isinstance(image, ImageInstance):
                     instance = image
                 else:
@@ -181,7 +181,7 @@ def handle_command(
                         rows=rows,
                         cols=cols,
                     )
-                if command == "assign-id":
+                if command == "get-id":
                     print(instance.id)
                 if command == "display":
                     tupiterm.display_only(
@@ -255,7 +255,7 @@ def upload(
     )
 
 
-def assign_id(
+def get_id(
     command: str,
     images: List[str],
     rows: Optional[int],
@@ -425,8 +425,8 @@ def main_unwrapped():
         "upload", help="Upload an image without displaying."
     )
 
-    parser_assign_id = subparsers.add_parser(
-        "assign-id",
+    parser_get_id = subparsers.add_parser(
+        "get-id",
         help="Assign an id to an image without displaying or uploading it.",
     )
 
@@ -458,7 +458,7 @@ def main_unwrapped():
     for p in [
         parser_display,
         parser_upload,
-        parser_assign_id,
+        parser_get_id,
         parser_placeholder,
         parser_list,
     ]:
@@ -488,7 +488,7 @@ def main_unwrapped():
             help="Number of rows of the placeholder.",
         )
 
-    for p in [parser_display, parser_upload, parser_assign_id]:
+    for p in [parser_display, parser_upload, parser_get_id]:
         p.add_argument("images", nargs="*", type=str)
         p.add_argument(
             "--cols",
@@ -704,8 +704,8 @@ def main_unwrapped():
         display(**vars(args))
     elif args.command == "upload":
         upload(**vars(args))
-    elif args.command == "assign-id":
-        assign_id(**vars(args))
+    elif args.command == "get-id":
+        get_id(**vars(args))
     elif args.command == "placeholder":
         placeholder(**vars(args))
     elif args.command == "list":

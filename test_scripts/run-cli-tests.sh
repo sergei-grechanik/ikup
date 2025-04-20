@@ -191,21 +191,21 @@ subtest "No upload and force upload cannot be used together"
 run_command $DATA_DIR/wikipedia.png --no-upload --force-upload
 
 subtest "Alloc ID, then upload and display"
-ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 2)
+ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 2)
 run_command display $ID
 
 subtest "Alloc ID, then display, then upload"
-ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 3)
+ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 3)
 run_command display $ID --no-upload
 run_command upload $ID
 
 subtest "Alloc ID, then display, then upload by filename"
-ID=$($TUPIMAGE assign-id $DATA_DIR/small_arrow.png -r 4)
+ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 4)
 echo $ID
 run_command display $DATA_DIR/small_arrow.png -r 4 --no-upload
 run_command upload $DATA_DIR/small_arrow.png -r 4
 
 subtest "The placeholder command"
-ID=$($TUPIMAGE assign-id $DATA_DIR/wikipedia.png)
+ID=$($TUPIMAGE get-id $DATA_DIR/wikipedia.png)
 echo $ID
 run_command placeholder $ID -r 3 -c 50

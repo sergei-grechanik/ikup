@@ -6,15 +6,15 @@
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,display,upload,assign-id,placeholder,list,icat} ...
+                {dump-config,status,display,upload,get-id,placeholder,list,icat} ...
 
 positional arguments:
-  {dump-config,status,display,upload,assign-id,placeholder,list,icat}
+  {dump-config,status,display,upload,get-id,placeholder,list,icat}
     dump-config         Dump the config state.
     status              Display the status.
     display             Display an image. (default)
     upload              Upload an image without displaying.
-    assign-id           Assign an id to an image without displaying or
+    get-id              Assign an id to an image without displaying or
                         uploading it.
     placeholder         Print a placeholder for the given id, rows and
                         columns.
