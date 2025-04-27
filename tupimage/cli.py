@@ -321,7 +321,7 @@ def foreach(
     images: List[str],
     all: bool,
     dump_config: bool,
-    use_line_feeds: str,
+    use_line_feeds: str = "no",
     older: Optional[str] = None,
     newer: Optional[str] = None,
     last: Optional[int] = None,

@@ -10,4 +10,5 @@
 sed -i 's/\x1bD/\x1bD\n/g' "$1"
 
 # Insert \n before and after each graphics command (unless it's already there).
+sed -i 's/\(.\)\(\x1b_G.*\x1b\\\)/\1\n\2/g' "$1"
 sed -i 's/\(\x1b_G.*\x1b\\\)\(.\)/\1\n\2/g' "$1"

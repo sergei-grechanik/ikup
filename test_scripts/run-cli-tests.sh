@@ -74,6 +74,7 @@ start_test() {
     echo
     echo "========== TEST $1 =========="
     echo
+    $TUPIMAGE forget --all --quiet
 }
 
 subtest() {
