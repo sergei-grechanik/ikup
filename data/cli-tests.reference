@@ -6,19 +6,26 @@
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,display,upload,get-id,placeholder,list,icat} ...
+                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,icat} ...
 
 positional arguments:
-  {dump-config,status,display,upload,get-id,placeholder,list,icat}
+  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,icat}
     dump-config         Dump the config state.
     status              Display the status.
+    list                List all known images.
     display             Display an image. (default)
     upload              Upload an image without displaying.
     get-id              Assign an id to an image without displaying or
                         uploading it.
     placeholder         Print a placeholder for the given id, rows and
                         columns.
-    list                List all known images.
+    forget              Forget all matching images. Don't delete them from the
+                        terminal though.
+    dirty               Mark all matching images as dirty (not uploaded to any
+                        terminal).
+    reupload            Reupload all matching images to the current terminal.
+    fix                 Reupload all dirty matching images to the current
+                        terminal.
     icat                A CLI compatible with the icat kitten.
 
 options:
@@ -284,7 +291,7 @@ tupimage ./.cli-tests-data/tux.png -o {{.*}}/tux.txt
 tupimage ./.cli-tests-data/wikipedia.png -r 2
 [0m[38;2;[[wr2id:.*]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
 [0m[38;2;[[wr2id]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
-tupimage list
+tupimage list -v
 [1mID: [[id:.*]][0m = 0x{{.*}} id_space: 24bit subspace_byte: {{.*}} = {{.*}} atime: {{.*}} ({{.*}} seconds ago)
   {"path": "{{.*}}", "mtime": {{.*}}, "cols": 5, "rows": 2}
   Uploaded to st-256color-{{.*}} at {{.*}} ({{.*}} seconds ago)  size: {{.*}} bytes bytes_ago: {{.*}} uploads_ago: {{.*}}

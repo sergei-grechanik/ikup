@@ -18,6 +18,7 @@ import toml
 from PIL import Image, ImageColor
 
 import tupimage
+from tupimage.id_manager import ImageInfo
 import tupimage.utils
 from tupimage import (
     GraphicsCommand,
@@ -272,6 +273,7 @@ class TupimageConfig:
 class ImageInstance:
     path: str
     mtime: datetime.datetime
+    id_atime: datetime.datetime
     cols: int
     rows: int
     id: int
@@ -281,15 +283,16 @@ class ImageInstance:
         return dataclasses.replace(self, **kwargs)
 
     @staticmethod
-    def from_description(description: str, id: int) -> Optional["ImageInstance"]:
+    def from_info(info: ImageInfo) -> Optional["ImageInstance"]:
         try:
-            params = json.loads(description)
+            params = json.loads(info.description)
             return ImageInstance(
                 path=params.get("path"),
                 mtime=datetime.datetime.fromtimestamp(float(params.get("mtime"))),
                 cols=int(params.get("cols")),
                 rows=int(params.get("rows")),
-                id=id,
+                id=info.id,
+                id_atime=info.atime,
             )
         except (json.JSONDecodeError, KeyError, ValueError, TypeError):
             return None
@@ -574,6 +577,7 @@ class TupimageTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
+        id_atime: Optional[datetime.datetime] = None,
     ) -> ImageInstance:
         path, mtime = self._get_image_path_and_mtime(image)
         if cols is None or rows is None:
@@ -592,10 +596,13 @@ class TupimageTerminal:
                 max_rows=max_rows,
                 scale=scale,
             )
+        if id_atime is None:
+            id_atime = datetime.datetime.now()
         return ImageInstance(
             id=id,
             path=path,
             mtime=mtime,
+            id_atime=id_atime,
             cols=cols,
             rows=rows,
             image=image if isinstance(image, Image.Image) else None,
@@ -673,7 +680,7 @@ class TupimageTerminal:
         info = self.id_manager.get_info(id)
         if info is None:
             return None
-        return ImageInstance.from_description(info.description, id)
+        return ImageInstance.from_info(info)
 
     def needs_uploading(self, id: int, terminal_id: Optional[str] = None) -> bool:
         max_uploads_ago = self._config.reupload_max_uploads_ago

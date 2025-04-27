@@ -524,6 +524,7 @@ class IDManager:
             with closing(self.conn.cursor()) as cursor:
                 self.conn.execute("BEGIN IMMEDIATE")
                 cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
+                cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
 
     def get_id(
         self,
@@ -777,7 +778,7 @@ class IDManager:
             return
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
-                f"""INSERT INTO upload
+                """ INSERT INTO upload
                     (id, description, size, terminal, upload_time)
                     VALUES (?, ?, ?, ?, ?)
                     ON CONFLICT(id, terminal) DO UPDATE SET
@@ -793,6 +794,16 @@ class IDManager:
                     upload_time.isoformat(),
                 ),
             )
+
+    def mark_dirty(self, id: int, terminal: Optional[str] = None):
+        """Marks id dirty (not uploaded) in the given terminal or all terminals."""
+        with closing(self.conn.cursor()) as cursor:
+            if terminal is None:
+                cursor.execute(
+                    "DELETE FROM upload WHERE id = ? AND terminal = ?", (id, terminal)
+                )
+            else:
+                cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
 
     def cleanup_uploads(
         self,

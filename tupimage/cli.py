@@ -316,15 +316,43 @@ def placeholder(
     )
 
 
-def list_images(
+def foreach(
     command: str,
-    max_cols: Optional[str],
-    max_rows: Optional[str],
-    out_display: str,
+    images: List[str],
+    all: bool,
     dump_config: bool,
     use_line_feeds: str,
+    older: Optional[str] = None,
+    newer: Optional[str] = None,
+    last: Optional[int] = None,
+    except_last: Optional[int] = None,
+    max_cols: Optional[str] = None,
+    max_rows: Optional[str] = None,
+    out_display: str = "",
+    verbose: bool = False,
+    quiet: bool = False,
 ):
-    _ = command
+    query_specified = older or newer or last or except_last
+    if (images or query_specified) and all:
+        raise ValueError(
+            "Cannot use --all and specify images/ids or queries at the same time."
+        )
+
+    if not (images or query_specified) and not all:
+        if command == "list":
+            all = True
+        else:
+            raise ValueError(
+                "You must specify images/ids or a query or use --all to affect all images."
+            )
+
+    if images and query_specified:
+        raise ValueError("Cannot specify images/ids and queries at the same time.")
+
+    # Parse query arguments.
+    older_dt = datetime.fromisoformat(older) if older else None
+    newer_dt = datetime.fromisoformat(newer) if newer else None
+
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
         config_overrides={
@@ -340,10 +368,114 @@ def list_images(
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
         use_line_feeds = "yes"
 
+    # Split `images` into a list of image filenames and a list of IDs.
+    image_filenames = []
+    image_ids = []
+    for image in images:
+        if not os.path.exists(image):
+            id = parse_as_id(image)
+            if id is not None:
+                image_ids.append(id)
+                continue
+        # Note that we need to absolutize the path.
+        image_filenames.append(os.path.abspath(image))
+
+    # A set of IDs and filenames we haven't encountered yet.
+    not_encountered = set(image_filenames + image_ids)
+
+    # The filtered list of image infos.
+    image_infos = []
+
+    # Get all image infos from the ID manager and filter them.
+    # TODO: It's better to build sql queries, of course.
+    index = 0
+    for iminfo in tupiterm.id_manager.get_all():
+        if all:
+            image_infos.append(iminfo)
+            continue
+        matches = False
+        # Check if the ID is in the list.
+        id = iminfo.id
+        if id in image_ids:
+            not_encountered.discard(id)
+            matches = True
+        # Then check if the filename is in the list.
+        if image_filenames:
+            inst = ImageInstance.from_info(iminfo)
+            if inst and inst.path in image_filenames:
+                not_encountered.discard(inst.path)
+                matches = True
+        # If the image matched an ID or a filename, add it to the list.
+        if matches:
+            image_infos.append(iminfo)
+            continue
+        # Then check the query.
+        if not query_specified:
+            continue
+        if newer_dt and iminfo.atime <= newer_dt:
+            # Images are sorted by atime, so we can stop here.
+            break
+        if older_dt and iminfo.atime >= older_dt:
+            continue
+        index += 1
+        if last and index > last:
+            break
+        if except_last and index <= except_last:
+            continue
+        image_infos.append(iminfo)
+
+    # Whether we should exit with an error code.
+    errors = False
+
+    # Print errors if some of the explicitly specified images were not found.
+    if not_encountered:
+        printerr(tupiterm, f"Images not found in the db: {' '.join(not_encountered)}")
+        errors = True
+
+    # Note that if we mix images and text, we should write to the same stream object,
+    # otherwise there is a risk of buffering issues.
     write = tupiterm.term.write
 
-    for iminfo in tupiterm.id_manager.get_all():
+    # Now process the images.
+    for iminfo in image_infos:
+        inst = ImageInstance.from_info(iminfo)
         id = iminfo.id
+
+        if command == "forget":
+            tupiterm.id_manager.del_id(id)
+
+        if command == "dirty":
+            tupiterm.id_manager.mark_dirty(id)
+
+        if command == "reupload" or command == "fix":
+            if inst is None:
+                printerr(
+                    tupiterm, f"error: ID is not assigned or assignment is broken: "
+                )
+                errors = True
+                continue
+            # 'fix' is like 'reupload', but avoids unnecessary uploads.
+            if command == "fix" and not tupiterm.needs_uploading(id):
+                continue
+            # Don't fail other uploads if one fails, but print the error message
+            try:
+                tupiterm.upload(inst, force_upload=True)
+            except (FileNotFoundError, OSError) as e:
+                printerr(tupiterm, f"Error uploading id {id} ({inst.path}): {e}")
+                errors = True
+                continue
+
+        if quiet:
+            continue
+
+        # If it's not a verbose mode of 'list', just print some basic info.
+        if not verbose:
+            if command != "list":
+                write(f"{command} ")
+            write(f"{id}\t{inst.cols}x{inst.rows}\t{inst.path}\n")
+            continue
+
+        # Otherwise print more details and several rows of the image.
         space = str(IDSpace.from_id(id))
         subspace_byte = IDSpace.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
@@ -370,7 +502,6 @@ def list_images(
                 write(
                     f"    \033[1m\033[38;5;1mINVALID DESCRIPTION! {upload.description} != {iminfo.description}\033[0m\n"
                 )
-            inst = tupiterm.get_image_instance(id)
             if inst is None:
                 write(
                     f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
@@ -389,6 +520,9 @@ def list_images(
                     )
             write("-" * min(max_cols_int, 80) + "\n")
 
+    if errors:
+        exit(1)
+
 
 def main_unwrapped():
     parser = argparse.ArgumentParser(
@@ -399,8 +533,64 @@ def main_unwrapped():
     subparsers = parser.add_subparsers(dest="command")
 
     parser_dump_config = subparsers.add_parser(
-        "dump-config", help="Dump the config state."
+        "dump-config",
+        help="Dump the config state.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    parser_status = subparsers.add_parser(
+        "status",
+        help="Display the status.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_list = subparsers.add_parser(
+        "list",
+        help="List all known images.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_display = subparsers.add_parser(
+        "display",
+        help="Display an image. (default)",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_upload = subparsers.add_parser(
+        "upload",
+        help="Upload an image without displaying.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_get_id = subparsers.add_parser(
+        "get-id",
+        help="Assign an id to an image without displaying or uploading it.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_placeholder = subparsers.add_parser(
+        "placeholder",
+        help="Print a placeholder for the given id, rows and columns.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_forget = subparsers.add_parser(
+        "forget",
+        help="Forget all matching images. Don't delete them from the terminal though.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_dirty = subparsers.add_parser(
+        "dirty",
+        help="Mark all matching images as dirty (not uploaded to any terminal).",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_reupload = subparsers.add_parser(
+        "reupload",
+        help="Reupload all matching images to the current terminal.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_fix = subparsers.add_parser(
+        "fix",
+        help="Reupload all dirty matching images to the current terminal.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # Command-specific arguments.
+
+    # Arguments unique to dump-config
     parser_dump_config.add_argument(
         "--no-provenance",
         "-n",
@@ -415,30 +605,13 @@ def main_unwrapped():
         help="Skip unchanged options (with 'default' provenance).",
     )
 
-    parser_status = subparsers.add_parser("status", help="Display the status.")
-
-    parser_display = subparsers.add_parser(
-        "display", help="Display an image. (default)"
-    )
-
-    parser_upload = subparsers.add_parser(
-        "upload", help="Upload an image without displaying."
-    )
-
-    parser_get_id = subparsers.add_parser(
-        "get-id",
-        help="Assign an id to an image without displaying or uploading it.",
-    )
-
-    parser_placeholder = subparsers.add_parser(
-        "placeholder",
-        help="Print a placeholder for the given id, rows and columns.",
-    )
-
-    parser_list = subparsers.add_parser(
-        "list",
-        help="List all known images.",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    # Arguments unique to list
+    parser_list.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        dest="verbose",
+        help="Show more details for each image.",
     )
     parser_list.add_argument(
         "--max-cols",
@@ -455,11 +628,16 @@ def main_unwrapped():
         help="Maximum number of rows to display each listed image. 'auto' to use the terminal height.",
     )
 
+    # --dump-config is available for all commands.
     for p in [
         parser_display,
         parser_upload,
         parser_get_id,
         parser_placeholder,
+        parser_forget,
+        parser_dirty,
+        parser_reupload,
+        parser_fix,
         parser_list,
     ]:
         p.add_argument(
@@ -469,6 +647,7 @@ def main_unwrapped():
             help="Dump the config to stdout before executing the action.",
         )
 
+    # Placeholder printing arguments.
     for p in [parser_placeholder]:
         p.add_argument("id", nargs=1, type=str)
         p.add_argument(
@@ -488,8 +667,15 @@ def main_unwrapped():
             help="Number of rows of the placeholder.",
         )
 
+    # Arguments related to image/id and their size (rows/cols) specification. These are
+    # common for display, upload, and id assignment.
     for p in [parser_display, parser_upload, parser_get_id]:
-        p.add_argument("images", nargs="*", type=str)
+        p.add_argument(
+            "images",
+            nargs="*",
+            type=str,
+            help="Image files to upload/display or known image IDs in the form of 'id:1234' or 'id:0xABC'.",
+        )
         p.add_argument(
             "--cols",
             "-c",
@@ -529,11 +715,12 @@ def main_unwrapped():
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
 
+    # --force-upload is common for all commands that do uploading, but it's mutually
+    # exclusive with --no-upload, which doesn't make sense for the upload command.
     for p in [parser_upload]:
         p.add_argument(
             "--force-upload", "-f", action="store_true", help="Force (re)upload."
         )
-
     for p in [parser_display]:
         group = p.add_mutually_exclusive_group()
         group.add_argument(
@@ -546,6 +733,7 @@ def main_unwrapped():
             help="Disable uploading (just assign ID and display placeholder).",
         )
 
+    # Arguments that are common for commands that display images or placeholders.
     for p in [parser_display, parser_placeholder, parser_list]:
         p.add_argument(
             "--out-display",
@@ -559,7 +747,58 @@ def main_unwrapped():
             "--use-line-feeds",
             choices=["auto", "yes", "no"],
             default="auto",
-            help="Use line feeds instead of curson movement commands (auto: enable if output is not a TTY and there is no explicit positioning)",
+            help="Use line feeds instead of curson movement commands (auto: enable if output is not a TTY and there is no explicit positioning).",
+        )
+
+    # Arguments that specify image filtering criteria.
+    for p in [parser_forget, parser_dirty, parser_reupload, parser_fix, parser_list]:
+        p.add_argument(
+            "images",
+            nargs="*",
+            type=str,
+            help="Image files or known image IDs in the form of 'id:1234' or 'id:0xABC'.",
+        )
+        p.add_argument(
+            "--all",
+            "-a",
+            action="store_true",
+            help="Explicitly affect all images.",
+        )
+        p.add_argument(
+            "--older",
+            metavar="TIME",
+            type=int,
+            help="Affect images that were last touched before TIME.",
+        )
+        p.add_argument(
+            "--newer",
+            metavar="TIME",
+            type=int,
+            help="Affect images that were last touched after TIME.",
+        )
+        p.add_argument(
+            "--last",
+            "-l",
+            metavar="N",
+            type=int,
+            help="Affect only N most recently touched images matching the criteria.",
+        )
+        p.add_argument(
+            "--except-last",
+            "-e",
+            metavar="N",
+            type=int,
+            help="Affect images except for the N most recently touched ones.",
+        )
+
+    # Some commands will print the affected image IDs, but they can be quieted.
+    for p in [parser_forget, parser_dirty, parser_reupload, parser_fix]:
+        p.add_argument(
+            "--quiet",
+            "-q",
+            action="store_true",
+            dest="quiet",
+            help="Don't print affected image IDs.",
         )
 
     parser_icat = subparsers.add_parser(
@@ -708,8 +947,8 @@ def main_unwrapped():
         get_id(**vars(args))
     elif args.command == "placeholder":
         placeholder(**vars(args))
-    elif args.command == "list":
-        list_images(**vars(args))
+    elif args.command in ("forget", "dirty", "reupload", "fix", "list"):
+        foreach(**vars(args))
     else:
         print(f"Command not implemented: {args.command}", file=sys.stderr)
         sys.exit(1)

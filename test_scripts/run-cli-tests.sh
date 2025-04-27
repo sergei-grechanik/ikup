@@ -143,7 +143,7 @@ cat $TMPDIR/tux.txt
 
 subtest "Display through pipe"
 run_command $DATA_DIR/wikipedia.png -r 2 | cat
-run_command list | head -10
+run_command list -v | head -10
 
 subtest "Display with use-line-feeds"
 run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=yes
