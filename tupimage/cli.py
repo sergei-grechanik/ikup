@@ -371,6 +371,8 @@ def foreach(
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
         use_line_feeds = "yes"
 
+    # A set of IDs and filenames we haven't encountered yet.
+    not_encountered = []
     # Split `images` into a list of image filenames and a list of IDs.
     image_filenames = []
     image_ids = []
@@ -379,12 +381,13 @@ def foreach(
             id = parse_as_id(image)
             if id is not None:
                 image_ids.append(id)
+                not_encountered.append(id)
                 continue
         # Note that we need to absolutize the path.
-        image_filenames.append(os.path.abspath(image))
+        image = os.path.abspath(image)
+        image_filenames.append(image)
+        not_encountered.append(image)
 
-    # A set of IDs and filenames we haven't encountered yet.
-    not_encountered = set(image_filenames + image_ids)
 
     # The filtered list of image infos.
     image_infos = []
@@ -400,13 +403,13 @@ def foreach(
         # Check if the ID is in the list.
         id = iminfo.id
         if id in image_ids:
-            not_encountered.discard(id)
+            not_encountered = [x for x in not_encountered if x != id]
             matches = True
         # Then check if the filename is in the list.
         if image_filenames:
             inst = ImageInstance.from_info(iminfo)
             if inst and inst.path in image_filenames:
-                not_encountered.discard(inst.path)
+                not_encountered = [x for x in not_encountered if x != inst.path]
                 matches = True
         # If the image matched an ID or a filename, add it to the list.
         if matches:
