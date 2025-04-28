@@ -18,7 +18,7 @@ import toml
 from PIL import Image, ImageColor
 
 import tupimage
-from tupimage.id_manager import ImageInfo
+from tupimage.id_manager import ImageInfo, UploadInfo
 import tupimage.utils
 from tupimage import (
     GraphicsCommand,
@@ -656,6 +656,7 @@ class TupimageTerminal:
         id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
         force_id: Optional[int] = None,
+        update_atime: bool = True,
     ) -> ImageInstance:
         inst = self.build_image_instance(
             image,
@@ -673,7 +674,9 @@ class TupimageTerminal:
             return inst
         id_space = self.get_id_space(id_space)
         id_subspace = self.get_subspace(id_subspace)
-        inst.id = self.id_manager.get_id(descr, id_space, subspace=id_subspace)
+        inst.id = self.id_manager.get_id(
+            descr, id_space, subspace=id_subspace, update_atime=update_atime
+        )
         return inst
 
     def get_image_instance(self, id: int) -> Optional[ImageInstance]:
@@ -682,12 +685,24 @@ class TupimageTerminal:
             return None
         return ImageInstance.from_info(info)
 
-    def needs_uploading(self, id: int, terminal_id: Optional[str] = None) -> bool:
+    def needs_uploading(
+        self, id: Union[int, UploadInfo], terminal_id: Optional[str] = None
+    ) -> bool:
         max_uploads_ago = self._config.reupload_max_uploads_ago
         max_bytes_ago = self._config.reupload_max_bytes_ago
         max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
+        if isinstance(id, UploadInfo):
+            if terminal_id is not None:
+                raise ValueError("Cannot specify terminal_id when passing UploadInfo")
+            return id._needs_uploading(
+                max_uploads_ago=max_uploads_ago,
+                max_bytes_ago=max_bytes_ago,
+                max_time_ago=max_time_ago,
+            )
         if terminal_id is None:
             terminal_id = self._terminal_id
+        if terminal_id is None:
+            return True
         return self.id_manager.needs_uploading(
             id,
             terminal_id,
@@ -711,6 +726,7 @@ class TupimageTerminal:
         force_upload: Optional[bool] = None,
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
+        update_atime: bool = True,
     ) -> ImageInstance:
         if isinstance(image, ImageInstance):
             inst = image
@@ -735,6 +751,7 @@ class TupimageTerminal:
                 id_space=id_space,
                 id_subspace=id_subspace,
                 force_id=force_id,
+                update_atime=update_atime,
             )
         if force_upload is None:
             force_upload = self._config.force_upload

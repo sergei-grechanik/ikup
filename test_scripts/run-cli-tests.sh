@@ -86,6 +86,10 @@ subtest() {
 run_command() {
     printf "tupimage %s\n" "$*" >&2
     $TUPIMAGE "$@"
+    TUPIMAGE_EXIT_CODE="$?"
+    if [ $TUPIMAGE_EXIT_CODE -ne 0 ]; then
+        echo "Exit code: $TUPIMAGE_EXIT_CODE"
+    fi
 }
 
 # Collect all test function names
@@ -121,6 +125,10 @@ fi
     curl -o $DATA_DIR/tux.png https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png
 [ -f $DATA_DIR/column.png ] || \
     curl -o $DATA_DIR/column.png "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png"
+[ -f $DATA_DIR/small_arrow.png ] || \
+    curl -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
+[ -f $DATA_DIR/ruler.png ] || \
+    curl -o $DATA_DIR/ruler.png "https://upload.wikimedia.org/wikipedia/commons/3/38/Screen_Ruler.png"
 [ -f $DATA_DIR/earth.jpg ] || \
     curl -o $DATA_DIR/earth.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/240px-The_Blue_Marble_%28remastered%29.jpg"
 [ -f $DATA_DIR/mars.jpg ] || \
@@ -139,8 +147,6 @@ fi
     curl -o $DATA_DIR/flower.jpg "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
 [ -f $DATA_DIR/a_panorama.jpg ] || \
     curl -o $DATA_DIR/a_panorama.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/2560px-Kazbeg_Panorama.jpg"
-[ -f $DATA_DIR/small_arrow.png ] || \
-    curl -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
 
 ################################################################################
 
@@ -269,6 +275,11 @@ test_assign_id_upload() {
     subtest "No upload and force upload cannot be used together"
     run_command $DATA_DIR/wikipedia.png --no-upload --force-upload
 
+    subtest "Upload, upload, force upload"
+    run_command upload $DATA_DIR/wikipedia.png
+    run_command upload $DATA_DIR/wikipedia.png
+    run_command upload $DATA_DIR/wikipedia.png --force-upload
+
     subtest "Alloc ID, then upload and display"
     ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 2)
     run_command display $ID
@@ -288,6 +299,60 @@ test_assign_id_upload() {
     ID=$($TUPIMAGE get-id $DATA_DIR/wikipedia.png)
     echo $ID
     run_command placeholder $ID -r 3 -c 50
+}
+
+################################################################################
+
+test_multiple_images() {
+    start_test "Multiple images"
+
+    subtest "Display multiple images"
+    run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png
+
+    subtest "Display multiple images with the same row parameter"
+    run_command $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png -r 2
+
+    subtest "Display even more images"
+    run_command -r 1 $DATA_DIR/wikipedia.png $DATA_DIR/small_arrow.png \
+        $DATA_DIR/column.png $DATA_DIR/ruler.png $DATA_DIR/tux.png \
+        $DATA_DIR/transparency.png
+
+    subtest "Display some of them again. Mix in non-existing images."
+    run_command -r 1 $DATA_DIR/wikipedia.png $DATA_DIR/nonexisting.png \
+        $DATA_DIR/ruler.png $DATA_DIR/tux.png $DATA_DIR/transparency.png
+
+    subtest "List all images (only one-line info)"
+    run_command list
+
+    subtest "List last 3 images"
+    run_command list --last 3
+
+    subtest "Mix ids and filenames"
+    # Note that getting the id of wikipedia will update its atime, making it
+    # the last image in the subsequent calls.
+    ID=$($TUPIMAGE get-id $DATA_DIR/wikipedia.png)
+    run_command list $ID $DATA_DIR/tux.png id:123 $DATA_DIR/nonexisting.png
+
+    subtest "Mark dirty last 2 images, then fix last 3"
+    run_command dirty --last 2
+    run_command list -v --last 2
+    run_command fix --last 3
+    run_command list -v --last 2
+
+    subtest "Mark dirty last 2 images, then reupload last 3"
+    run_command dirty --last 2
+    run_command reupload --last 3
+
+    subtest "Mark dirty the last image, then display it"
+    run_command dirty --last 1
+    ID=$($TUPIMAGE list --last 1 | awk '{print $1}')
+    run_command display id:$ID
+
+    subtest "Mixing queries and images/ids is not supported"
+    run_command list --last 1 $DATA_DIR/wikipedia.png
+
+    subtest "Mixing queries and --all is not supported"
+    run_command list --last 1 -a
 }
 
 ################################################################################

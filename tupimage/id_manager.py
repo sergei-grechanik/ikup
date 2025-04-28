@@ -348,7 +348,7 @@ class UploadInfo:
     bytes_ago: int
     uploads_ago: int
 
-    def needs_uploading(
+    def _needs_uploading(
         self,
         *,
         max_uploads_ago: int = 1024,
@@ -526,12 +526,24 @@ class IDManager:
                 cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
                 cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
 
+    def touch_id(self, id: int, atime: Optional[datetime] = None):
+        """Update the `atime` of the given ID if it exists."""
+        if atime is None:
+            atime = datetime.now()
+        namespace = IDSpace.from_id(id)
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                f"UPDATE {namespace} SET atime=? WHERE id=?",
+                (atime.isoformat(), id),
+            )
+
     def get_id(
         self,
         description: str,
         id_space: IDSpace,
         *,
         subspace: IDSubspace = IDSubspace(),
+        update_atime: bool = True,
     ) -> int:
         namespace = id_space.namespace_name()
         begin, end = id_space.subspace_masked_range(subspace)
@@ -558,10 +570,11 @@ class IDManager:
                 # If there is such a row, update the `atime` and return the `id`.
                 if row:
                     id = row[0]
-                    cursor.execute(
-                        f"UPDATE {namespace} SET atime=? WHERE id=?",
-                        (atime.isoformat(), id),
-                    )
+                    if update_atime:
+                        cursor.execute(
+                            f"UPDATE {namespace} SET atime=? WHERE id=?",
+                            (atime.isoformat(), id),
+                        )
                     return id
 
                 subspace_size = id_space.subspace_size(subspace)
@@ -756,7 +769,7 @@ class IDManager:
             return True
         return (
             upload_info.description != info.description
-            or upload_info.needs_uploading(
+            or upload_info._needs_uploading(
                 max_uploads_ago=max_uploads_ago,
                 max_bytes_ago=max_bytes_ago,
                 max_time_ago=max_time_ago,
@@ -799,11 +812,11 @@ class IDManager:
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
         with closing(self.conn.cursor()) as cursor:
             if terminal is None:
-                cursor.execute(
-                    "DELETE FROM upload WHERE id = ? AND terminal = ?", (id, terminal)
-                )
-            else:
                 cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
+            else:
+                cursor.execute(
+                    "delete from upload where id = ? and terminal = ?", (id, terminal)
+                )
 
     def cleanup_uploads(
         self,

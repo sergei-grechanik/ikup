@@ -12,6 +12,12 @@ from tupimage.tupimage_terminal import ImageInstance
 from tupimage.utils import *
 
 
+class CLIArgumentsError(Exception):
+    """Custom exception for CLI argument errors."""
+
+    pass
+
+
 def time_ago(dt: datetime) -> str:
     now = datetime.now()
     diff = now - dt
@@ -94,7 +100,8 @@ def status(command: str):
 
 
 def printerr(tupiterm: tupimage.TupimageTerminal, msg):
-    print(msg, file=sys.stderr)
+    tupiterm.term.out_display.flush()
+    print(msg, file=sys.stderr, flush=True)
 
 
 def parse_as_id(image: str) -> Optional[int]:
@@ -153,7 +160,8 @@ def handle_command(
                 image = tupiterm.get_image_instance(id)
                 if image is None:
                     printerr(
-                        tupiterm, f"ID is not assigned or assignment is broken: {id}"
+                        tupiterm,
+                        f"error: ID is not assigned or assignment is broken: {id}",
                     )
                     errors = True
                     continue
@@ -188,11 +196,8 @@ def handle_command(
                         instance,
                         use_line_feeds=(use_line_feeds == "yes"),
                     )
-        except FileNotFoundError:
-            printerr(tupiterm, f"File not found: {image}")
-            errors = True
-        except PIL.UnidentifiedImageError:
-            printerr(tupiterm, f"Cannot identify image: {image}")
+        except (FileNotFoundError, OSError) as e:
+            printerr(tupiterm, f"error: Failed to upload {image}: {e}")
             errors = True
     if errors:
         sys.exit(1)
@@ -302,7 +307,7 @@ def placeholder(
 
     id_int = parse_as_id(id[0])
     if id_int is None:
-        printerr(tupiterm, f"ID is incorrect: {id[0]}")
+        printerr(tupiterm, f"error: ID is incorrect: {id[0]}")
         exit(1)
 
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
@@ -334,7 +339,7 @@ def foreach(
 ):
     query_specified = older or newer or last or except_last
     if (images or query_specified) and all:
-        raise ValueError(
+        raise CLIArgumentsError(
             "Cannot use --all and specify images/ids or queries at the same time."
         )
 
@@ -342,12 +347,14 @@ def foreach(
         if command == "list":
             all = True
         else:
-            raise ValueError(
+            raise CLIArgumentsError(
                 "You must specify images/ids or a query or use --all to affect all images."
             )
 
     if images and query_specified:
-        raise ValueError("Cannot specify images/ids and queries at the same time.")
+        raise CLIArgumentsError(
+            "Cannot specify images/ids and queries at the same time."
+        )
 
     # Parse query arguments.
     older_dt = datetime.fromisoformat(older) if older else None
@@ -428,8 +435,11 @@ def foreach(
     errors = False
 
     # Print errors if some of the explicitly specified images were not found.
-    if not_encountered:
-        printerr(tupiterm, f"Images not found in the db: {' '.join(not_encountered)}")
+    for img in not_encountered:
+        if isinstance(img, int):
+            printerr(tupiterm, f"error: ID not found in the db: {img}")
+        else:
+            printerr(tupiterm, f"error: Image not found in the db: {img}")
         errors = True
 
     # Note that if we mix images and text, we should write to the same stream object,
@@ -450,7 +460,7 @@ def foreach(
         if command == "reupload" or command == "fix":
             if inst is None:
                 printerr(
-                    tupiterm, f"error: ID is not assigned or assignment is broken: "
+                    tupiterm, f"error: ID is not assigned or assignment is broken: {id}"
                 )
                 errors = True
                 continue
@@ -459,9 +469,9 @@ def foreach(
                 continue
             # Don't fail other uploads if one fails, but print the error message
             try:
-                tupiterm.upload(inst, force_upload=True)
+                tupiterm.upload(inst, force_upload=True, update_atime=False)
             except (FileNotFoundError, OSError) as e:
-                printerr(tupiterm, f"Error uploading id {id} ({inst.path}): {e}")
+                printerr(tupiterm, f"error: Failed to upload {id} {inst.path}: {e}")
                 errors = True
                 continue
 
@@ -483,11 +493,13 @@ def foreach(
             f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})\n"
         )
         write(f"  {iminfo.description}\n")
+        if tupiterm.needs_uploading(id):
+            write(f"  \033[1mNEEDS UPLOADING\033[0m to {tupiterm._terminal_id}\n")
         uploads = tupiterm.id_manager.get_upload_infos(id)
         for upload in uploads:
             needs_uploading = ""
-            if tupiterm.needs_uploading(id):
-                needs_uploading = "\033[1mNEEDS UPLOADING\033[0m "
+            if tupiterm.needs_uploading(upload):
+                needs_uploading = "(Needs reuploading) "
             write(
                 f"  {needs_uploading}Uploaded to {upload.terminal}"
                 f" at {upload.upload_time} ({time_ago(upload.upload_time)})"
@@ -502,23 +514,23 @@ def foreach(
                 write(
                     f"    \033[1m\033[38;5;1mINVALID DESCRIPTION! {upload.description} != {iminfo.description}\033[0m\n"
                 )
-            if inst is None:
+        if inst is None:
+            write(
+                f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
+            )
+        else:
+            tupiterm.display_only(
+                inst,
+                end_col=max_cols_int,
+                end_row=max_rows_int,
+                allow_expansion=False,
+                use_line_feeds=(use_line_feeds == "yes"),
+            )
+            if inst.cols > max_cols_int or inst.rows > max_rows_int:
                 write(
-                    f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
+                    f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}\n"
                 )
-            else:
-                tupiterm.display_only(
-                    inst,
-                    end_col=max_cols_int,
-                    end_row=max_rows_int,
-                    allow_expansion=False,
-                    use_line_feeds=(use_line_feeds == "yes"),
-                )
-                if inst.cols > max_cols_int or inst.rows > max_rows_int:
-                    write(
-                        f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}\n"
-                    )
-            write("-" * min(max_cols_int, 80) + "\n")
+        write("-" * min(max_cols_int, 80) + "\n")
 
     if errors:
         exit(1)
@@ -544,7 +556,7 @@ def main_unwrapped():
     )
     parser_list = subparsers.add_parser(
         "list",
-        help="List all known images.",
+        help="List all known images or known images matching the criteria.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser_display = subparsers.add_parser(
@@ -950,8 +962,8 @@ def main_unwrapped():
     elif args.command in ("forget", "dirty", "reupload", "fix", "list"):
         foreach(**vars(args))
     else:
-        print(f"Command not implemented: {args.command}", file=sys.stderr)
-        sys.exit(1)
+        print(f"error: Command not implemented: {args.command}", file=sys.stderr)
+        sys.exit(2)
 
 
 def main():
@@ -962,6 +974,9 @@ def main():
         devnull = os.open(os.devnull, os.O_WRONLY)
         os.dup2(devnull, sys.stdout.fileno())
         sys.exit(1)
+    except CLIArgumentsError as e:
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(2)
 
 
 if __name__ == "__main__":
