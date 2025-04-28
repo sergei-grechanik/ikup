@@ -6,10 +6,10 @@
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,icat} ...
+                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix} ...
 
 positional arguments:
-  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,icat}
+  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix}
     dump-config         Dump the config state.
     status              Display the status.
     list                List all known images or known images matching the
@@ -27,7 +27,6 @@ positional arguments:
     reupload            Reupload all matching images to the current terminal.
     fix                 Reupload all dirty matching images to the current
                         terminal.
-    icat                A CLI compatible with the icat kitten.
 
 options:
   -h, --help            show this help message and exit
