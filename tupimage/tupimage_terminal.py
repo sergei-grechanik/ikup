@@ -677,6 +677,7 @@ class TupimageTerminal:
         )
         descr = inst.get_description()
         if force_id is not None:
+            self.id_manager.del_id(force_id)
             self.id_manager.set_id(force_id, descr)
             inst.id = force_id
             return inst

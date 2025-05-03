@@ -357,6 +357,36 @@ test_multiple_images() {
 
 ################################################################################
 
+test_force_id() {
+    start_test "Force ID"
+
+    # We need to use a number from the 24bit ID space.
+    IDNUM=1193046
+
+    subtest "Upload an image with a specific id"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --force-id $IDNUM
+
+    subtest "Redisplay it"
+    run_command display $DATA_DIR/wikipedia.png -r 2
+
+    subtest "Check that the id is set"
+    run_command get-id $DATA_DIR/wikipedia.png -r 2
+    run_command list $DATA_DIR/wikipedia.png
+
+    subtest "Assign the same id to a different image without uploading"
+    run_command get-id $DATA_DIR/tux.png -r 2 --force-id $IDNUM
+    run_command list -v
+
+    subtest "Fix the image"
+    run_command fix $IDNUM
+
+    subtest "Display the image by id"
+    run_command display $IDNUM
+    run_command list -v
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

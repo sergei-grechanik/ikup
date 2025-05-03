@@ -128,6 +128,7 @@ def handle_command(
     scale: Optional[float],
     dump_config: bool,
     use_line_feeds: str,
+    force_id: Optional[int],
 ):
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
@@ -146,11 +147,20 @@ def handle_command(
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
         use_line_feeds = "yes"
 
+    if len(images) > 1 and force_id is not None:
+        raise CLIArgumentsError(
+            "Cannot use --force-id and specify multiple images at the same time."
+        )
+
     for image in images:
         # Handle the case where image is an id, not a filename.
         if not os.path.exists(image):
             id = parse_as_id(image)
             if id is not None:
+                if force_id is not None:
+                    raise CLIArgumentsError(
+                        "Cannot use --force-id and specify an ID at the same time."
+                    )
                 # image is ImageInstance from now on (containing id, rows and cols).
                 image = tupiterm.get_image_instance(id)
                 if image is None:
@@ -168,12 +178,14 @@ def handle_command(
                     rows=rows,
                     cols=cols,
                     use_line_feeds=(use_line_feeds == "yes"),
+                    force_id=force_id,
                 )
             elif command == "upload":
                 tupiterm.upload(
                     image,
                     rows=rows,
                     cols=cols,
+                    force_id=force_id,
                 )
             elif command == "get-id" or (command == "display" and no_upload):
                 if isinstance(image, ImageInstance):
@@ -183,6 +195,7 @@ def handle_command(
                         image,
                         rows=rows,
                         cols=cols,
+                        force_id=force_id,
                     )
                 if command == "get-id":
                     print(instance.id)
@@ -211,6 +224,7 @@ def display(
     scale: Optional[float],
     dump_config: bool,
     use_line_feeds: str,
+    force_id: Optional[int],
 ):
     handle_command(
         command=command,
@@ -225,6 +239,7 @@ def display(
         scale=scale,
         dump_config=dump_config,
         use_line_feeds=use_line_feeds,
+        force_id=force_id,
     )
 
 
@@ -238,6 +253,7 @@ def upload(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    force_id: Optional[int],
 ):
     handle_command(
         command=command,
@@ -252,6 +268,7 @@ def upload(
         scale=scale,
         dump_config=dump_config,
         use_line_feeds="no",
+        force_id=force_id,
     )
 
 
@@ -264,6 +281,7 @@ def get_id(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    force_id: Optional[int],
 ):
     handle_command(
         command=command,
@@ -278,6 +296,7 @@ def get_id(
         scale=scale,
         dump_config=dump_config,
         use_line_feeds="no",
+        force_id=force_id,
     )
 
 
@@ -726,6 +745,13 @@ def main_unwrapped():
             type=float,
             default=None,
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
+        )
+        p.add_argument(
+            "--force-id",
+            metavar="ID",
+            type=int,
+            default=None,
+            help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
         )
 
     # --force-upload is common for all commands that do uploading, but it's mutually
