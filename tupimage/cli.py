@@ -480,6 +480,9 @@ def foreach(
         if not verbose:
             if command != "list":
                 write(f"{command} ")
+            if inst is None:
+                write(f"{id}\t?x?\t{iminfo.description}\n")
+                continue
             write(f"{id}\t{inst.cols}x{inst.rows}\t{inst.path}\n")
             continue
 
