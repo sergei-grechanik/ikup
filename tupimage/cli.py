@@ -2,8 +2,7 @@ import argparse
 import os
 import sys
 import time
-import PIL
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Optional, List
 
 import tupimage

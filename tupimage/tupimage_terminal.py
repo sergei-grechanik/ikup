@@ -11,11 +11,10 @@ import subprocess
 import tempfile
 import typing
 from dataclasses import dataclass, field
-from typing import Any, BinaryIO, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, BinaryIO, Callable, List, Literal, Optional, Tuple, Union, TYPE_CHECKING
 
 import platformdirs
 import toml
-from PIL import Image, ImageColor
 
 import tupimage
 from tupimage.id_manager import ImageInfo, UploadInfo
@@ -34,6 +33,10 @@ from tupimage import (
     TransmissionMedium,
     TransmitCommand,
 )
+
+# PIL is expensive to import, we import is only when needed or when type checking.
+if TYPE_CHECKING:
+    from PIL import Image
 
 BackgroundLike = Union[tupimage.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
@@ -277,7 +280,7 @@ class ImageInstance:
     cols: int
     rows: int
     id: int
-    image: Optional[Image.Image] = None
+    image: Optional["Image.Image"] = None
 
     def clone_with(self, **kwargs):
         return dataclasses.replace(self, **kwargs)
@@ -325,7 +328,7 @@ class ImageInstance:
         )
 
 
-ImageOrFilename = Union[Image.Image, str]
+ImageOrFilename = Union["PIL.Image.Image", str]
 
 
 def _config_property(name: str):
@@ -582,6 +585,7 @@ class TupimageTerminal:
         path, mtime = self._get_image_path_and_mtime(image)
         if cols is None or rows is None:
             if isinstance(image, str):
+                from PIL import Image
                 open_image = Image.open(image)
                 width, height = open_image.size
                 open_image.close()
@@ -598,6 +602,10 @@ class TupimageTerminal:
             )
         if id_atime is None:
             id_atime = datetime.datetime.now()
+        # Attach the image object if it is not a path.
+        image_obj = None
+        if not isinstance(image, str) and not isinstance(image, bytes):
+            image_obj = image
         return ImageInstance(
             id=id,
             path=path,
@@ -605,7 +613,7 @@ class TupimageTerminal:
             id_atime=id_atime,
             cols=cols,
             rows=rows,
-            image=image if isinstance(image, Image.Image) else None,
+            image=image_obj,
         )
 
     def _get_image_path_and_mtime(
@@ -833,6 +841,7 @@ class TupimageTerminal:
                     f"Image file {inst.path} with mtime {inst.mtime} does not"
                     " exist or was overwritten"
                 )
+            from PIL import Image
             image_object = Image.open(inst.path)
             if self._is_format_supported(image_object.format):
                 size = os.path.getsize(inst.path)
@@ -998,6 +1007,7 @@ class TupimageTerminal:
             if background.lower() == "none":
                 return None
             else:
+                from PIL import ImageColor
                 rgb = ImageColor.getrgb(background)
                 return b"\033[48;2;%d;%d;%dm" % rgb
         if isinstance(background, int):
