@@ -387,6 +387,33 @@ test_force_id() {
 
 ################################################################################
 
+test_id_space() {
+    start_test "ID space"
+
+    subtest "Upload the same image with different id spaces"
+    run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 24bit
+    run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 32
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit_diacritic
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 16bit
+
+    subtest "List all"
+    run_command list -v
+
+    subtest "Display them"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 24bit
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 32
+    # 256 = 8bit
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 256
+    TUPIMAGE_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
+    TUPIMAGE_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
+
+    subtest "Invalid id space"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 123
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

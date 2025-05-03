@@ -129,7 +129,14 @@ def handle_command(
     dump_config: bool,
     use_line_feeds: str,
     force_id: Optional[int],
+    id_space: Optional[str],
 ):
+    if id_space is not None:
+        try:
+            IDSpace.from_string(id_space)
+        except ValueError:
+            raise CLIArgumentsError(f"Invalid ID space: {id_space}.")
+
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
         config_overrides={
@@ -137,6 +144,7 @@ def handle_command(
             "max_cols": max_cols,
             "max_rows": max_rows,
             "scale": scale,
+            "id_space": id_space,
             "provenance": "set via command line",
         },
     )
@@ -225,6 +233,7 @@ def display(
     dump_config: bool,
     use_line_feeds: str,
     force_id: Optional[int],
+    id_space: Optional[str],
 ):
     handle_command(
         command=command,
@@ -240,6 +249,7 @@ def display(
         dump_config=dump_config,
         use_line_feeds=use_line_feeds,
         force_id=force_id,
+        id_space=id_space,
     )
 
 
@@ -254,6 +264,7 @@ def upload(
     scale: Optional[float],
     dump_config: bool,
     force_id: Optional[int],
+    id_space: Optional[str],
 ):
     handle_command(
         command=command,
@@ -269,6 +280,7 @@ def upload(
         dump_config=dump_config,
         use_line_feeds="no",
         force_id=force_id,
+        id_space=id_space,
     )
 
 
@@ -282,6 +294,7 @@ def get_id(
     scale: Optional[float],
     dump_config: bool,
     force_id: Optional[int],
+    id_space: Optional[str],
 ):
     handle_command(
         command=command,
@@ -297,6 +310,7 @@ def get_id(
         dump_config=dump_config,
         use_line_feeds="no",
         force_id=force_id,
+        id_space=id_space,
     )
 
 
@@ -509,7 +523,7 @@ def foreach(
         subspace_byte = IDSpace.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
         write(
-            f"\033[1mID: {id}\033[0m = {hex(id)} id_space: {space} subspace_byte: {subspace_byte} = {hex(subspace_byte)} atime: {iminfo.atime} ({ago})\n"
+            f"\033[1mID: {id}\033[0m = 0x{id:08x} id_space: {space} subspace_byte: {subspace_byte} = 0x{subspace_byte:02x} atime: {iminfo.atime} ({ago})\n"
         )
         write(f"  {iminfo.description}\n")
         if tupiterm.needs_uploading(id):
@@ -752,6 +766,12 @@ def main_unwrapped():
             default=None,
             help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
         )
+        p.add_argument(
+            "--id-space",
+            metavar="{" + ",".join(str(v) for v in IDSpace.all_values()) + "}",
+            default=None,
+            help="The name of the ID space to use for automatically assigned IDs.",
+        )
 
     # --force-upload is common for all commands that do uploading, but it's mutually
     # exclusive with --no-upload, which doesn't make sense for the upload command.
@@ -785,7 +805,7 @@ def main_unwrapped():
             "--use-line-feeds",
             choices=["auto", "yes", "no"],
             default="auto",
-            help="Use line feeds instead of curson movement commands (auto: enable if output is not a TTY and there is no explicit positioning).",
+            help="Use line feeds instead of cursor movement commands (auto: enable if output is not a TTY and there is no explicit positioning).",
         )
 
     # Arguments that specify image filtering criteria.

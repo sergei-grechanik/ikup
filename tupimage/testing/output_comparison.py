@@ -1,6 +1,7 @@
 import re
 import sys
 import string
+import unicodedata
 from typing import Dict, Tuple, List, Optional, Pattern, Match, Any
 
 # Each chunk is a tuple of (lines, line_numbers).
@@ -10,7 +11,7 @@ TestChunks = Dict[str, Tuple[List[str], List[int]]]
 def escape(s: str) -> str:
     escaped = []
     for char in s:
-        if char.isprintable():
+        if char.isprintable() and unicodedata.combining(char) == 0:
             escaped.append(char)
         elif char == "\n":
             escaped.append("\\n")
