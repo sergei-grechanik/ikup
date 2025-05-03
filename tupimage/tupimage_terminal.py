@@ -11,7 +11,17 @@ import subprocess
 import tempfile
 import typing
 from dataclasses import dataclass, field
-from typing import Any, BinaryIO, Callable, List, Literal, Optional, Tuple, Union, TYPE_CHECKING
+from typing import (
+    Any,
+    BinaryIO,
+    Callable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    Union,
+    TYPE_CHECKING,
+)
 
 import platformdirs
 import toml
@@ -586,6 +596,7 @@ class TupimageTerminal:
         if cols is None or rows is None:
             if isinstance(image, str):
                 from PIL import Image
+
                 open_image = Image.open(image)
                 width, height = open_image.size
                 open_image.close()
@@ -843,6 +854,7 @@ class TupimageTerminal:
                     " exist or was overwritten"
                 )
             from PIL import Image
+
             image_object = Image.open(inst.path)
             if self._is_format_supported(image_object.format):
                 size = os.path.getsize(inst.path)
@@ -1009,6 +1021,7 @@ class TupimageTerminal:
                 return None
             else:
                 from PIL import ImageColor
+
                 rgb = ImageColor.getrgb(background)
                 return b"\033[48;2;%d;%d;%dm" % rgb
         if isinstance(background, int):

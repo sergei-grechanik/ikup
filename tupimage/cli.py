@@ -406,7 +406,6 @@ def foreach(
         image_filenames.append(image)
         not_encountered.append(image)
 
-
     # The filtered list of image infos.
     image_infos = []
 
