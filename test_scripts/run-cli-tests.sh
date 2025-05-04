@@ -414,6 +414,41 @@ test_id_space() {
 
 ################################################################################
 
+test_id_subspace() {
+    start_test "ID subspace"
+
+    SUBSPACE="42:43"
+
+    subtest "Upload an image with different id spaces and the same subspace"
+    run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 24bit --id-subspace $SUBSPACE
+    run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 32 --id-subspace $SUBSPACE
+    export TUPIMAGE_ID_SUBSPACE=$SUBSPACE
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit_diacritic
+    run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 16bit
+
+    subtest "List all"
+    run_command list -v
+
+    subtest "Display them"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 24bit
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 32
+    # 256 = 8bit
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 256
+    TUPIMAGE_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
+    TUPIMAGE_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
+
+    subtest "Invalid id subspace"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace 0:1
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace 0:1024
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace abc
+    run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace a:b
+
+    unset TUPIMAGE_ID_SUBSPACE
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

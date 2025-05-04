@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Optional, List
 
 import tupimage
-from tupimage.id_manager import IDSpace
+from tupimage.id_manager import IDSpace, IDSubspace
 from tupimage.tupimage_terminal import ImageInstance
 from tupimage.utils import *
 
@@ -130,12 +130,18 @@ def handle_command(
     use_line_feeds: str,
     force_id: Optional[int],
     id_space: Optional[str],
+    id_subspace: Optional[str],
 ):
     if id_space is not None:
         try:
             IDSpace.from_string(id_space)
         except ValueError:
             raise CLIArgumentsError(f"Invalid ID space: {id_space}.")
+    if id_subspace is not None:
+        try:
+            IDSubspace.from_string(id_subspace)
+        except ValueError as e:
+            raise CLIArgumentsError(f"Invalid ID subspace: {e}")
 
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
@@ -145,6 +151,7 @@ def handle_command(
             "max_rows": max_rows,
             "scale": scale,
             "id_space": id_space,
+            "id_subspace": id_subspace,
             "provenance": "set via command line",
         },
     )
@@ -234,6 +241,7 @@ def display(
     use_line_feeds: str,
     force_id: Optional[int],
     id_space: Optional[str],
+    id_subspace: Optional[str],
 ):
     handle_command(
         command=command,
@@ -250,6 +258,7 @@ def display(
         use_line_feeds=use_line_feeds,
         force_id=force_id,
         id_space=id_space,
+        id_subspace=id_subspace,
     )
 
 
@@ -265,6 +274,7 @@ def upload(
     dump_config: bool,
     force_id: Optional[int],
     id_space: Optional[str],
+    id_subspace: Optional[str],
 ):
     handle_command(
         command=command,
@@ -281,6 +291,7 @@ def upload(
         use_line_feeds="no",
         force_id=force_id,
         id_space=id_space,
+        id_subspace=id_subspace,
     )
 
 
@@ -295,6 +306,7 @@ def get_id(
     dump_config: bool,
     force_id: Optional[int],
     id_space: Optional[str],
+    id_subspace: Optional[str],
 ):
     handle_command(
         command=command,
@@ -311,6 +323,7 @@ def get_id(
         use_line_feeds="no",
         force_id=force_id,
         id_space=id_space,
+        id_subspace=id_subspace,
     )
 
 
@@ -759,19 +772,6 @@ def main_unwrapped():
             default=None,
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
-        p.add_argument(
-            "--force-id",
-            metavar="ID",
-            type=int,
-            default=None,
-            help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
-        )
-        p.add_argument(
-            "--id-space",
-            metavar="{" + ",".join(str(v) for v in IDSpace.all_values()) + "}",
-            default=None,
-            help="The name of the ID space to use for automatically assigned IDs.",
-        )
 
     # --force-upload is common for all commands that do uploading, but it's mutually
     # exclusive with --no-upload, which doesn't make sense for the upload command.
@@ -858,6 +858,29 @@ def main_unwrapped():
             dest="quiet",
             help="Don't print affected image IDs.",
         )
+
+    # Less important ID-related options.
+    for p in [parser_display, parser_upload, parser_get_id]:
+        p.add_argument(
+            "--force-id",
+            metavar="ID",
+            type=int,
+            default=None,
+            help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
+        )
+        p.add_argument(
+            "--id-space",
+            metavar="{" + ",".join(str(v) for v in IDSpace.all_values()) + "}",
+            default=None,
+            help="The name of the ID space to use for automatically assigned IDs.",
+        )
+        p.add_argument(
+            "--id-subspace",
+            metavar="BEGIN:END",
+            default=None,
+            help="The range of the most significand byte for automatically assigned IDs, BEGIN <= msb < END.",
+        )
+
 
     # Handle the default command case.
     all_commands = subparsers.choices.keys()
