@@ -528,7 +528,6 @@ class IDManager:
             with closing(self.conn.cursor()) as cursor:
                 self.conn.execute("BEGIN IMMEDIATE")
                 cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
-                cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
 
     def touch_id(self, id: int, atime: Optional[datetime] = None):
         """Update the `atime` of the given ID if it exists."""
@@ -815,11 +814,14 @@ class IDManager:
     def mark_dirty(self, id: int, terminal: Optional[str] = None):
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
         with closing(self.conn.cursor()) as cursor:
+            # Note that we don't delete rows, because we need them to figure out whether
+            # earlier uploads are too old.
             if terminal is None:
-                cursor.execute("DELETE FROM upload WHERE id = ?", (id,))
+                cursor.execute("UPDATE upload SET description = '' WHERE id = ?", (id,))
             else:
                 cursor.execute(
-                    "delete from upload where id = ? and terminal = ?", (id, terminal)
+                    "UPDATE upload SET description = '' WHERE id = ? and terminal = ?",
+                    (id, terminal),
                 )
 
     def cleanup_uploads(
@@ -827,6 +829,8 @@ class IDManager:
         max_uploads: int = 1024,
     ):
         with closing(self.conn.cursor()) as cursor:
+            # Note that here we can delete rows, because if we delete a row, we delete
+            # all the older one too.
             cursor.execute(
                 f"""DELETE FROM upload WHERE (id, terminal) NOT IN (
                         SELECT id, terminal FROM upload

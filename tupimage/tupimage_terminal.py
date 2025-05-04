@@ -706,19 +706,13 @@ class TupimageTerminal:
         return ImageInstance.from_info(info)
 
     def needs_uploading(
-        self, id: Union[int, UploadInfo], terminal_id: Optional[str] = None
+        self,
+        id: int,
+        terminal_id: Optional[str] = None,
     ) -> bool:
         max_uploads_ago = self._config.reupload_max_uploads_ago
         max_bytes_ago = self._config.reupload_max_bytes_ago
         max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
-        if isinstance(id, UploadInfo):
-            if terminal_id is not None:
-                raise ValueError("Cannot specify terminal_id when passing UploadInfo")
-            return id._needs_uploading(
-                max_uploads_ago=max_uploads_ago,
-                max_bytes_ago=max_bytes_ago,
-                max_time_ago=max_time_ago,
-            )
         if terminal_id is None:
             terminal_id = self._terminal_id
         if terminal_id is None:

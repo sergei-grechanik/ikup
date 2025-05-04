@@ -541,11 +541,11 @@ def foreach(
             write(f"  \033[1mNEEDS UPLOADING\033[0m to {tupiterm._terminal_id}\n")
         uploads = tupiterm.id_manager.get_upload_infos(id)
         for upload in uploads:
-            needs_uploading = ""
-            if tupiterm.needs_uploading(upload):
-                needs_uploading = "(Needs reuploading) "
+            write("  ")
+            if tupiterm.needs_uploading(upload.id, upload.terminal):
+                write("(Needs reuploading) ")
             write(
-                f"  {needs_uploading}Uploaded to {upload.terminal}"
+                f"Uploaded to {upload.terminal}"
                 f" at {upload.upload_time} ({time_ago(upload.upload_time)})"
                 f"  size: {upload.size} bytes"
                 f" bytes_ago: {upload.bytes_ago} uploads_ago: {upload.uploads_ago}\n"
@@ -555,9 +555,7 @@ def foreach(
                     f"    \033[1m\033[38;5;1mINVALID ID! {upload.id} != {id}\033[0m\n"
                 )
             if upload.description != iminfo.description:
-                write(
-                    f"    \033[1m\033[38;5;1mINVALID DESCRIPTION! {upload.description} != {iminfo.description}\033[0m\n"
-                )
+                write(f"    INVALID DESCRIPTION: {upload.description}\n")
         if inst is None:
             write(
                 f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
