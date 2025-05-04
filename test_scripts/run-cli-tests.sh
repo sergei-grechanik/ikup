@@ -449,6 +449,29 @@ test_id_subspace() {
 
 ################################################################################
 
+test_upload_method() {
+    start_test "Uploading methods"
+
+    subtest "File"
+    run_command display $DATA_DIR/wikipedia.png -r 2 -m file
+    run_command display $DATA_DIR/transparency.png -r 2 -m f
+
+    subtest "Stream"
+    run_command display $DATA_DIR/tux.png -r 2 -m stream
+    run_command display $DATA_DIR/tux.png -r 3 -m direct
+    TUPIMAGE_UPLOAD_METHOD=stream run_command display $DATA_DIR/tux.png -r 4
+
+    subtest "The fix command"
+    run_command dirty --all
+    run_command fix $DATA_DIR/tux.png -m direct
+
+    subtest "Unknown and unsupported methods"
+    run_command display $DATA_DIR/wikipedia.png -r 2 -m unknown
+    run_command display $DATA_DIR/wikipedia.png -r 2 -m temp
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

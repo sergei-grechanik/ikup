@@ -818,6 +818,17 @@ class TupimageTerminal:
             upload_method = TransmissionMedium.from_string(upload_method)
         return upload_method
 
+    def _abort_transmission(self, id: int):
+        """Send a final direct transmission command (`m=0`) to abort any existing
+        transmission for this ID."""
+        self.term.send_command(
+            TransmitCommand(
+                image_id=id,
+                more=False,
+                quiet=tupimage.Quietness.QUIET_ALWAYS,
+            )
+        )
+
     def _upload(
         self,
         inst: ImageInstance,
@@ -895,6 +906,7 @@ class TupimageTerminal:
             bytesio = io.BytesIO()
             image_object.save(bytesio, format="PNG")
             size = bytesio.tell()
+            self._abort_transmission(inst.id)
             self.term.send_command(
                 TransmitCommand(
                     image_id=inst.id,
@@ -931,6 +943,7 @@ class TupimageTerminal:
             )
         elif upload_method == TransmissionMedium.DIRECT:
             with open(inst.path, "rb") as f:
+                self._abort_transmission(inst.id)
                 self.term.send_command(
                     TransmitCommand(
                         image_id=inst.id,

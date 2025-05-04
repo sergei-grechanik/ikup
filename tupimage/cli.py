@@ -131,18 +131,8 @@ def handle_command(
     force_id: Optional[int],
     id_space: Optional[str],
     id_subspace: Optional[str],
+    upload_method: Optional[str],
 ):
-    if id_space is not None:
-        try:
-            IDSpace.from_string(id_space)
-        except ValueError:
-            raise CLIArgumentsError(f"Invalid ID space: {id_space}.")
-    if id_subspace is not None:
-        try:
-            IDSubspace.from_string(id_subspace)
-        except ValueError as e:
-            raise CLIArgumentsError(f"Invalid ID subspace: {e}")
-
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
         config_overrides={
@@ -152,6 +142,7 @@ def handle_command(
             "scale": scale,
             "id_space": id_space,
             "id_subspace": id_subspace,
+            "upload_method": upload_method,
             "provenance": "set via command line",
         },
     )
@@ -242,6 +233,7 @@ def display(
     force_id: Optional[int],
     id_space: Optional[str],
     id_subspace: Optional[str],
+    upload_method: Optional[str],
 ):
     handle_command(
         command=command,
@@ -259,6 +251,7 @@ def display(
         force_id=force_id,
         id_space=id_space,
         id_subspace=id_subspace,
+        upload_method=upload_method,
     )
 
 
@@ -275,6 +268,7 @@ def upload(
     force_id: Optional[int],
     id_space: Optional[str],
     id_subspace: Optional[str],
+    upload_method: Optional[str],
 ):
     handle_command(
         command=command,
@@ -292,6 +286,7 @@ def upload(
         force_id=force_id,
         id_space=id_space,
         id_subspace=id_subspace,
+        upload_method=upload_method,
     )
 
 
@@ -324,6 +319,7 @@ def get_id(
         force_id=force_id,
         id_space=id_space,
         id_subspace=id_subspace,
+        upload_method=None,
     )
 
 
@@ -377,6 +373,7 @@ def foreach(
     out_display: str = "",
     verbose: bool = False,
     quiet: bool = False,
+    upload_method: Optional[str] = None,
 ):
     query_specified = older or newer or last or except_last
     if (images or query_specified) and all:
@@ -406,6 +403,7 @@ def foreach(
         config_overrides={
             "max_cols": max_cols,
             "max_rows": max_rows,
+            "upload_method": upload_method,
             "provenance": "set via command line",
         },
     )
@@ -791,6 +789,17 @@ def main_unwrapped():
             help="Disable uploading (just assign ID and display placeholder).",
         )
 
+    # Arguments that are common for commands that upload images.
+    for p in [parser_upload, parser_display, parser_reupload, parser_fix]:
+        p.add_argument(
+            "--upload-method",
+            "-m",
+            metavar="{auto,file,stream,...}",
+            type=str,
+            default=None,
+            help="The upload method to use.",
+        )
+
     # Arguments that are common for commands that display images or placeholders.
     for p in [parser_display, parser_placeholder, parser_list]:
         p.add_argument(
@@ -881,7 +890,6 @@ def main_unwrapped():
             help="The range of the most significand byte for automatically assigned IDs, BEGIN <= msb < END.",
         )
 
-
     # Handle the default command case.
     all_commands = subparsers.choices.keys()
     contains_help = False
@@ -933,6 +941,20 @@ def main():
     except CLIArgumentsError as e:
         print(f"error: {e}", file=sys.stderr)
         sys.exit(2)
+    except ValueError as e:
+        # For known errors coming from incorrectly specified options just print the
+        # error message and exit with code 2.
+        if (
+            "Unsupported transmission" in str(e)
+            or "Unsupported upload method" in str(e)
+            or "Invalid format for IDSubspace" in str(e)
+            or "Invalid IDSubspace" in str(e)
+            or "Invalid IDSpace" in str(e)
+        ):
+            print(f"error: {e}", file=sys.stderr)
+            sys.exit(2)
+        else:
+            raise e
 
 
 if __name__ == "__main__":

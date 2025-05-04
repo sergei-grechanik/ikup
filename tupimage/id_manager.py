@@ -27,9 +27,13 @@ class IDSubspace:
 
     def __post_init__(self):
         if not (0 <= self.begin < self.end <= 256):
-            raise ValueError("Invariant violation: 0 <= begin < end <= 256")
+            raise ValueError(
+                f"Invalid IDSubspace: a subspace must be a range such that 0 <= begin < end <= 256, got {self.begin}:{self.end}"
+            )
         if self.end == 1:
-            raise ValueError("A subspace must contain at least one non-zero id")
+            raise ValueError(
+                f"Invalid IDSubspace: a subspace must contain at least one non-zero id, got {self.begin}:{self.end}"
+            )
 
     def __str__(self) -> str:
         return f"{self.begin}:{self.end}"
