@@ -578,6 +578,16 @@ def foreach(
         exit(1)
 
 
+def cleanup(command: str):
+    _ = command
+    tupiterm = tupimage.TupimageTerminal()
+    dbs = tupiterm.cleanup_old_databases()
+    if dbs:
+        print("Removed old databases:")
+        for db in dbs:
+            print(f"  {db}")
+    tupiterm.cleanup_current_database()
+
 def main_unwrapped():
     parser = argparse.ArgumentParser(
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -639,6 +649,11 @@ def main_unwrapped():
     parser_fix = subparsers.add_parser(
         "fix",
         help="Reupload all dirty matching images to the current terminal.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser_cleanup = subparsers.add_parser(
+        "cleanup",
+        help="Trigger db cleanup.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -923,6 +938,8 @@ def main_unwrapped():
         placeholder(**vars(args))
     elif args.command in ("forget", "dirty", "reupload", "fix", "list"):
         foreach(**vars(args))
+    elif args.command == "cleanup":
+        cleanup(**vars(args))
     else:
         print(f"error: Command not implemented: {args.command}", file=sys.stderr)
         sys.exit(2)

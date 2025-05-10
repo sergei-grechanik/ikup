@@ -10,6 +10,7 @@ import select
 import subprocess
 import tempfile
 import typing
+import random
 from dataclasses import dataclass, field
 from typing import (
     Any,
@@ -90,6 +91,11 @@ class TupimageConfig:
 
     # General options.
     ignore_unknown_attributes: bool = False
+
+    # Cleanup options.
+    max_db_age_days: int = 7
+    max_num_ids: int = 4 * 1024
+    cleanup_probability: float = 0.01
 
     def __post_init__(self):
         self._provenance = {}
@@ -219,9 +225,9 @@ class TupimageConfig:
                 value = platformdirs.user_state_dir("tupimage")
             if name == "upload_method":
                 value = TransmissionMedium.from_string(value)
-            if name in ["max_rows", "max_cols", "num_tmux_layers"]:
+            if name in ["max_rows", "max_cols", "num_tmux_layers", "max_db_age_days", "max_num_ids"]:
                 value = int(value)
-            if name in ["scale", "global_scale"]:
+            if name in ["scale", "global_scale", "cleanup_probability"]:
                 value = float(value)
             if name == "supported_formats":
                 value = re.split(r"[, ]+", value)
@@ -454,6 +460,9 @@ class TupimageTerminal:
     stream_max_size = _config_property("stream_max_size")
     file_max_size = _config_property("file_max_size")
     num_tmux_layers = _config_property("num_tmux_layers")
+    max_db_age_days = _config_property("max_db_age_days")
+    max_num_ids = _config_property("max_num_ids")
+    cleanup_probability = _config_property("cleanup_probability")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -677,6 +686,9 @@ class TupimageTerminal:
         force_id: Optional[int] = None,
         update_atime: bool = True,
     ) -> ImageInstance:
+        if random.random() < self._config.cleanup_probability:
+            self.cleanup_old_databases()
+            self.cleanup_current_database()
         inst = self.build_image_instance(
             image,
             id=0,
@@ -1134,6 +1146,58 @@ class TupimageTerminal:
             end_col=end_col,
             end_row=end_row,
         )
+
+    def cleanup_old_databases(
+        self, max_age: Optional[datetime.timedelta] = None
+    ) -> List[str]:
+        """Remove database files older than the specified age.
+
+        Args:
+            max_age (int, optional): Maximum age in days. If None, uses
+            `max_db_age_days` from the config.
+
+        Returns:
+            list: Paths of removed database files.
+        """
+        if max_age is None:
+            max_age = datetime.timedelta(
+                days=self._config.max_db_age_days
+            )
+        removed: List[str] = []
+        db_dir = self._config.id_database_dir
+        try:
+            files = os.listdir(db_dir)
+        except FileNotFoundError:
+            return removed
+        now = datetime.datetime.now()
+        for fname in files:
+            if not fname.endswith(".db"):
+                continue
+            path = os.path.join(db_dir, fname)
+            if not os.path.isfile(path):
+                continue
+            # Skip current database
+            if os.path.abspath(path) == os.path.abspath(
+                self.id_manager.database_file
+            ):
+                continue
+            atime = datetime.datetime.fromtimestamp(os.path.getatime(path))
+            if now - atime > max_age:
+                try:
+                    os.remove(path)
+                    removed.append(path)
+                except Exception:
+                    pass
+        return removed
+
+    def cleanup_current_database(self, max_num_ids: Optional[int] = None) -> None:
+        """Clean up the current database by removing old IDs from the current subspace.
+        """
+        if max_num_ids is None:
+            max_num_ids = self._config.max_num_ids
+        self.id_manager.cleanup(self.id_space, self.id_subspace, max_ids=max_num_ids)
+        # Clean up the upload history too.
+        self.id_manager.cleanup_uploads(max_uploads=max_num_ids)
 
     def _move_cursor_to_final_position(
         self,
