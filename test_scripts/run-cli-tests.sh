@@ -151,7 +151,8 @@ fi
 ################################################################################
 
 export TUPIMAGE_CONFIG="DEFAULT"
-export TUPIMAGE_ID_DATABASE_DIR="$TMPDIR/id_database_dir"
+export DATABASE_DIR="$TMPDIR/id_database_dir"
+export TUPIMAGE_ID_DATABASE_DIR="$DATABASE_DIR"
 
 # Disable 3rd diacritics because they are hard to match with the reference. We
 # will test them only in fixed id tests.
@@ -491,6 +492,71 @@ test_terminal_identification() {
     unset TUPIMAGE_TERMINAL_NAME
     unset TUPIMAGE_TERMINAL_ID
     unset TUPIMAGE_SESSION_ID
+}
+
+################################################################################
+
+test_cleanup() {
+    start_test "Database cleanup"
+
+    # Create a temporary directory for test databases
+    TEST_DB_DIR="$TMPDIR/cleanup_test_db_dir"
+    mkdir -p "$TEST_DB_DIR"
+    export TUPIMAGE_ID_DATABASE_DIR="$TEST_DB_DIR"
+
+    subtest "Create old databases"
+    # Create some "old" database files with timestamps in the past
+    touch -d "8 days ago" "$TEST_DB_DIR/old_db1.db"
+    touch -d "10 days ago" "$TEST_DB_DIR/old_db2.db"
+    touch -d "1 day ago" "$TEST_DB_DIR/recent_db.db"
+
+    # Verify databases exist
+    ls -la "$TEST_DB_DIR"
+
+    subtest "Explicit cleanup of old databases"
+    # Set max age to 7 days
+    export TUPIMAGE_MAX_DB_AGE_DAYS=7
+    run_command cleanup
+
+    # Check if old databases were removed
+    echo "Remaining databases after cleanup:"
+    ls -la "$TEST_DB_DIR"
+
+    # The old databases should be gone, but the recent one should remain
+    [ ! -f "$TEST_DB_DIR/old_db1.db" ] && echo "old_db1.db was successfully removed"
+    [ ! -f "$TEST_DB_DIR/old_db2.db" ] && echo "old_db2.db was successfully removed"
+    [ -f "$TEST_DB_DIR/recent_db.db" ] && echo "recent_db.db was correctly preserved"
+
+    subtest "Test random cleanup via probability"
+    # Set cleanup probability to 100% to ensure it triggers
+    export TUPIMAGE_CLEANUP_PROBABILITY=1.0
+    # Set max_num_ids to a small number
+    export TUPIMAGE_MAX_NUM_IDS=5
+
+    # Upload several images to exceed the max_num_ids
+    for i in $(seq 1 10); do
+        run_command upload $DATA_DIR/wikipedia.png -r $i
+    done
+
+    # Check how many IDs we have now
+    run_command status | grep "Total IDs"
+
+    # The number of IDs should be equal to TUPIMAGE_MAX_NUM_IDS + 1 because we
+    # do the cleanup before each ID assignment.
+    ID_COUNT=$($TUPIMAGE status | grep "Total IDs" | awk '{print $NF}')
+    if [ "$ID_COUNT" -le 6 ]; then
+        echo "Random cleanup successfully limited IDs to $TUPIMAGE_MAX_NUM_IDS + 1"
+    else
+        echo "Random cleanup failed: $ID_COUNT IDs remain (should be <= $TUPIMAGE_MAX_NUM_IDS + 1)"
+    fi
+
+    run_command list
+
+    # Restore original database directory
+    export TUPIMAGE_ID_DATABASE_DIR="$DATABASE_DIR"
+    unset TUPIMAGE_MAX_DB_AGE_DAYS
+    unset TUPIMAGE_CLEANUP_PROBABILITY
+    unset TUPIMAGE_MAX_NUM_IDS
 }
 
 ################################################################################
