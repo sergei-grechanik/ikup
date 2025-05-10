@@ -89,6 +89,11 @@ class TupimageConfig:
     placeholder_char: str = tupimage.PLACEHOLDER_CHAR
     background: BackgroundLike = "none"
 
+    # Terminal identification options.
+    terminal_name: str = ""
+    terminal_id: str = ""
+    session_id: str = ""
+
     # General options.
     ignore_unknown_attributes: bool = False
 
@@ -368,9 +373,6 @@ class TupimageTerminal:
         out_status: Union[BinaryIO, str, None] = None,
         in_response: Union[BinaryIO, str, None] = None,
         id_database: Optional[str] = None,
-        session_id: Optional[str] = None,
-        terminal_id: Optional[str] = None,
-        terminal_name: Optional[str] = None,
         final_cursor_pos: FinalCursorPos = "bottom-left",
         config: Optional[Union[TupimageConfig, str]] = None,
         config_overrides: dict = {},
@@ -418,10 +420,6 @@ class TupimageTerminal:
         )
 
         self._config: TupimageConfig = config
-
-        self.override_terminal_name = terminal_name
-        self.override_terminal_id = terminal_id
-        self.override_session_id = session_id
 
         self.detect_terminal()
 
@@ -476,29 +474,29 @@ class TupimageTerminal:
         return re.sub(r"[^a-zA-Z0-9_-]", "_", string)
 
     def detect_terminal(self):
-        self._terminal_name = self.override_terminal_name
-        self._terminal_id = self.override_terminal_id
-        self._session_id = self.override_session_id
+        self._terminal_name = self._config.terminal_name
+        self._terminal_id = self._config.terminal_id
+        self._session_id = self._config.session_id
         if self._config.num_tmux_layers == 0:
-            if self._terminal_name is None:
+            if not self._terminal_name:
                 self._terminal_name = os.environ.get("TERM", "unknown-terminal")
-            if self._terminal_id is None:
+            if not self._terminal_id:
                 self._terminal_id = (
                     self._terminal_name
                     + "-"
                     + os.environ.get("WINDOWID", "unknown-window")
                 )
-            if self._session_id is None:
+            if not self._session_id:
                 self._session_id = self._terminal_id
         else:
             data = self._tmux_display_message(
                 "#{client_termname}||||#{client_pid}||||#{pid}_#{session_id}"
             ).split("||||")
-            if self._terminal_name is None:
+            if not self._terminal_name:
                 self._terminal_name = data[0]
-            if self._terminal_id is None:
+            if not self._terminal_id:
                 self._terminal_id = f"tmux-client-{data[0]}-{data[1]}"
-            if self._session_id is None:
+            if not self._session_id:
                 self._session_id = f"tmux-{data[2]}"
         self._terminal_id = self._remove_bad_chars(self._terminal_id)
         self._session_id = self._remove_bad_chars(self._session_id)
