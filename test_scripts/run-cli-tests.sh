@@ -472,6 +472,29 @@ test_upload_method() {
 
 ################################################################################
 
+test_terminal_identification() {
+    start_test "Terminal identification options"
+
+    subtest "Default terminal identification"
+    run_command status | grep "terminal_name\|terminal_id\|session_id"
+
+    subtest "Custom identification options together"
+    export TUPIMAGE_TERMINAL_NAME="custom-terminal"
+    export TUPIMAGE_TERMINAL_ID="custom-terminal-id"
+    export TUPIMAGE_SESSION_ID="custom-session-id"
+    run_command status | grep "terminal_name\|terminal_id\|session_id"
+
+    subtest "Upload and display with custom identification"
+    run_command display $DATA_DIR/wikipedia.png -r 2
+    run_command list -v
+
+    unset TUPIMAGE_TERMINAL_NAME
+    unset TUPIMAGE_TERMINAL_ID
+    unset TUPIMAGE_SESSION_ID
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

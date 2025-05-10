@@ -6,10 +6,10 @@
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix} ...
+                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup} ...
 
 positional arguments:
-  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix}
+  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}
     dump-config         Dump the config state.
     status              Display the status.
     list                List all known images or known images matching the
@@ -27,6 +27,7 @@ positional arguments:
     reupload            Reupload all matching images to the current terminal.
     fix                 Reupload all dirty matching images to the current
                         terminal.
+    cleanup             Trigger db cleanup.
 
 options:
   -h, --help            show this help message and exit
@@ -71,7 +72,13 @@ file_max_size = 10485760          # default
 fewer_diacritics = false          # default
 placeholder_char = "\U0010eeee"   # default
 background = "none"               # default
+terminal_name = ""                # default
+terminal_id = ""                  # default
+session_id = ""                   # default
 ignore_unknown_attributes = false  # default
+max_db_age_days = 7               # default
+max_num_ids = 4096                # default
+cleanup_probability = 0.01        # default
 
 ---------- SUBTEST Config without provenance ----------
 
@@ -102,7 +109,13 @@ file_max_size = 10485760
 fewer_diacritics = false
 placeholder_char = "\U0010eeee"
 background = "none"
+terminal_name = ""
+terminal_id = ""
+session_id = ""
 ignore_unknown_attributes = false
+max_db_age_days = 7
+max_num_ids = 4096
+cleanup_probability = 0.01
 
 ---------- SUBTEST Config without defaults ----------
 
@@ -928,5 +941,34 @@ Exit code: 2
 tupimage display ./.cli-tests-data/wikipedia.png -r 2 -m temp
 error: Unsupported upload method: t
 Exit code: 2
+
+========== TEST Terminal identification options ==========
+
+
+---------- SUBTEST Default terminal identification ----------
+
+tupimage status
+terminal_name: st-256color
+terminal_id: st-256color-{{.*}}
+session_id: st-256color-{{.*}}
+
+---------- SUBTEST Custom identification options together ----------
+
+tupimage status
+terminal_name: custom-terminal
+terminal_id: custom-terminal-id
+session_id: custom-session-id
+
+---------- SUBTEST Upload and display with custom identification ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2
+{{:SKIP_LINES:}}
+tupimage list -v
+[1mID: {{.*}}
+  {{.*}}
+  Uploaded to custom-terminal-id {{.*}} uploads_ago: 1
+[s[0m[38;2;{{.*}}
+[0m[38;2;83;{{.*}}
+--------------------------------------------------------------------------------
 
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]
