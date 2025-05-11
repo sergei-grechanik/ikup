@@ -614,6 +614,105 @@ test_overwrite() {
 
 ################################################################################
 
+# Define a set of images to use in parallel uploads
+PARALLEL_IMAGES="$DATA_DIR/wikipedia.png $DATA_DIR/tux.png $DATA_DIR/transparency.png $DATA_DIR/column.png $DATA_DIR/small_arrow.png $DATA_DIR/ruler.png $DATA_DIR/earth.jpg $DATA_DIR/flower.jpg"
+
+test_parallel_file() {
+    start_test "Parallel uploads"
+
+    # Create temporary output files
+    OUTFILE1="$TMPDIR/parallel_out1.txt"
+    OUTFILE2="$TMPDIR/parallel_out2.txt"
+    OUTFILE3="$TMPDIR/parallel_out3.txt"
+    OUTFILE4="$TMPDIR/parallel_out4.txt"
+    OUTFILE5="$TMPDIR/parallel_out5.txt"
+
+    subtest "Running parallel upload and display commands"
+
+    # Run 5 processes in parallel with different parameters
+    # We do -r 1 twice to increase collision probability
+    $TUPIMAGE display $PARALLEL_IMAGES -r 1 -o "$OUTFILE1" &
+    PID1=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -r 1 -o "$OUTFILE2" &
+    PID2=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -r 2 -o "$OUTFILE3" &
+    PID3=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -c 1 -o "$OUTFILE4" &
+    PID4=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -c 2 -o "$OUTFILE5" &
+    PID5=$!
+
+    # Wait for all background processes to complete
+    echo "Waiting for processes to complete..."
+    wait $PID1 $PID2 $PID3 $PID4 $PID5
+    echo "All processes completed."
+
+    subtest "Results of parallel uploads"
+    echo "Output from process 1 (rows=1):"
+    cat "$OUTFILE1"
+    echo "Output from process 2 (rows=1):"
+    cat "$OUTFILE2"
+    echo "Output from process 3 (rows=2):"
+    cat "$OUTFILE3"
+    echo "Output from process 4 (cols=1):"
+    cat "$OUTFILE4"
+    echo "Output from process 5 (cols=2):"
+    cat "$OUTFILE5"
+
+    subtest "List all uploaded images"
+    run_command list | cut -f2- | sort
+}
+
+################################################################################
+
+test_parallel_stream() {
+    start_test "Parallel uploads"
+
+    # Create temporary output files
+    OUTFILE1="$TMPDIR/parallel_out1.txt"
+    OUTFILE2="$TMPDIR/parallel_out2.txt"
+    OUTFILE3="$TMPDIR/parallel_out3.txt"
+    OUTFILE4="$TMPDIR/parallel_out4.txt"
+    OUTFILE5="$TMPDIR/parallel_out5.txt"
+
+    subtest "Running parallel upload and display commands"
+
+    # Run 5 processes in parallel with different parameters
+    # We do -r 1 twice to increase collision probability
+    $TUPIMAGE display $PARALLEL_IMAGES -m d -r 1 -o "$OUTFILE1" &
+    PID1=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -m d -r 1 -o "$OUTFILE2" &
+    PID2=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -m d -r 2 -o "$OUTFILE3" &
+    PID3=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -m d -c 1 -o "$OUTFILE4" &
+    PID4=$!
+    $TUPIMAGE display $PARALLEL_IMAGES -m d -c 2 -o "$OUTFILE5" &
+    PID5=$!
+
+    # Wait for all background processes to complete
+    echo "Waiting for processes to complete..."
+    wait $PID1 $PID2 $PID3 $PID4 $PID5
+    echo "All processes completed."
+
+    subtest "Results of parallel uploads"
+    echo "Output from process 1 (rows=1):"
+    cat "$OUTFILE1"
+    echo "Output from process 2 (rows=1):"
+    cat "$OUTFILE2"
+    echo "Output from process 3 (rows=2):"
+    cat "$OUTFILE3"
+    echo "Output from process 4 (cols=1):"
+    cat "$OUTFILE4"
+    echo "Output from process 5 (cols=2):"
+    cat "$OUTFILE5"
+
+    subtest "List all uploaded images"
+    run_command list | cut -f2- | sort
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test
