@@ -1027,4 +1027,45 @@ tupimage display ./.cli-tests-data/tux.png -r 2
 [0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
 Commands:
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=4;{{.*}}\
+
+========== TEST Image overwriting / mtime change ==========
+
+
+---------- SUBTEST Display original image ----------
+
+tupimage display {{.*}}/test_image.png -r 2
+_Gi=[[id_wikipedia:.*]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[filename:.*]]==\
+[s[0m[38;2;[[rgb(id_wikipedia)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[0m[38;2;[[rgb(id_wikipedia)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
+
+---------- SUBTEST Replace image and display again ----------
+
+tupimage display {{.*}}/test_image.png -r 2
+_Gi=[[id_tux:.*]],t=f,q=2,f=100,a=T,U=1,r=2,c=4;[[filename]]==\
+[s[0m[38;2;[[rgb(id_tux)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;[[rgb(id_tux)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+
+---------- SUBTEST List images with the given name ----------
+
+tupimage list {{.*}}/test_image.png
+[[id_tux]]	4x2	{{.*}}/test_image.png
+[[id_wikipedia]]	5x2	{{.*}}/test_image.png
+
+---------- SUBTEST Fixing all. Nothing should be fixed. ----------
+
+tupimage fix --all
+
+---------- SUBTEST Mark the wikipedia image as dirty. ----------
+
+tupimage dirty [[id_wikipedia]]
+dirty [[id_wikipedia]]	5x2	{{.*}}/test_image.png
+tupimage fix --all
+error: Failed to upload [[id_wikipedia]] {{.*}}/test_image.png: Image file {{.*}}/test_image.png {{.*}} does not exist or was overwritten
+Exit code: 1
+tupimage reupload [[id_wikipedia]] [[id_tux]]
+_Gi=[[id_tux]],t=f,q=2,f=100,a=T,U=1,r=2,c=4;[[filename]]==\
+reupload [[id_tux]]	4x2	{{.*}}/test_image.png
+error: Failed to upload [[id_wikipedia]] {{.*}}/test_image.png: Image file {{.*}}/test_image.png with mtime {{.*}} does not exist or was overwritten
+Exit code: 1
+
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]

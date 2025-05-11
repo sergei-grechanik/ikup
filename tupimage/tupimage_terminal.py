@@ -1164,7 +1164,7 @@ class TupimageTerminal:
         removed: List[str] = []
         db_dir = self._config.id_database_dir
         try:
-            files = os.listdir(db_dir)
+            files = sorted(os.listdir(db_dir))
         except FileNotFoundError:
             return removed
         now = datetime.datetime.now()

@@ -583,6 +583,37 @@ test_out_command() {
 
 ################################################################################
 
+test_overwrite() {
+    start_test "Image overwriting / mtime change"
+
+    # Create a temporary image file that we'll replace
+    TEST_IMAGE="$TMPDIR/test_image.png"
+
+    subtest "Display original image"
+    cp "$DATA_DIR/wikipedia.png" "$TEST_IMAGE"
+    run_command display "$TEST_IMAGE" -r 2
+    WIKIPEDIA_ID=$($TUPIMAGE get-id "$TEST_IMAGE" -r 2)
+
+    subtest "Replace image and display again"
+    cp "$DATA_DIR/tux.png" "$TEST_IMAGE"
+    run_command display "$TEST_IMAGE" -r 2
+    TUX_ID=$($TUPIMAGE get-id "$TEST_IMAGE" -r 2)
+
+    subtest "List images with the given name"
+    run_command list "$TEST_IMAGE"
+
+    subtest "Fixing all. Nothing should be fixed."
+    run_command fix --all
+
+    subtest "Mark the wikipedia image as dirty."
+    run_command dirty $WIKIPEDIA_ID
+    # Now fixing wikipedia is impossible, we will get an error
+    run_command fix --all
+    run_command reupload $WIKIPEDIA_ID $TUX_ID
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test
