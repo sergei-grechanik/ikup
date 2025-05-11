@@ -123,6 +123,7 @@ def handle_command(
     force_upload: bool,
     no_upload: bool,
     out_display: str,
+    out_command: str,
     max_cols: Optional[str],
     max_rows: Optional[str],
     scale: Optional[float],
@@ -135,6 +136,7 @@ def handle_command(
 ):
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
+        out_command=out_command if out_command else None,
         config_overrides={
             "force_upload": force_upload,
             "max_cols": max_cols,
@@ -225,6 +227,7 @@ def display(
     force_upload: bool,
     no_upload: bool,
     out_display: str,
+    out_command: str,
     max_cols: Optional[str],
     max_rows: Optional[str],
     scale: Optional[float],
@@ -243,6 +246,7 @@ def display(
         force_upload=force_upload,
         no_upload=no_upload,
         out_display=out_display,
+        out_command=out_command,
         max_cols=max_cols,
         max_rows=max_rows,
         scale=scale,
@@ -269,6 +273,7 @@ def upload(
     id_space: Optional[str],
     id_subspace: Optional[str],
     upload_method: Optional[str],
+    out_command: str,
 ):
     handle_command(
         command=command,
@@ -278,6 +283,7 @@ def upload(
         force_upload=force_upload,
         no_upload=False,
         out_display="",
+        out_command=out_command,
         max_cols=max_cols,
         max_rows=max_rows,
         scale=scale,
@@ -311,6 +317,7 @@ def get_id(
         force_upload=False,
         no_upload=True,
         out_display="",
+        out_command="",
         max_cols=max_cols,
         max_rows=max_rows,
         scale=scale,
@@ -371,6 +378,7 @@ def foreach(
     max_cols: Optional[str] = None,
     max_rows: Optional[str] = None,
     out_display: str = "",
+    out_command: str = "",
     verbose: bool = False,
     quiet: bool = False,
     upload_method: Optional[str] = None,
@@ -400,6 +408,7 @@ def foreach(
 
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
+        out_command=out_command if out_command else None,
         config_overrides={
             "max_cols": max_cols,
             "max_rows": max_rows,
@@ -596,62 +605,62 @@ def main_unwrapped():
     # Subcommands
     subparsers = parser.add_subparsers(dest="command")
 
-    parser_dump_config = subparsers.add_parser(
+    p_dump_config = subparsers.add_parser(
         "dump-config",
         help="Dump the config state.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_status = subparsers.add_parser(
+    p_status = subparsers.add_parser(
         "status",
         help="Display the status.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_list = subparsers.add_parser(
+    p_list = subparsers.add_parser(
         "list",
         help="List all known images or known images matching the criteria.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_display = subparsers.add_parser(
+    p_display = subparsers.add_parser(
         "display",
         help="Display an image. (default)",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_upload = subparsers.add_parser(
+    p_upload = subparsers.add_parser(
         "upload",
         help="Upload an image without displaying.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_get_id = subparsers.add_parser(
+    p_get_id = subparsers.add_parser(
         "get-id",
         help="Assign an id to an image without displaying or uploading it.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_placeholder = subparsers.add_parser(
+    p_placeholder = subparsers.add_parser(
         "placeholder",
         help="Print a placeholder for the given id, rows and columns.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_forget = subparsers.add_parser(
+    p_forget = subparsers.add_parser(
         "forget",
         help="Forget all matching images. Don't delete them from the terminal though.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_dirty = subparsers.add_parser(
+    p_dirty = subparsers.add_parser(
         "dirty",
         help="Mark all matching images as dirty (not uploaded to any terminal).",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_reupload = subparsers.add_parser(
+    p_reupload = subparsers.add_parser(
         "reupload",
         help="Reupload all matching images to the current terminal.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_fix = subparsers.add_parser(
+    p_fix = subparsers.add_parser(
         "fix",
         help="Reupload all dirty matching images to the current terminal.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser_cleanup = subparsers.add_parser(
+    p_cleanup = subparsers.add_parser(
         "cleanup",
         help="Trigger db cleanup.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -660,14 +669,14 @@ def main_unwrapped():
     # Command-specific arguments.
 
     # Arguments unique to dump-config
-    parser_dump_config.add_argument(
+    p_dump_config.add_argument(
         "--no-provenance",
         "-n",
         action="store_false",
         dest="provenance",
         help="Exclude the provenance of settings as comments.",
     )
-    parser_dump_config.add_argument(
+    p_dump_config.add_argument(
         "--skip-default",
         "-d",
         action="store_true",
@@ -675,21 +684,21 @@ def main_unwrapped():
     )
 
     # Arguments unique to list
-    parser_list.add_argument(
+    p_list.add_argument(
         "--verbose",
         "-v",
         action="store_true",
         dest="verbose",
         help="Show more details for each image.",
     )
-    parser_list.add_argument(
+    p_list.add_argument(
         "--max-cols",
         metavar="W",
         type=str,
         default="auto",
         help="Maximum number of columns to display each listed image. 'auto' to use the terminal width.",
     )
-    parser_list.add_argument(
+    p_list.add_argument(
         "--max-rows",
         metavar="H",
         type=str,
@@ -699,15 +708,15 @@ def main_unwrapped():
 
     # --dump-config is available for all commands.
     for p in [
-        parser_display,
-        parser_upload,
-        parser_get_id,
-        parser_placeholder,
-        parser_forget,
-        parser_dirty,
-        parser_reupload,
-        parser_fix,
-        parser_list,
+        p_display,
+        p_upload,
+        p_get_id,
+        p_placeholder,
+        p_forget,
+        p_dirty,
+        p_reupload,
+        p_fix,
+        p_list,
     ]:
         p.add_argument(
             "--dump-config",
@@ -717,7 +726,7 @@ def main_unwrapped():
         )
 
     # Placeholder printing arguments.
-    for p in [parser_placeholder]:
+    for p in [p_placeholder]:
         p.add_argument("id", nargs=1, type=str)
         p.add_argument(
             "--cols",
@@ -738,7 +747,7 @@ def main_unwrapped():
 
     # Arguments related to image/id and their size (rows/cols) specification. These are
     # common for display, upload, and id assignment.
-    for p in [parser_display, parser_upload, parser_get_id]:
+    for p in [p_display, p_upload, p_get_id]:
         p.add_argument(
             "images",
             nargs="*",
@@ -786,11 +795,11 @@ def main_unwrapped():
 
     # --force-upload is common for all commands that do uploading, but it's mutually
     # exclusive with --no-upload, which doesn't make sense for the upload command.
-    for p in [parser_upload]:
+    for p in [p_upload]:
         p.add_argument(
             "--force-upload", "-f", action="store_true", help="Force (re)upload."
         )
-    for p in [parser_display]:
+    for p in [p_display]:
         group = p.add_mutually_exclusive_group()
         group.add_argument(
             "--force-upload", "-f", action="store_true", help="Force (re)upload."
@@ -803,7 +812,8 @@ def main_unwrapped():
         )
 
     # Arguments that are common for commands that upload images.
-    for p in [parser_upload, parser_display, parser_reupload, parser_fix]:
+    may_upload = [p_upload, p_display, p_reupload, p_fix]
+    for p in may_upload:
         p.add_argument(
             "--upload-method",
             "-m",
@@ -813,8 +823,19 @@ def main_unwrapped():
             help="The upload method to use.",
         )
 
+    # Arguments that are common for commands that send graphics commands.
+    for p in may_upload:
+        p.add_argument(
+            "--out-command",
+            "-O",
+            metavar="FILE",
+            type=str,
+            default="",
+            help="The tty/file/pipe to send graphics commands to. If not specified, /dev/tty will be used.",
+        )
+
     # Arguments that are common for commands that display images or placeholders.
-    for p in [parser_display, parser_placeholder, parser_list]:
+    for p in [p_display, p_placeholder, p_list]:
         p.add_argument(
             "--out-display",
             "-o",
@@ -831,7 +852,7 @@ def main_unwrapped():
         )
 
     # Arguments that specify image filtering criteria.
-    for p in [parser_forget, parser_dirty, parser_reupload, parser_fix, parser_list]:
+    for p in [p_forget, p_dirty, p_reupload, p_fix, p_list]:
         p.add_argument(
             "images",
             nargs="*",
@@ -872,7 +893,7 @@ def main_unwrapped():
         )
 
     # Some commands will print the affected image IDs, but they can be quieted.
-    for p in [parser_forget, parser_dirty, parser_reupload, parser_fix]:
+    for p in [p_forget, p_dirty, p_reupload, p_fix]:
         p.add_argument(
             "--quiet",
             "-q",
@@ -882,7 +903,7 @@ def main_unwrapped():
         )
 
     # Less important ID-related options.
-    for p in [parser_display, parser_upload, parser_get_id]:
+    for p in [p_display, p_upload, p_get_id]:
         p.add_argument(
             "--force-id",
             metavar="ID",

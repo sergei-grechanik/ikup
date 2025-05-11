@@ -561,6 +561,28 @@ test_cleanup() {
 
 ################################################################################
 
+test_out_command() {
+    start_test "Out command redirection"
+
+    # Create a temporary file for command output
+    COMMAND_FILE="$TMPDIR/command_output.txt"
+
+    subtest "Display image with commands redirected to file"
+    run_command display $DATA_DIR/wikipedia.png -r 2 --out-command="$COMMAND_FILE"
+    echo "Commands:"
+    cat "$COMMAND_FILE"
+
+    subtest "Upload with commands redirected to file"
+    # Clear the command file
+    > "$COMMAND_FILE"
+    run_command upload $DATA_DIR/tux.png -r 2 -O "$COMMAND_FILE"
+    run_command display $DATA_DIR/tux.png -r 2
+    echo "Commands:"
+    cat "$COMMAND_FILE"
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test
