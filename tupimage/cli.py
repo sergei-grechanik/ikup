@@ -553,8 +553,15 @@ def foreach(
             write("  ")
             if tupiterm.needs_uploading(upload.id, upload.terminal):
                 write("(Needs reuploading) ")
+            status = f"Uploaded (status = {upload.status}) to"
+            if upload.status == tupimage.id_manager.UPLOADING_STATUS_UPLOADED:
+                status = "Uploaded to"
+            elif upload.status == tupimage.id_manager.UPLOADING_STATUS_IN_PROGRESS:
+                status = "Uploading in progress to"
+            elif upload.status == tupimage.id_manager.UPLOADING_STATUS_DIRTY:
+                status = "Dirty in"
             write(
-                f"Uploaded to {upload.terminal}"
+                f"{status} {upload.terminal}"
                 f" at {upload.upload_time} ({time_ago(upload.upload_time)})"
                 f"  size: {upload.size} bytes"
                 f" bytes_ago: {upload.bytes_ago} uploads_ago: {upload.uploads_ago}\n"
@@ -596,6 +603,7 @@ def cleanup(command: str):
         for db in dbs:
             print(f"  {db}")
     tupiterm.cleanup_current_database()
+
 
 def main_unwrapped():
     parser = argparse.ArgumentParser(

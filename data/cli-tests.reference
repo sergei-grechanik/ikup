@@ -79,6 +79,8 @@ ignore_unknown_attributes = false  # default
 max_db_age_days = 7               # default
 max_num_ids = 4096                # default
 cleanup_probability = 0.01        # default
+upload_progress_update_interval = 0.5  # default
+upload_stall_timeout = 2.0        # default
 
 ---------- SUBTEST Config without provenance ----------
 
@@ -116,6 +118,8 @@ ignore_unknown_attributes = false
 max_db_age_days = 7
 max_num_ids = 4096
 cleanup_probability = 0.01
+upload_progress_update_interval = 0.5
+upload_stall_timeout = 2.0
 
 ---------- SUBTEST Config without defaults ----------
 
@@ -554,8 +558,7 @@ tupimage list -v --last 2
 [1mID: [[id_wikipedia]]{{.*}}
   {{.*}}
   [1mNEEDS UPLOADING[0m to {{.*}}
-  (Needs reuploading) Uploaded to {{.*}}
-    INVALID DESCRIPTION: 
+  (Needs reuploading) Dirty in {{.*}}
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇􎻮̅֒􎻮̅֓􎻮̅֔􎻮̅֕􎻮̅֗􎻮̅֘􎻮̅֙􎻮̅֜􎻮̅֝􎻮̅֞􎻮̅֟􎻮̅֠􎻮̅֡􎻮̅֨􎻮̅֩􎻮̅֫􎻮̅֬􎻮̅֯[0m[uD
 [s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾􎻮̍̿􎻮̍͆􎻮̍͊􎻮̍͋􎻮̍͌􎻮̍͐􎻮̍͑􎻮̍͒􎻮̍͗􎻮̍͛􎻮̍ͣ􎻮̍ͤ􎻮̍ͥ􎻮̍ͦ􎻮̍ͧ􎻮̍ͨ􎻮̍ͩ􎻮̍ͪ􎻮̍ͫ􎻮̍ͬ􎻮̍ͭ􎻮̍ͮ􎻮̍ͯ􎻮̍҃􎻮̍҄􎻮̍҅􎻮̍҆􎻮̍҇􎻮̍֒􎻮̍֓􎻮̍֔􎻮̍֕􎻮̍֗􎻮̍֘􎻮̍֙􎻮̍֜􎻮̍֝􎻮̍֞􎻮̍֟􎻮̍֠􎻮̍֡􎻮̍֨􎻮̍֩􎻮̍֫􎻮̍֬􎻮̍֯[0m[uD
 [s[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽􎻮̎̾􎻮̎̿􎻮̎͆􎻮̎͊􎻮̎͋􎻮̎͌􎻮̎͐􎻮̎͑􎻮̎͒􎻮̎͗􎻮̎͛􎻮̎ͣ􎻮̎ͤ􎻮̎ͥ􎻮̎ͦ􎻮̎ͧ􎻮̎ͨ􎻮̎ͩ􎻮̎ͪ􎻮̎ͫ􎻮̎ͬ􎻮̎ͭ􎻮̎ͮ􎻮̎ͯ􎻮̎҃􎻮̎҄􎻮̎҅􎻮̎҆􎻮̎҇􎻮̎֒􎻮̎֓􎻮̎֔􎻮̎֕􎻮̎֗􎻮̎֘􎻮̎֙􎻮̎֜􎻮̎֝􎻮̎֞􎻮̎֟􎻮̎֠􎻮̎֡􎻮̎֨􎻮̎֩􎻮̎֫􎻮̎֬􎻮̎֯[0m[uD
@@ -565,8 +568,7 @@ tupimage list -v --last 2
 [1mID: [[id_trans_3x1]]{{.*}}
   {{.*}}
   [1mNEEDS UPLOADING[0m to {{.*}}
-  (Needs reuploading) Uploaded to {{.*}}
-    INVALID DESCRIPTION: 
+  (Needs reuploading) Dirty in {{.*}}
 [0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[3DD
 --------------------------------------------------------------------------------
 tupimage fix --last 3
@@ -1067,5 +1069,219 @@ tupimage reupload [[id_wikipedia]] [[id_tux]]
 reupload [[id_tux]]	4x2	{{.*}}/test_image.png
 error: Failed to upload [[id_wikipedia]] {{.*}}/test_image.png: Image file {{.*}}/test_image.png with mtime {{.*}} does not exist or was overwritten
 Exit code: 1
+
+========== TEST Parallel file uploads ==========
+
+
+---------- SUBTEST Running parallel upload and display commands ----------
+
+Waiting for processes to complete...
+{{:SKIP_LINES:}}
+All processes completed.
+
+---------- SUBTEST Results of parallel uploads ----------
+
+Output from process 1 (rows=1):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+Output from process 2 (rows=1):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+Output from process 3 (rows=2):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇􎻮̅֒􎻮̅֓􎻮̅֔􎻮̅֕􎻮̅֗􎻮̅֘􎻮̅֙􎻮̅֜􎻮̅֝􎻮̅֞􎻮̅֟􎻮̅֠􎻮̅֡􎻮̅֨􎻮̅֩􎻮̅֫􎻮̅֬􎻮̅֯􎻮̅ׄ􎻮̅ؐ􎻮̅ؑ􎻮̅ؒ􎻮̅ؓ􎻮̅ؔ􎻮̅ؕ􎻮̅ؖ􎻮̅ؗ􎻮̅ٗ􎻮̅٘􎻮̅ٙ􎻮̅ٚ􎻮̅ٛ􎻮̅ٝ􎻮̅ٞ[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾􎻮̍̿􎻮̍͆􎻮̍͊􎻮̍͋􎻮̍͌􎻮̍͐􎻮̍͑􎻮̍͒􎻮̍͗􎻮̍͛􎻮̍ͣ􎻮̍ͤ􎻮̍ͥ􎻮̍ͦ􎻮̍ͧ􎻮̍ͨ􎻮̍ͩ􎻮̍ͪ􎻮̍ͫ􎻮̍ͬ􎻮̍ͭ􎻮̍ͮ􎻮̍ͯ􎻮̍҃􎻮̍҄􎻮̍҅􎻮̍҆􎻮̍҇􎻮̍֒􎻮̍֓􎻮̍֔􎻮̍֕􎻮̍֗􎻮̍֘􎻮̍֙􎻮̍֜􎻮̍֝􎻮̍֞􎻮̍֟􎻮̍֠􎻮̍֡􎻮̍֨􎻮̍֩􎻮̍֫􎻮̍֬􎻮̍֯􎻮̍ׄ􎻮̍ؐ􎻮̍ؑ􎻮̍ؒ􎻮̍ؓ􎻮̍ؔ􎻮̍ؕ􎻮̍ؖ􎻮̍ؗ􎻮̍ٗ􎻮̍٘􎻮̍ٙ􎻮̍ٚ􎻮̍ٛ􎻮̍ٝ􎻮̍ٞ[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+Output from process 4 (cols=1):
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̍̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+Output from process 5 (cols=2):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍[0m
+[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+
+---------- SUBTEST List all uploaded images ----------
+
+tupimage list
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+1x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+2x4	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+35x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+3x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+3x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+5x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+69x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+6x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+
+========== TEST Parallel stream uploads ==========
+
+
+---------- SUBTEST Running parallel upload and display commands ----------
+
+Waiting for processes to complete...
+{{:SKIP_LINES:}}
+All processes completed.
+
+---------- SUBTEST Results of parallel uploads ----------
+
+Output from process 1 (rows=1):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+Output from process 2 (rows=1):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+Output from process 3 (rows=2):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊􎻮̅͋􎻮̅͌􎻮̅͐􎻮̅͑􎻮̅͒􎻮̅͗􎻮̅͛􎻮̅ͣ􎻮̅ͤ􎻮̅ͥ􎻮̅ͦ􎻮̅ͧ􎻮̅ͨ􎻮̅ͩ􎻮̅ͪ􎻮̅ͫ􎻮̅ͬ􎻮̅ͭ􎻮̅ͮ􎻮̅ͯ􎻮̅҃􎻮̅҄􎻮̅҅􎻮̅҆􎻮̅҇􎻮̅֒􎻮̅֓􎻮̅֔􎻮̅֕􎻮̅֗􎻮̅֘􎻮̅֙􎻮̅֜􎻮̅֝􎻮̅֞􎻮̅֟􎻮̅֠􎻮̅֡􎻮̅֨􎻮̅֩􎻮̅֫􎻮̅֬􎻮̅֯􎻮̅ׄ􎻮̅ؐ􎻮̅ؑ􎻮̅ؒ􎻮̅ؓ􎻮̅ؔ􎻮̅ؕ􎻮̅ؖ􎻮̅ؗ􎻮̅ٗ􎻮̅٘􎻮̅ٙ􎻮̅ٚ􎻮̅ٛ􎻮̅ٝ􎻮̅ٞ[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾􎻮̍̿􎻮̍͆􎻮̍͊􎻮̍͋􎻮̍͌􎻮̍͐􎻮̍͑􎻮̍͒􎻮̍͗􎻮̍͛􎻮̍ͣ􎻮̍ͤ􎻮̍ͥ􎻮̍ͦ􎻮̍ͧ􎻮̍ͨ􎻮̍ͩ􎻮̍ͪ􎻮̍ͫ􎻮̍ͬ􎻮̍ͭ􎻮̍ͮ􎻮̍ͯ􎻮̍҃􎻮̍҄􎻮̍҅􎻮̍҆􎻮̍҇􎻮̍֒􎻮̍֓􎻮̍֔􎻮̍֕􎻮̍֗􎻮̍֘􎻮̍֙􎻮̍֜􎻮̍֝􎻮̍֞􎻮̍֟􎻮̍֠􎻮̍֡􎻮̍֨􎻮̍֩􎻮̍֫􎻮̍֬􎻮̍֯􎻮̍ׄ􎻮̍ؐ􎻮̍ؑ􎻮̍ؒ􎻮̍ؓ􎻮̍ؔ􎻮̍ؕ􎻮̍ؖ􎻮̍ؗ􎻮̍ٗ􎻮̍٘􎻮̍ٙ􎻮̍ٚ􎻮̍ٛ􎻮̍ٝ􎻮̍ٞ[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m
+Output from process 4 (cols=1):
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̍̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+[0m[38;2;{{.*}}m􎻮̅̅[0m
+Output from process 5 (cols=2):
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍[0m
+[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍[0m
+
+---------- SUBTEST List all uploaded images ----------
+
+tupimage list
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+1x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+1x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+2x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+2x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+2x4	/home/sgrechanik/proj/pytupimage/.cli-tests-data/column.png
+35x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+3x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
+3x1	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/earth.jpg
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/flower.jpg
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/small_arrow.png
+4x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/tux.png
+5x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/wikipedia.png
+69x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/ruler.png
+6x2	/home/sgrechanik/proj/pytupimage/.cli-tests-data/transparency.png
 
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]

@@ -102,6 +102,10 @@ class TupimageConfig:
     max_num_ids: int = 4 * 1024
     cleanup_probability: float = 0.01
 
+    # Parallel upload options.
+    upload_progress_update_interval: float = 0.5
+    upload_stall_timeout: float = 2.0
+
     def __post_init__(self):
         self._provenance = {}
         self._current_provenance = None
@@ -230,9 +234,21 @@ class TupimageConfig:
                 value = platformdirs.user_state_dir("tupimage")
             if name == "upload_method":
                 value = TransmissionMedium.from_string(value)
-            if name in ["max_rows", "max_cols", "num_tmux_layers", "max_db_age_days", "max_num_ids"]:
+            if name in [
+                "max_rows",
+                "max_cols",
+                "num_tmux_layers",
+                "max_db_age_days",
+                "max_num_ids",
+            ]:
                 value = int(value)
-            if name in ["scale", "global_scale", "cleanup_probability"]:
+            if name in [
+                "scale",
+                "global_scale",
+                "cleanup_probability",
+                "upload_progress_update_interval",
+                "upload_stall_timeout",
+            ]:
                 value = float(value)
             if name == "supported_formats":
                 value = re.split(r"[, ]+", value)
@@ -461,6 +477,10 @@ class TupimageTerminal:
     max_db_age_days = _config_property("max_db_age_days")
     max_num_ids = _config_property("max_num_ids")
     cleanup_probability = _config_property("cleanup_probability")
+    upload_progress_update_interval = _config_property(
+        "upload_progress_update_interval"
+    )
+    upload_stall_timeout = _config_property("upload_stall_timeout")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -782,10 +802,9 @@ class TupimageTerminal:
         if self._config.redetect_terminal:
             self.detect_terminal()
         if force_upload or self.needs_uploading(inst.id):
-            size = self._upload(
-                inst, check_response=check_response, upload_method=upload_method
+            self._upload(
+                inst, check_response=check_response, upload_method=upload_method, force_upload=force_upload
             )
-            self.id_manager.mark_uploaded(inst.id, self._terminal_id, size=size)
         return inst
 
     def get_supported_formats(self) -> List[str]:
@@ -839,7 +858,8 @@ class TupimageTerminal:
         *,
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
-    ) -> int:
+        force_upload: bool = False,
+    ):
         if check_response is None:
             check_response = self._config.check_response
         if upload_method is None:
@@ -875,8 +895,8 @@ class TupimageTerminal:
                 size = os.path.getsize(inst.path)
                 if size <= max_upload_size:
                     image_object.close()
-                    self._transmit_file(inst.path, inst, upload_method)
-                    return size
+                    self._transmit_file_or_bytes(inst.path, inst, size, upload_method, force_upload=force_upload)
+                    return
         else:
             image_object = inst.image
 
@@ -904,60 +924,102 @@ class TupimageTerminal:
                 f.flush()
                 size = f.tell()
                 f.close()
-                self._transmit_file(f.name, inst, TransmissionMedium.TEMP_FILE)
-                return size
+                self._transmit_file_or_bytes(
+                    f.name, inst, size, TransmissionMedium.TEMP_FILE, force_upload=force_upload
+                )
+                return
         elif upload_method == TransmissionMedium.DIRECT:
             bytesio = io.BytesIO()
             image_object.save(bytesio, format="PNG")
             size = bytesio.tell()
-            self._abort_transmission(inst.id)
-            self.term.send_command(
-                TransmitCommand(
-                    image_id=inst.id,
-                    medium=TransmissionMedium.DIRECT,
-                    quiet=tupimage.Quietness.QUIET_ALWAYS,
-                    format=tupimage.Format.PNG,
-                    pix_width=image_object.width,
-                    pix_height=image_object.height,
-                )
-                .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
-                .set_data(bytesio)
+            self._transmit_file_or_bytes(
+                bytesio,
+                inst,
+                size,
+                upload_method,
+                pix_width=image_object.width,
+                pix_height=image_object.height,
+                force_upload=force_upload,
             )
-            return size
+            return
 
-    def _transmit_file(
+    def _transmit_file_or_bytes(
         self,
-        filename: str,
+        filename_or_object: Union[str, io.BytesIO],
         inst: ImageInstance,
+        size: int,
         upload_method: TransmissionMedium,
+        pix_width: Optional[int] = None,
+        pix_height: Optional[int] = None,
+        force_upload: bool = False,
     ):
-        if (
-            upload_method == TransmissionMedium.FILE
-            or upload_method == TransmissionMedium.TEMP_FILE
-        ):
-            self.term.send_command(
-                TransmitCommand(
-                    image_id=inst.id,
-                    medium=upload_method,
-                    quiet=tupimage.Quietness.QUIET_ALWAYS,
-                    format=tupimage.Format.PNG,
-                )
-                .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
-                .set_filename(filename)
-            )
-        elif upload_method == TransmissionMedium.DIRECT:
-            with open(inst.path, "rb") as f:
-                self._abort_transmission(inst.id)
+        def upload_fn(info: UploadInfo):
+            if (
+                upload_method == TransmissionMedium.FILE
+                or upload_method == TransmissionMedium.TEMP_FILE
+            ):
+                assert isinstance(filename_or_object, str)
                 self.term.send_command(
                     TransmitCommand(
                         image_id=inst.id,
-                        medium=TransmissionMedium.DIRECT,
+                        medium=upload_method,
                         quiet=tupimage.Quietness.QUIET_ALWAYS,
                         format=tupimage.Format.PNG,
                     )
                     .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
-                    .set_data(f)
+                    .set_filename(filename_or_object)
                 )
+            elif upload_method == TransmissionMedium.DIRECT:
+                self._abort_transmission(inst.id)
+                if isinstance(filename_or_object, str):
+                    with open(filename_or_object, "rb") as f:
+                        self.term.send_command(
+                            TransmitCommand(
+                                image_id=inst.id,
+                                medium=TransmissionMedium.DIRECT,
+                                quiet=tupimage.Quietness.QUIET_ALWAYS,
+                                format=tupimage.Format.PNG,
+                            )
+                            .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
+                            .set_data(f),
+                            callback=lambda cmd: self._report_progress(cmd, info),
+                        )
+                else:
+                    assert pix_width is not None
+                    assert pix_height is not None
+                    self.term.send_command(
+                        TransmitCommand(
+                            image_id=inst.id,
+                            medium=TransmissionMedium.DIRECT,
+                            quiet=tupimage.Quietness.QUIET_ALWAYS,
+                            format=tupimage.Format.PNG,
+                            pix_width=pix_width,
+                            pix_height=pix_height,
+                        )
+                        .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
+                        .set_data(filename_or_object),
+                        callback=lambda cmd: self._report_progress(cmd, info),
+                    )
+
+        # Now call the uploading function wrapped in a retry loop that will make sure we
+        # don't interfere with uploads that are already in progress.
+        self.id_manager.retry_uploading_until_success(
+            inst.id,
+            self._terminal_id,
+            fn=upload_fn,
+            size=size,
+            description=inst.get_description(),
+            stall_timeout=self._config.upload_stall_timeout,
+            force_upload=force_upload,
+        )
+
+    def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo):
+        now = datetime.datetime.now()
+        if now - info.upload_time > datetime.timedelta(
+            seconds=self._config.upload_progress_update_interval
+        ):
+            info.upload_time = now
+            self.id_manager.report_upload(info, upload_time=now)
 
     def upload_and_display(
         self,
@@ -1158,9 +1220,7 @@ class TupimageTerminal:
             list: Paths of removed database files.
         """
         if max_age is None:
-            max_age = datetime.timedelta(
-                days=self._config.max_db_age_days
-            )
+            max_age = datetime.timedelta(days=self._config.max_db_age_days)
         removed: List[str] = []
         db_dir = self._config.id_database_dir
         try:
@@ -1175,9 +1235,7 @@ class TupimageTerminal:
             if not os.path.isfile(path):
                 continue
             # Skip current database
-            if os.path.abspath(path) == os.path.abspath(
-                self.id_manager.database_file
-            ):
+            if os.path.abspath(path) == os.path.abspath(self.id_manager.database_file):
                 continue
             atime = datetime.datetime.fromtimestamp(os.path.getatime(path))
             if now - atime > max_age:
@@ -1189,8 +1247,7 @@ class TupimageTerminal:
         return removed
 
     def cleanup_current_database(self, max_num_ids: Optional[int] = None) -> None:
-        """Clean up the current database by removing old IDs from the current subspace.
-        """
+        """Clean up the current database by removing old IDs from the current subspace."""
         if max_num_ids is None:
             max_num_ids = self._config.max_num_ids
         self.id_manager.cleanup(self.id_space, self.id_subspace, max_ids=max_num_ids)

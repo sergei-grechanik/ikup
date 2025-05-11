@@ -618,7 +618,7 @@ test_overwrite() {
 PARALLEL_IMAGES="$DATA_DIR/wikipedia.png $DATA_DIR/tux.png $DATA_DIR/transparency.png $DATA_DIR/column.png $DATA_DIR/small_arrow.png $DATA_DIR/ruler.png $DATA_DIR/earth.jpg $DATA_DIR/flower.jpg"
 
 test_parallel_file() {
-    start_test "Parallel uploads"
+    start_test "Parallel file uploads"
 
     # Create temporary output files
     OUTFILE1="$TMPDIR/parallel_out1.txt"
@@ -666,7 +666,7 @@ test_parallel_file() {
 ################################################################################
 
 test_parallel_stream() {
-    start_test "Parallel uploads"
+    start_test "Parallel stream uploads"
 
     # Create temporary output files
     OUTFILE1="$TMPDIR/parallel_out1.txt"

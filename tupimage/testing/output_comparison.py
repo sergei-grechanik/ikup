@@ -54,7 +54,7 @@ def parse_chunks(file_path: str) -> TestChunks:
     Raises:
         ValueError: If duplicate test names are found
     """
-    with open(file_path, "r") as f:
+    with open(file_path, "r", errors="backslashreplace") as f:
         content = f.read()
     return parse_chunks_from_content(content)
 
@@ -329,7 +329,7 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        with open(sys.argv[1]) as f:
+        with open(sys.argv[1], errors="backslashreplace") as f:
             input_content = f.read()
         with open(sys.argv[2]) as f:
             ref_content = f.read()

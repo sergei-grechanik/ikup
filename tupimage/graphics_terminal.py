@@ -9,7 +9,7 @@ import struct
 import termios
 import time
 import sys
-from typing import BinaryIO, List, Optional, TextIO, Tuple, Union
+from typing import BinaryIO, List, Optional, TextIO, Tuple, Union, Callable
 
 from tupimage import (
     GraphicsCommand,
@@ -390,6 +390,7 @@ class GraphicsTerminal:
         command: GraphicsCommand,
         force_placeholders: Optional[bool] = None,
         force_direct_transmission: Optional[bool] = None,
+        callback: Optional[Callable[[GraphicsCommand], None]] = None,
     ):
         # Convert a classic placement to a unicode placeholder placement if requested.
         if force_placeholders is None:
@@ -434,11 +435,20 @@ class GraphicsTerminal:
         if placement_data is not None and placement_data.virtual != True:
             self.out_display.flush()
 
+        # Create a callback if it's specified by the user or we need to write to the
+        # shell script.
+        orig_callback = callback
+        if orig_callback is not None or self.shellscript_out is not None:
+
+            def _callback(cmd: GraphicsCommand):
+                if self.shellscript_out is not None:
+                    self._write_to_shellscript(cmd.to_bytes(template))
+                if orig_callback is not None:
+                    orig_callback(cmd)
+
+            callback = _callback
+
         template = self.get_graphics_command_template()
-        # If we want to log the commands to a shell script, we need a callback.
-        callback = None
-        if self.shellscript_out is not None:
-            callback = lambda cmd: self._write_to_shellscript(cmd.to_bytes(template))
         # Send the command.
         command.send(
             self.out_command,

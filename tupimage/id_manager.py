@@ -4,8 +4,12 @@ import secrets
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Iterable, Iterator, List, Optional, Tuple
+from typing import Iterable, Iterator, List, Optional, Tuple, Callable, Literal
 from contextlib import closing
+from enum import Enum
+import warnings
+import time
+import random
 
 
 @dataclass(frozen=True)
@@ -342,6 +346,11 @@ class ImageInfo:
     atime: datetime
 
 
+UploadingStatus = Literal["dirty", "in_progress", "uploaded"]
+UPLOADING_STATUS_DIRTY = "dirty"
+UPLOADING_STATUS_IN_PROGRESS = "in_progress"
+UPLOADING_STATUS_UPLOADED = "uploaded"
+
 @dataclass
 class UploadInfo:
     id: int
@@ -351,6 +360,8 @@ class UploadInfo:
     size: int
     bytes_ago: int
     uploads_ago: int
+    status: UploadingStatus
+    upload_id: int
 
     def _needs_uploading(
         self,
@@ -360,10 +371,17 @@ class UploadInfo:
         max_time_ago: timedelta = timedelta(hours=1),
     ) -> bool:
         return (
-            self.bytes_ago > max_bytes_ago
+            self.status == UPLOADING_STATUS_DIRTY
+            or self.bytes_ago > max_bytes_ago
             or self.uploads_ago > max_uploads_ago
             or datetime.now() - self.upload_time > max_time_ago
         )
+
+
+class RetryUploadError(Exception):
+    """Exception raised when an upload fails and we need to retry it."""
+
+    pass
 
 
 class IDManager:
@@ -410,6 +428,8 @@ class IDManager:
                         size INTEGER NOT NULL,
                         terminal TEXT NOT NULL,
                         upload_time TIMESTAMP NOT NULL,
+                        status TEXT NOT NULL,
+                        upload_id INTEGER NOT NULL,
                         PRIMARY KEY (id, terminal)
                     )
                 """
@@ -709,7 +729,7 @@ class IDManager:
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 """
-                SELECT description, upload_time, size FROM upload
+                SELECT description, upload_time, size, status, upload_id FROM upload
                 WHERE id=? AND terminal=?
                 """,
                 (id, terminal),
@@ -717,7 +737,7 @@ class IDManager:
             row = cursor.fetchone()
             if not row:
                 return None
-            description, upload_time_str, size = row
+            description, upload_time_str, size, status, upload_id = row
             if size is None:
                 size = 0
             cursor.execute(
@@ -736,6 +756,8 @@ class IDManager:
             size=size,
             bytes_ago=size + (bytes_ago if bytes_ago else 0),
             uploads_ago=1 + (uploads_ago if uploads_ago else 0),
+            status=status,
+            upload_id=upload_id,
         )
 
     def get_upload_infos(self, id: int) -> List[UploadInfo]:
@@ -771,7 +793,8 @@ class IDManager:
         if upload_info is None:
             return True
         return (
-            upload_info.description != info.description
+            upload_info.status != UPLOADING_STATUS_UPLOADED
+            or upload_info.description != info.description
             or upload_info._needs_uploading(
                 max_uploads_ago=max_uploads_ago,
                 max_bytes_ago=max_bytes_ago,
@@ -779,6 +802,261 @@ class IDManager:
             )
         )
 
+    def _create_new_upload_entry(
+        self,
+        cursor,
+        id: int,
+        terminal: str,
+        *,
+        description: str,
+        size: int,
+        upload_time: datetime,
+        upload_id: int,
+    ) -> UploadInfo:
+        """Create a new upload entry in the database and return the corresponding UploadInfo."""
+        cursor.execute(
+            """
+            INSERT INTO upload
+            (id, description, size, terminal, upload_time, status, upload_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id, terminal) DO UPDATE SET
+                description=excluded.description,
+                size=excluded.size,
+                upload_time=excluded.upload_time,
+                status=excluded.status,
+                upload_id=excluded.upload_id
+            """,
+            (
+                id,
+                description,
+                size,
+                terminal,
+                upload_time.isoformat(),
+                UPLOADING_STATUS_IN_PROGRESS,
+                upload_id,
+            ),
+        )
+        return UploadInfo(
+            id=id,
+            description=description,
+            upload_time=upload_time,
+            terminal=terminal,
+            size=size,
+            bytes_ago=0,
+            uploads_ago=0,
+            status=UPLOADING_STATUS_IN_PROGRESS,
+            upload_id=upload_id,
+        )
+
+
+    def start_upload(
+        self,
+        id: int,
+        terminal: str,
+        *,
+        description: str,
+        size: int,
+        upload_time: Optional[datetime] = None,
+        stall_timeout: float = 1.0,
+        force_upload: bool = False,
+    ) -> UploadInfo:
+        """Marks an upload as 'in_progress' and sets its size and time. Returns the
+        upload info.
+
+        This function check if another upload of the same id is already in progress. If
+        it is in progress, it tries to check whether it's alive by waiting for
+        `stall_timeout` seconds. This check is repeated until either:
+        - The concurrent upload finishes successfully. Then there is nothing to do and
+          we return the finished upload info of the concurrent upload.
+        - The concurrent upload finishes unsuccessfully or doesn't seem to be alive.
+          Then we mark it as in progress, create a new upload_id for it and return the
+          new upload info.
+
+        Args:
+            force_upload: If `True`, start a new upload even if another one is
+            successful.
+        """
+        if upload_time is None:
+            upload_time = datetime.now()
+
+        # Generate a unique upload ID for this attempt
+        new_upload_id = random.randint(1, 2**31 - 1)
+
+        # The upload time seen in the previous iteration.
+        existing_upload_time = None
+
+        # TODO: Maybe add a total timeout in case the other process is faking image
+        #       upload.
+        while True:
+            with self.conn:
+                with closing(self.conn.cursor()) as cursor:
+                    cursor.execute("BEGIN IMMEDIATE")
+
+                    # Check if there's an existing upload entry
+                    cursor.execute(
+                        """SELECT description, upload_time, size, status, upload_id
+                           FROM upload WHERE id=? AND terminal=?""",
+                        (id, terminal),
+                    )
+                    row = cursor.fetchone()
+
+                    # Create a new upload entry if:
+                    # - there is no existing entry, or
+                    # - the entry is marked as DIRTY, or
+                    # - it's successfully finished, but the description is wrong, or
+                    # - we are checking whether the upload is stalled and we don't see
+                    #   any change in upload time, meaning it's actually stalled.
+                    # - we are forced to upload and the upload is not in progress.
+                    if row is None or row[3] == UPLOADING_STATUS_DIRTY or (
+                        row[3] == UPLOADING_STATUS_UPLOADED and row[0] != description
+                    ) or existing_upload_time == upload_time or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS):
+                        return self._create_new_upload_entry(
+                            cursor, id, terminal, description=description, size=size, upload_time=upload_time, upload_id=new_upload_id
+                        )
+
+                    # Parse existing row data
+                    description, upload_time_str, existing_size, status, upload_id = row
+                    existing_upload_time = datetime.fromisoformat(upload_time_str)
+
+                    # If already uploaded, return that info, unless we are force to
+                    # upload. If we are forced to upload, we must wait for the other
+                    # process to finish first.
+                    # TODO: We can try to abort the other process, but there is a risk
+                    #       it will try reuploading before us. It's probably not the
+                    #       most important case anyway.
+                    if not force_upload and status == UPLOADING_STATUS_UPLOADED:
+                        return UploadInfo(
+                            id=id,
+                            description=description,
+                            upload_time=existing_upload_time,
+                            terminal=terminal,
+                            size=existing_size,
+                            bytes_ago=0,
+                            uploads_ago=0,
+                            status=UPLOADING_STATUS_UPLOADED,
+                            upload_id=upload_id,
+                        )
+
+            # Otherwise the upload is in progress. Exit the transaction and try again
+            # after a short delay.
+            time.sleep(stall_timeout)
+
+    def report_upload(
+        self,
+        upload: UploadInfo,
+        finished: bool = False,
+        upload_time: Optional[datetime] = None,
+    ):
+        """Report that an upload is alive by updating the upload time in the database.
+
+        If `finished` is `True`, the upload is additionally marked as finished
+        ('uploaded').
+
+        Raises:
+            RetryUploadError: If the entry for the upload is missing or has the wrong
+            `upload_id` or status, meaning that we have to restart the upload (the entry
+            is marked 'dirty' in this case).
+        """
+        if upload_time is None:
+            upload_time = datetime.now()
+
+        with self.conn:
+            with closing(self.conn.cursor()) as cursor:
+                cursor.execute("BEGIN IMMEDIATE")
+
+                # Check if the upload entry still exists with the correct upload_id
+                cursor.execute(
+                    """
+                    SELECT status, upload_id, description FROM upload
+                    WHERE id=? AND terminal=?
+                    """,
+                    (upload.id, upload.terminal),
+                )
+                row = cursor.fetchone()
+
+                # If the entry doesn't exist or has a different upload_id or
+                # description, we need to retry.
+                if not row or row[1] != upload.upload_id or row[2] != upload.description or row[0] != UPLOADING_STATUS_IN_PROGRESS:
+                    # Mark as dirty to ensure it gets reuploaded
+                    cursor.execute(
+                        "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
+                        (UPLOADING_STATUS_DIRTY, upload.id, upload.terminal),
+                    )
+                    raise RetryUploadError(
+                        f"Upload entry for ID {upload.id} on terminal {upload.terminal} "
+                        f"has been modified or deleted"
+                    )
+
+                # Update the upload time and status if finished
+                new_status = UPLOADING_STATUS_UPLOADED if finished else UPLOADING_STATUS_IN_PROGRESS
+                cursor.execute(
+                    """
+                    UPDATE upload SET
+                        upload_time=?,
+                        status=?
+                    WHERE id=? AND terminal=? AND upload_id=?
+                    """,
+                    (
+                        upload_time.isoformat(),
+                        new_status,
+                        upload.id,
+                        upload.terminal,
+                        upload.upload_id,
+                    ),
+                )
+
+    def retry_uploading_until_success(
+        self,
+        id: int,
+        terminal: str,
+        fn: Callable[[UploadInfo], None],
+        *,
+        description: str,
+        size: int,
+        stall_timeout: float = 1.0,
+        max_retries: int = 100,
+        force_upload: bool = False,
+    ):
+        """Retries uploading the given id by calling `fn` until it succeeds or the
+        maximum number of retries is reached.
+
+        Raises an error if the upload fails or the maximum number of retries is reached.
+
+        Args:
+            fn: The uploading function. Takes the upload info as an argument. Must call
+            `report_upload` to report the upload progress if it takes too long. It must
+            raise `RetryUploadError` if the upload fails and it should be retried.
+
+            force_upload: If `True`, the upload is performed even if there is an
+            existing upload info that is marked as successfully uploaded.
+        """
+        for _ in range(max_retries):
+            upload = self.start_upload(
+                id, terminal, description=description, size=size, stall_timeout=stall_timeout, force_upload=force_upload
+            )
+            if upload.status == UPLOADING_STATUS_UPLOADED:
+                # The upload was done by another process, do nothing.
+                return
+            if upload.status == UPLOADING_STATUS_DIRTY:
+                # Something went wrong, retry.
+                self._wait_random_time()
+                continue
+            # Try to run the upload function.
+            try:
+                fn(upload)
+                self.report_upload(upload, finished=True)
+                return
+            except RetryUploadError:
+                pass
+            # If the upload failed, wait a bit and retry.
+            self._wait_random_time()
+        raise RuntimeError(f"Could not upload the image with id {id} to {terminal}.")
+
+    def _wait_random_time(self):
+        """Waits for a random time between 0 and 0.5 seconds."""
+        time.sleep(random.uniform(0, 0.5))
+
+    @warnings.deprecated("Use report_upload instead")
     def mark_uploaded(
         self,
         id: int,
@@ -795,12 +1073,13 @@ class IDManager:
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 """ INSERT INTO upload
-                    (id, description, size, terminal, upload_time)
-                    VALUES (?, ?, ?, ?, ?)
+                    (id, description, size, terminal, upload_time, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     ON CONFLICT(id, terminal) DO UPDATE SET
                         description=excluded.description,
                         size=excluded.size,
-                        upload_time=excluded.upload_time
+                        upload_time=excluded.upload_time,
+                        status=excluded.status
                 """,
                 (
                     id,
@@ -808,6 +1087,7 @@ class IDManager:
                     size,
                     terminal,
                     upload_time.isoformat(),
+                    UPLOADING_STATUS_UPLOADED,
                 ),
             )
 
@@ -817,11 +1097,14 @@ class IDManager:
             # Note that we don't delete rows, because we need them to figure out whether
             # earlier uploads are too old.
             if terminal is None:
-                cursor.execute("UPDATE upload SET description = '' WHERE id = ?", (id,))
+                cursor.execute(
+                    "UPDATE upload SET status = ? WHERE id = ?",
+                    (UPLOADING_STATUS_DIRTY, id),
+                )
             else:
                 cursor.execute(
-                    "UPDATE upload SET description = '' WHERE id = ? and terminal = ?",
-                    (id, terminal),
+                    "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
+                    (UPLOADING_STATUS_DIRTY, id, terminal),
                 )
 
     def cleanup_uploads(
@@ -832,10 +1115,10 @@ class IDManager:
             # Note that here we can delete rows, because if we delete a row, we delete
             # all the older one too.
             cursor.execute(
-                f"""DELETE FROM upload WHERE (id, terminal) NOT IN (
+                """DELETE FROM upload WHERE (id, terminal) NOT IN (
                         SELECT id, terminal FROM upload
                         ORDER BY upload_time DESC LIMIT ?
-                    )
+                   )
                 """,
                 (max_uploads,),
             )
