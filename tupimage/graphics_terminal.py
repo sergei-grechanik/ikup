@@ -218,9 +218,14 @@ class GraphicsTerminal:
     @staticmethod
     def _open(filename: Union[str, BinaryIO, None], write: bool) -> BinaryIO:
         if isinstance(filename, str):
+            flags = os.O_NOCTTY | os.O_CREAT
+            if write:
+                flags |= os.O_WRONLY | os.O_TRUNC
+            else:
+                flags |= os.O_RDONLY
             fd = os.open(
                 filename,
-                (os.O_WRONLY if write else os.O_RDONLY) | os.O_NOCTTY | os.O_CREAT,
+                flags,
             )
             return os.fdopen(fd, "wb" if write else "rb", buffering=0)
         if filename is None:
