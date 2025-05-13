@@ -803,7 +803,10 @@ class TupimageTerminal:
             self.detect_terminal()
         if force_upload or self.needs_uploading(inst.id):
             self._upload(
-                inst, check_response=check_response, upload_method=upload_method, force_upload=force_upload
+                inst,
+                check_response=check_response,
+                upload_method=upload_method,
+                force_upload=force_upload,
             )
         return inst
 
@@ -895,7 +898,9 @@ class TupimageTerminal:
                 size = os.path.getsize(inst.path)
                 if size <= max_upload_size:
                     image_object.close()
-                    self._transmit_file_or_bytes(inst.path, inst, size, upload_method, force_upload=force_upload)
+                    self._transmit_file_or_bytes(
+                        inst.path, inst, size, upload_method, force_upload=force_upload
+                    )
                     return
         else:
             image_object = inst.image
@@ -925,7 +930,11 @@ class TupimageTerminal:
                 size = f.tell()
                 f.close()
                 self._transmit_file_or_bytes(
-                    f.name, inst, size, TransmissionMedium.TEMP_FILE, force_upload=force_upload
+                    f.name,
+                    inst,
+                    size,
+                    TransmissionMedium.TEMP_FILE,
+                    force_upload=force_upload,
                 )
                 return
         elif upload_method == TransmissionMedium.DIRECT:

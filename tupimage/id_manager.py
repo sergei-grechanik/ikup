@@ -351,6 +351,7 @@ UPLOADING_STATUS_DIRTY = "dirty"
 UPLOADING_STATUS_IN_PROGRESS = "in_progress"
 UPLOADING_STATUS_UPLOADED = "uploaded"
 
+
 @dataclass
 class UploadInfo:
     id: int
@@ -848,7 +849,6 @@ class IDManager:
             upload_id=upload_id,
         )
 
-
     def start_upload(
         self,
         id: int,
@@ -907,11 +907,24 @@ class IDManager:
                     # - we are checking whether the upload is stalled and we don't see
                     #   any change in upload time, meaning it's actually stalled.
                     # - we are forced to upload and the upload is not in progress.
-                    if row is None or row[3] == UPLOADING_STATUS_DIRTY or (
-                        row[3] == UPLOADING_STATUS_UPLOADED and row[0] != description
-                    ) or existing_upload_time == upload_time or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS):
+                    if (
+                        row is None
+                        or row[3] == UPLOADING_STATUS_DIRTY
+                        or (
+                            row[3] == UPLOADING_STATUS_UPLOADED
+                            and row[0] != description
+                        )
+                        or existing_upload_time == upload_time
+                        or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS)
+                    ):
                         return self._create_new_upload_entry(
-                            cursor, id, terminal, description=description, size=size, upload_time=upload_time, upload_id=new_upload_id
+                            cursor,
+                            id,
+                            terminal,
+                            description=description,
+                            size=size,
+                            upload_time=upload_time,
+                            upload_id=new_upload_id,
                         )
 
                     # Parse existing row data
@@ -976,7 +989,12 @@ class IDManager:
 
                 # If the entry doesn't exist or has a different upload_id or
                 # description, we need to retry.
-                if not row or row[1] != upload.upload_id or row[2] != upload.description or row[0] != UPLOADING_STATUS_IN_PROGRESS:
+                if (
+                    not row
+                    or row[1] != upload.upload_id
+                    or row[2] != upload.description
+                    or row[0] != UPLOADING_STATUS_IN_PROGRESS
+                ):
                     # Mark as dirty to ensure it gets reuploaded
                     cursor.execute(
                         "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
@@ -988,7 +1006,11 @@ class IDManager:
                     )
 
                 # Update the upload time and status if finished
-                new_status = UPLOADING_STATUS_UPLOADED if finished else UPLOADING_STATUS_IN_PROGRESS
+                new_status = (
+                    UPLOADING_STATUS_UPLOADED
+                    if finished
+                    else UPLOADING_STATUS_IN_PROGRESS
+                )
                 cursor.execute(
                     """
                     UPDATE upload SET
@@ -1032,7 +1054,12 @@ class IDManager:
         """
         for _ in range(max_retries):
             upload = self.start_upload(
-                id, terminal, description=description, size=size, stall_timeout=stall_timeout, force_upload=force_upload
+                id,
+                terminal,
+                description=description,
+                size=size,
+                stall_timeout=stall_timeout,
+                force_upload=force_upload,
             )
             if upload.status == UPLOADING_STATUS_UPLOADED:
                 # The upload was done by another process, do nothing.
@@ -1068,7 +1095,14 @@ class IDManager:
         description = "<none>"
         if info is not None:
             description = info.description
-        upload = self.start_upload(id, terminal, description=description, size=size, upload_time=upload_time, force_upload=True)
+        upload = self.start_upload(
+            id,
+            terminal,
+            description=description,
+            size=size,
+            upload_time=upload_time,
+            force_upload=True,
+        )
         self.report_upload(upload, finished=True)
 
     def mark_dirty(self, id: int, terminal: Optional[str] = None):
