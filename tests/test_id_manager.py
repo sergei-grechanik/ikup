@@ -357,7 +357,7 @@ def test_id_manager_uploads():
             assert idman.needs_uploading(id, term)
             assert idman.get_upload_info(id, term) is None
             if random.random() < 0.5:
-                idman.mark_uploaded(id, term, size=size)
+                idman.mark_uploaded_for_testing(id, term, size=size)
                 assert not idman.needs_uploading(id, term)
                 info = idman.get_upload_info(id, term)
                 assert info
@@ -394,14 +394,14 @@ def test_id_manager_uploads_example():
     id3 = idman.get_id("3", IDSpace())
     id4 = idman.get_id("4", IDSpace())
     # Mark them as uploaded to term1 and term2.
-    idman.mark_uploaded(id1, "term1", size=100)
-    idman.mark_uploaded(id1, "term2", size=100)
-    idman.mark_uploaded(id2, "term1", size=200)
-    idman.mark_uploaded(id2, "term2", size=200)
-    idman.mark_uploaded(id3, "term1", size=300)
-    idman.mark_uploaded(id3, "term2", size=300)
-    idman.mark_uploaded(id4, "term1", size=400)
-    idman.mark_uploaded(id4, "term2", size=400)
+    idman.mark_uploaded_for_testing(id1, "term1", size=100)
+    idman.mark_uploaded_for_testing(id1, "term2", size=100)
+    idman.mark_uploaded_for_testing(id2, "term1", size=200)
+    idman.mark_uploaded_for_testing(id2, "term2", size=200)
+    idman.mark_uploaded_for_testing(id3, "term1", size=300)
+    idman.mark_uploaded_for_testing(id3, "term2", size=300)
+    idman.mark_uploaded_for_testing(id4, "term1", size=400)
+    idman.mark_uploaded_for_testing(id4, "term2", size=400)
     # Check info.
     assert idman.get_upload_info(id1, "term1").bytes_ago == 1000
     assert idman.get_upload_info(id1, "term1").uploads_ago == 4
@@ -412,7 +412,7 @@ def test_id_manager_uploads_example():
     # Now id1 needs uploading.
     assert idman.needs_uploading(id1, "term1")
     # Mark it as uploaded again to term1, but not to term2.
-    idman.mark_uploaded(id1, "term1", size=100)
+    idman.mark_uploaded_for_testing(id1, "term1", size=100)
     # Now it doesn't need uploading to term1 but still needs uploading to term2.
     assert not idman.needs_uploading(id1, "term1")
     assert idman.needs_uploading(id1, "term2")

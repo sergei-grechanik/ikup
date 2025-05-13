@@ -1056,8 +1056,7 @@ class IDManager:
         """Waits for a random time between 0 and 0.5 seconds."""
         time.sleep(random.uniform(0, 0.5))
 
-    @warnings.deprecated("Use report_upload instead")
-    def mark_uploaded(
+    def mark_uploaded_for_testing(
         self,
         id: int,
         terminal: str,
@@ -1065,31 +1064,12 @@ class IDManager:
         size: int,
         upload_time: Optional[datetime] = None,
     ):
-        if upload_time is None:
-            upload_time = datetime.now()
         info = self.get_info(id)
-        if info is None:
-            return
-        with closing(self.conn.cursor()) as cursor:
-            cursor.execute(
-                """ INSERT INTO upload
-                    (id, description, size, terminal, upload_time, status)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id, terminal) DO UPDATE SET
-                        description=excluded.description,
-                        size=excluded.size,
-                        upload_time=excluded.upload_time,
-                        status=excluded.status
-                """,
-                (
-                    id,
-                    info.description,
-                    size,
-                    terminal,
-                    upload_time.isoformat(),
-                    UPLOADING_STATUS_UPLOADED,
-                ),
-            )
+        description = "<none>"
+        if info is not None:
+            description = info.description
+        upload = self.start_upload(id, terminal, description=description, size=size, upload_time=upload_time, force_upload=True)
+        self.report_upload(upload, finished=True)
 
     def mark_dirty(self, id: int, terminal: Optional[str] = None):
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
