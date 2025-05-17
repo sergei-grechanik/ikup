@@ -1147,7 +1147,7 @@ class IDManager:
             upload_time=upload_time,
             force_upload=True,
         )
-        self.report_upload(upload, finished=True)
+        self.report_upload(upload, set_status=UPLOADING_STATUS_UPLOADED)
 
     def mark_dirty(self, id: int, terminal: Optional[str] = None):
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
