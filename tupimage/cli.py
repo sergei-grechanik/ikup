@@ -72,6 +72,7 @@ def status(command: str):
     )
     print(f"Supported formats: {tupiterm.get_supported_formats()}")
     print(f"Default uploading method: {tupiterm.get_upload_method()}")
+    print(f"Allow concurrent uploads: {tupiterm.get_allow_concurrent_uploads()}")
     maxcols, maxrows = tupiterm.get_max_cols_and_rows()
     print(f"Max size in cells (cols x rows): {maxcols} x {maxrows}")
     cellw, cellh = tupiterm.get_cell_size()
@@ -133,6 +134,7 @@ def handle_command(
     id_space: Optional[str],
     id_subspace: Optional[str],
     upload_method: Optional[str],
+    allow_concurrent_uploads: Optional[str],
 ):
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
@@ -146,6 +148,7 @@ def handle_command(
             "id_subspace": id_subspace,
             "upload_method": upload_method,
             "provenance": "set via command line",
+            "allow_concurrent_uploads": allow_concurrent_uploads,
         },
     )
     if dump_config:
@@ -153,7 +156,7 @@ def handle_command(
     errors = False
 
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
-        use_line_feeds = "yes"
+        use_line_feeds = "true"
 
     if len(images) > 1 and force_id is not None:
         raise CLIArgumentsError(
@@ -185,7 +188,7 @@ def handle_command(
                     image,
                     rows=rows,
                     cols=cols,
-                    use_line_feeds=(use_line_feeds == "yes"),
+                    use_line_feeds=(use_line_feeds == "true"),
                     force_id=force_id,
                 )
             elif command == "upload":
@@ -210,7 +213,7 @@ def handle_command(
                 if command == "display":
                     tupiterm.display_only(
                         instance,
-                        use_line_feeds=(use_line_feeds == "yes"),
+                        use_line_feeds=(use_line_feeds == "true"),
                     )
         except (FileNotFoundError, OSError) as e:
             printerr(tupiterm, f"error: Failed to upload {image}: {e}")
@@ -237,6 +240,7 @@ def display(
     id_space: Optional[str],
     id_subspace: Optional[str],
     upload_method: Optional[str],
+    allow_concurrent_uploads: Optional[str],
 ):
     handle_command(
         command=command,
@@ -256,6 +260,7 @@ def display(
         id_space=id_space,
         id_subspace=id_subspace,
         upload_method=upload_method,
+        allow_concurrent_uploads=allow_concurrent_uploads,
     )
 
 
@@ -274,6 +279,7 @@ def upload(
     id_subspace: Optional[str],
     upload_method: Optional[str],
     out_command: str,
+    allow_concurrent_uploads: Optional[str],
 ):
     handle_command(
         command=command,
@@ -288,11 +294,12 @@ def upload(
         max_rows=max_rows,
         scale=scale,
         dump_config=dump_config,
-        use_line_feeds="no",
+        use_line_feeds="false",
         force_id=force_id,
         id_space=id_space,
         id_subspace=id_subspace,
         upload_method=upload_method,
+        allow_concurrent_uploads=allow_concurrent_uploads,
     )
 
 
@@ -322,11 +329,12 @@ def get_id(
         max_rows=max_rows,
         scale=scale,
         dump_config=dump_config,
-        use_line_feeds="no",
+        use_line_feeds="false",
         force_id=force_id,
         id_space=id_space,
         id_subspace=id_subspace,
         upload_method=None,
+        allow_concurrent_uploads=None,
     )
 
 
@@ -355,13 +363,13 @@ def placeholder(
         exit(1)
 
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
-        use_line_feeds = "yes"
+        use_line_feeds = "true"
 
     tupiterm.display_only(
         id_int,
         end_col=cols,
         end_row=rows,
-        use_line_feeds=(use_line_feeds == "yes"),
+        use_line_feeds=(use_line_feeds == "true"),
     )
 
 
@@ -370,7 +378,7 @@ def foreach(
     images: List[str],
     all: bool,
     dump_config: bool,
-    use_line_feeds: str = "no",
+    use_line_feeds: str = "false",
     older: Optional[str] = None,
     newer: Optional[str] = None,
     last: Optional[int] = None,
@@ -382,6 +390,7 @@ def foreach(
     verbose: bool = False,
     quiet: bool = False,
     upload_method: Optional[str] = None,
+    allow_concurrent_uploads: Optional[str] = None,
 ):
     query_specified = older or newer or last or except_last
     if (images or query_specified) and all:
@@ -414,6 +423,7 @@ def foreach(
             "max_rows": max_rows,
             "upload_method": upload_method,
             "provenance": "set via command line",
+            "allow_concurrent_uploads": allow_concurrent_uploads,
         },
     )
     if dump_config:
@@ -421,7 +431,7 @@ def foreach(
     max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
 
     if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
-        use_line_feeds = "yes"
+        use_line_feeds = "true"
 
     # A set of IDs and filenames we haven't encountered yet.
     not_encountered = []
@@ -582,7 +592,7 @@ def foreach(
                 end_col=max_cols_int,
                 end_row=max_rows_int,
                 allow_expansion=False,
-                use_line_feeds=(use_line_feeds == "yes"),
+                use_line_feeds=(use_line_feeds == "true"),
             )
             if inst.cols > max_cols_int or inst.rows > max_rows_int:
                 write(
@@ -830,6 +840,13 @@ def main_unwrapped():
             default=None,
             help="The upload method to use.",
         )
+        p.add_argument(
+            "--allow-concurrent-uploads",
+            choices=["auto", "true", "false"],
+            type=str,
+            default=None,
+            help="Whether to allow direct upload of images with different IDs concurrently.",
+        )
 
     # Arguments that are common for commands that send graphics commands.
     for p in may_upload:
@@ -854,7 +871,7 @@ def main_unwrapped():
         )
         p.add_argument(
             "--use-line-feeds",
-            choices=["auto", "yes", "no"],
+            choices=["auto", "true", "false"],
             default="auto",
             help="Use line feeds instead of cursor movement commands (auto: enable if output is not a TTY and there is no explicit positioning).",
         )

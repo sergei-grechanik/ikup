@@ -226,7 +226,7 @@ test_display() {
     run_command list -v | head -10
 
     subtest "Display with use-line-feeds"
-    run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=yes
+    run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=true
 }
 
 ################################################################################
@@ -680,19 +680,14 @@ test_parallel_stream() {
     # Run 5 processes in parallel with different parameters
     # We do -r 1 twice to increase collision probability
     $TUPIMAGE display $PARALLEL_IMAGES -m d -r 1 -o "$OUTFILE1" &
-    PID1=$!
     $TUPIMAGE display $PARALLEL_IMAGES -m d -r 1 -o "$OUTFILE2" &
-    PID2=$!
     $TUPIMAGE display $PARALLEL_IMAGES -m d -r 2 -o "$OUTFILE3" &
-    PID3=$!
     $TUPIMAGE display $PARALLEL_IMAGES -m d -c 1 -o "$OUTFILE4" &
-    PID4=$!
     $TUPIMAGE display $PARALLEL_IMAGES -m d -c 2 -o "$OUTFILE5" &
-    PID5=$!
 
     # Wait for all background processes to complete
     echo "Waiting for processes to complete..."
-    wait $PID1 $PID2 $PID3 $PID4 $PID5
+    wait
     echo "All processes completed."
 
     subtest "Results of parallel uploads"
@@ -709,6 +704,74 @@ test_parallel_stream() {
 
     subtest "List all uploaded images"
     run_command list | cut -f2- | sort
+}
+
+################################################################################
+
+test_parallel_mixed() {
+    start_test "Parallel stream and file uploads"
+
+    subtest "Running parallel upload commands"
+
+    # Run may processes in parallel with different parameters.
+    for i in $(seq 1 5); do
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES --force-upload -m d -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -c 1  &
+    done
+
+    # Wait for all background processes to complete
+    echo "Waiting for processes to complete..."
+    wait
+    echo "All processes completed."
+
+    subtest "Show some of the images"
+    $TUPIMAGE display $PARALLEL_IMAGES -r 1 -c 1 --no-upload
+
+    subtest "List all uploaded images"
+    run_command list | cut -f2- | sort
+}
+
+################################################################################
+
+test_parallel_mixed_noconcurrent() {
+    start_test "Parallel stream and file uploads, concurrent uploads disabled"
+
+    export TUPIMAGE_ALLOW_CONCURRENT_UPLOADS=False
+
+    subtest "Running parallel upload commands"
+
+    # Run may processes in parallel with different parameters.
+    for i in $(seq 1 5); do
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1 -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES --force-upload -m d -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -r 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m d -c 1  &
+        $TUPIMAGE upload $PARALLEL_IMAGES -m f -c 1  &
+    done
+
+    # Wait for all background processes to complete
+    echo "Waiting for processes to complete..."
+    wait
+    echo "All processes completed."
+
+    subtest "Show some of the images"
+    $TUPIMAGE display $PARALLEL_IMAGES -r 1 -c 1 --no-upload
+
+    subtest "List all uploaded images"
+    run_command list | cut -f2- | sort
+
+    unset TUPIMAGE_ALLOW_CONCURRENT_UPLOADS
 }
 
 ################################################################################

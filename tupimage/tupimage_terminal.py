@@ -105,6 +105,7 @@ class TupimageConfig:
     # Parallel upload options.
     upload_progress_update_interval: float = 0.5
     upload_stall_timeout: float = 2.0
+    allow_concurrent_uploads: Union[bool, Literal["auto"]] = "auto"
 
     def __post_init__(self):
         self._provenance = {}
@@ -221,35 +222,36 @@ class TupimageConfig:
         if name not in TupimageConfig.__annotations__:
             raise KeyError(f"Unknown config key: {name}")
         field_type = TupimageConfig.__annotations__[name]
+        if typing.get_origin(field_type) is Union:
+            types_in_union = typing.get_args(field_type)
+        else:
+            types_in_union = [field_type]  # Not a Union, just a single type
 
         # Normalize values specified as strings.
         if isinstance(value, str) and value != "auto":
-            if field_type is IDSubspace:
+            if IDSubspace in types_in_union:
                 value = IDSubspace.from_string(value)
-            if field_type is IDSpace:
+            if IDSpace in types_in_union:
                 value = IDSpace.from_string(value)
             if name == "cell_size" or name == "default_cell_size":
                 value = tupimage.utils.validate_size(value)
             if name == "id_database_dir" and value == "":
                 value = platformdirs.user_state_dir("tupimage")
-            if name == "upload_method":
+            if TransmissionMedium in types_in_union:
                 value = TransmissionMedium.from_string(value)
-            if name in [
-                "max_rows",
-                "max_cols",
-                "num_tmux_layers",
-                "max_db_age_days",
-                "max_num_ids",
-            ]:
+            if int in types_in_union:
                 value = int(value)
-            if name in [
-                "scale",
-                "global_scale",
-                "cleanup_probability",
-                "upload_progress_update_interval",
-                "upload_stall_timeout",
-            ]:
+            if float in types_in_union:
                 value = float(value)
+            if bool in types_in_union:
+                if value.lower() in ["true", "1", "t", "y", "yes"]:
+                    value = True
+                elif value.lower() in ["false", "0", "f", "n", "no"]:
+                    value = False
+                else:
+                    raise ValueError(
+                        f"Invalid boolean value for {name}: {value} {provenance}"
+                    )
             if name == "supported_formats":
                 value = re.split(r"[, ]+", value)
 
@@ -481,6 +483,7 @@ class TupimageTerminal:
         "upload_progress_update_interval"
     )
     upload_stall_timeout = _config_property("upload_stall_timeout")
+    allow_concurrent_uploads = _config_property("allow_concurrent_uploads")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -952,6 +955,14 @@ class TupimageTerminal:
             )
             return
 
+    def get_allow_concurrent_uploads(self) -> bool:
+        if self._config.allow_concurrent_uploads == "auto":
+            if self._terminal_name.startswith("st"):
+                return True
+            return False
+        else:
+            return self._config.allow_concurrent_uploads
+
     def _transmit_file_or_bytes(
         self,
         filename_or_object: Union[str, io.BytesIO],
@@ -1020,6 +1031,7 @@ class TupimageTerminal:
             description=inst.get_description(),
             stall_timeout=self._config.upload_stall_timeout,
             force_upload=force_upload,
+            allow_concurrent_uploads=self.get_allow_concurrent_uploads(),
         )
 
     def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo):

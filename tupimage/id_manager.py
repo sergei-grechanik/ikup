@@ -859,6 +859,7 @@ class IDManager:
         upload_time: Optional[datetime] = None,
         stall_timeout: float = 1.0,
         force_upload: bool = False,
+        allow_concurrent_uploads: bool = False,
     ) -> UploadInfo:
         """Marks an upload as 'in_progress' and sets its size and time. Returns the
         upload info.
@@ -875,6 +876,10 @@ class IDManager:
         Args:
             force_upload: If `True`, start a new upload even if another one is
             successful.
+
+            allow_concurrent_uploads: If `True`, active uploads with a different ID
+            don't interfere with the current upload. If `False`, wait for the active
+            upload to finish before starting the new one.
         """
         if upload_time is None:
             upload_time = datetime.now()
@@ -892,7 +897,40 @@ class IDManager:
                 with closing(self.conn.cursor()) as cursor:
                     cursor.execute("BEGIN IMMEDIATE")
 
-                    # Check if there's an existing upload entry
+                    # If terminal-wide locking is enabled, check for any active uploads
+                    # to this terminal.
+                    if not allow_concurrent_uploads:
+                        cursor.execute(
+                            """
+                            SELECT id, upload_time FROM upload
+                            WHERE terminal=? AND status=?
+                            ORDER BY upload_time DESC LIMIT 1
+                            """,
+                            (terminal, UPLOADING_STATUS_IN_PROGRESS),
+                        )
+                        row = cursor.fetchone()
+
+                        if row:
+                            # There's an active upload.
+                            active_id = row[0]
+                            active_upload_time = datetime.fromisoformat(row[1])
+                            # Check if the upload is stalled
+                            if existing_upload_time == active_upload_time:
+                                # The upload appears stalled, mark it as dirty
+                                cursor.execute(
+                                    """UPDATE upload SET status=?
+                                       WHERE terminal=? AND id=?""",
+                                    (UPLOADING_STATUS_DIRTY, terminal, active_id),
+                                )
+                            else:
+                                # Wait and try again
+                                existing_upload_time = active_upload_time
+                                cursor.close()
+                                self.conn.commit()
+                                time.sleep(stall_timeout)
+                                continue
+
+                    # Check if there's an existing upload entry for this specific ID
                     cursor.execute(
                         """SELECT description, upload_time, size, status, upload_id
                            FROM upload WHERE id=? AND terminal=?""",
@@ -1038,6 +1076,7 @@ class IDManager:
         stall_timeout: float = 1.0,
         max_retries: int = 100,
         force_upload: bool = False,
+        allow_concurrent_uploads: bool = False,
     ):
         """Retries uploading the given id by calling `fn` until it succeeds or the
         maximum number of retries is reached.
@@ -1051,6 +1090,10 @@ class IDManager:
 
             force_upload: If `True`, the upload is performed even if there is an
             existing upload info that is marked as successfully uploaded.
+
+            allow_concurrent_uploads: If `True`, active uploads with a different ID
+            don't interfere with the current upload. If `False`, wait for the active
+            upload to finish before starting the new one.
         """
         for _ in range(max_retries):
             upload = self.start_upload(
@@ -1060,6 +1103,7 @@ class IDManager:
                 size=size,
                 stall_timeout=stall_timeout,
                 force_upload=force_upload,
+                allow_concurrent_uploads=allow_concurrent_uploads,
             )
             if upload.status == UPLOADING_STATUS_UPLOADED:
                 # The upload was done by another process, do nothing.

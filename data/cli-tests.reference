@@ -81,6 +81,7 @@ max_num_ids = 4096                # default
 cleanup_probability = 0.01        # default
 upload_progress_update_interval = 0.5  # default
 upload_stall_timeout = 2.0        # default
+allow_concurrent_uploads = "auto"  # default
 
 ---------- SUBTEST Config without provenance ----------
 
@@ -120,6 +121,7 @@ max_num_ids = 4096
 cleanup_probability = 0.01
 upload_progress_update_interval = 0.5
 upload_stall_timeout = 2.0
+allow_concurrent_uploads = "auto"
 
 ---------- SUBTEST Config without defaults ----------
 
@@ -151,6 +153,7 @@ Total IDs in the session db: 0
 IDs in the subspace: 0
 Supported formats: ['png', 'jpeg']
 Default uploading method: f
+Allow concurrent uploads: True
 Max size in cells (cols x rows): 80 x 24
 (Assumed) cell size in pixels (w x h): 7 x 14
 
@@ -322,7 +325,7 @@ tupimage list -v
 
 ---------- SUBTEST Display with use-line-feeds ----------
 
-tupimage ./.cli-tests-data/wikipedia.png -r 2 --use-line-feeds=yes
+tupimage ./.cli-tests-data/wikipedia.png -r 2 --use-line-feeds=true
 [0m[38;2;[[wr2id]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
 [0m[38;2;[[wr2id]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
 
@@ -1283,5 +1286,85 @@ tupimage list
 5x2	{{.*}}/wikipedia.png
 69x2	{{.*}}/ruler.png
 6x2	{{.*}}/transparency.png
+
+========== TEST Parallel stream and file uploads ==========
+
+
+---------- SUBTEST Running parallel upload commands ----------
+
+Waiting for processes to complete...
+{{:SKIP_LINES:}}
+All processes completed.
+
+---------- SUBTEST Show some of the images ----------
+
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+
+---------- SUBTEST List all uploaded images ----------
+
+tupimage list
+1x1	{{.*}}.cli-tests-data/column.png
+1x1	{{.*}}.cli-tests-data/earth.jpg
+1x1	{{.*}}.cli-tests-data/flower.jpg
+1x1	{{.*}}.cli-tests-data/ruler.png
+1x1	{{.*}}.cli-tests-data/small_arrow.png
+1x1	{{.*}}.cli-tests-data/transparency.png
+1x1	{{.*}}.cli-tests-data/tux.png
+1x1	{{.*}}.cli-tests-data/wikipedia.png
+1x2	{{.*}}.cli-tests-data/column.png
+2x1	{{.*}}.cli-tests-data/earth.jpg
+2x1	{{.*}}.cli-tests-data/flower.jpg
+2x1	{{.*}}.cli-tests-data/small_arrow.png
+2x1	{{.*}}.cli-tests-data/tux.png
+35x1	{{.*}}.cli-tests-data/ruler.png
+3x1	{{.*}}.cli-tests-data/transparency.png
+3x1	{{.*}}.cli-tests-data/wikipedia.png
+
+========== TEST Parallel stream and file uploads, concurrent uploads disabled ==========
+
+
+---------- SUBTEST Running parallel upload commands ----------
+
+Waiting for processes to complete...
+{{:SKIP_LINES:}}
+All processes completed.
+
+---------- SUBTEST Show some of the images ----------
+
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+
+---------- SUBTEST List all uploaded images ----------
+
+tupimage list
+1x1	{{.*}}.cli-tests-data/column.png
+1x1	{{.*}}.cli-tests-data/earth.jpg
+1x1	{{.*}}.cli-tests-data/flower.jpg
+1x1	{{.*}}.cli-tests-data/ruler.png
+1x1	{{.*}}.cli-tests-data/small_arrow.png
+1x1	{{.*}}.cli-tests-data/transparency.png
+1x1	{{.*}}.cli-tests-data/tux.png
+1x1	{{.*}}.cli-tests-data/wikipedia.png
+1x2	{{.*}}.cli-tests-data/column.png
+2x1	{{.*}}.cli-tests-data/earth.jpg
+2x1	{{.*}}.cli-tests-data/flower.jpg
+2x1	{{.*}}.cli-tests-data/small_arrow.png
+2x1	{{.*}}.cli-tests-data/tux.png
+35x1	{{.*}}.cli-tests-data/ruler.png
+3x1	{{.*}}.cli-tests-data/transparency.png
+3x1	{{.*}}.cli-tests-data/wikipedia.png
 
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]
