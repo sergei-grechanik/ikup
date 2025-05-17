@@ -10,6 +10,7 @@ import select
 import subprocess
 import tempfile
 import typing
+import time
 import random
 from dataclasses import dataclass, field
 from typing import (
@@ -107,6 +108,7 @@ class TupimageConfig:
     upload_progress_update_interval: float = 0.5
     upload_stall_timeout: float = 2.0
     allow_concurrent_uploads: Union[bool, Literal["auto"]] = "auto"
+    upload_command_delay: float = 0.0
 
     def __post_init__(self):
         self._provenance = {}
@@ -485,6 +487,7 @@ class TupimageTerminal:
     )
     upload_stall_timeout = _config_property("upload_stall_timeout")
     allow_concurrent_uploads = _config_property("allow_concurrent_uploads")
+    upload_command_delay = _config_property("upload_command_delay")
     mark_uploaded = _config_property("mark_uploaded")
 
     def _tmux_display_message(self, message: str):
@@ -1052,6 +1055,10 @@ class TupimageTerminal:
         )
 
     def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo):
+        # Apply delay after each chunk if configured
+        if self._config.upload_command_delay > 0:
+            time.sleep(self._config.upload_command_delay)
+
         now = datetime.datetime.now()
         if now - info.upload_time > datetime.timedelta(
             seconds=self._config.upload_progress_update_interval
