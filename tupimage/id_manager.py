@@ -995,13 +995,14 @@ class IDManager:
     def report_upload(
         self,
         upload: UploadInfo,
-        finished: bool = False,
+        set_status: UploadingStatus = UPLOADING_STATUS_IN_PROGRESS,
         upload_time: Optional[datetime] = None,
     ):
         """Report that an upload is alive by updating the upload time in the database.
 
-        If `finished` is `True`, the upload is additionally marked as finished
-        ('uploaded').
+        Args:
+            set_status: The status to set for the upload. If the uploading is done,
+            `UPLOADING_STATUS_UPLOADED` is recommended.
 
         Raises:
             RetryUploadError: If the entry for the upload is missing or has the wrong
@@ -1043,12 +1044,7 @@ class IDManager:
                         f"has been modified or deleted"
                     )
 
-                # Update the upload time and status if finished
-                new_status = (
-                    UPLOADING_STATUS_UPLOADED
-                    if finished
-                    else UPLOADING_STATUS_IN_PROGRESS
-                )
+                # Update the upload time and status.
                 cursor.execute(
                     """
                     UPDATE upload SET
@@ -1058,7 +1054,7 @@ class IDManager:
                     """,
                     (
                         upload_time.isoformat(),
-                        new_status,
+                        set_status,
                         upload.id,
                         upload.terminal,
                         upload.upload_id,
@@ -1077,6 +1073,7 @@ class IDManager:
         max_retries: int = 100,
         force_upload: bool = False,
         allow_concurrent_uploads: bool = False,
+        mark_uploaded: bool = True,
     ):
         """Retries uploading the given id by calling `fn` until it succeeds or the
         maximum number of retries is reached.
@@ -1095,6 +1092,9 @@ class IDManager:
             don't interfere with the current upload. If `False`, wait for the active
             upload to finish before starting the new one.
         """
+        set_status = (
+            UPLOADING_STATUS_UPLOADED if mark_uploaded else UPLOADING_STATUS_DIRTY
+        )
         for _ in range(max_retries):
             upload = self.start_upload(
                 id,
@@ -1115,7 +1115,7 @@ class IDManager:
             # Try to run the upload function.
             try:
                 fn(upload)
-                self.report_upload(upload, finished=True)
+                self.report_upload(upload, set_status=set_status)
                 return
             except RetryUploadError:
                 pass

@@ -135,6 +135,7 @@ def handle_command(
     id_subspace: Optional[str],
     upload_method: Optional[str],
     allow_concurrent_uploads: Optional[str],
+    mark_uploaded: Optional[str],
 ):
     tupiterm = tupimage.TupimageTerminal(
         out_display=out_display if out_display else None,
@@ -149,6 +150,7 @@ def handle_command(
             "upload_method": upload_method,
             "provenance": "set via command line",
             "allow_concurrent_uploads": allow_concurrent_uploads,
+            "mark_uploaded": mark_uploaded,
         },
     )
     if dump_config:
@@ -241,6 +243,7 @@ def display(
     id_subspace: Optional[str],
     upload_method: Optional[str],
     allow_concurrent_uploads: Optional[str],
+    mark_uploaded: Optional[str],
 ):
     handle_command(
         command=command,
@@ -261,6 +264,7 @@ def display(
         id_subspace=id_subspace,
         upload_method=upload_method,
         allow_concurrent_uploads=allow_concurrent_uploads,
+        mark_uploaded=mark_uploaded,
     )
 
 
@@ -280,6 +284,7 @@ def upload(
     upload_method: Optional[str],
     out_command: str,
     allow_concurrent_uploads: Optional[str],
+    mark_uploaded: Optional[str],
 ):
     handle_command(
         command=command,
@@ -300,6 +305,7 @@ def upload(
         id_subspace=id_subspace,
         upload_method=upload_method,
         allow_concurrent_uploads=allow_concurrent_uploads,
+        mark_uploaded=mark_uploaded,
     )
 
 
@@ -335,6 +341,7 @@ def get_id(
         id_subspace=id_subspace,
         upload_method=None,
         allow_concurrent_uploads=None,
+        mark_uploaded=None,
     )
 
 
@@ -391,6 +398,7 @@ def foreach(
     quiet: bool = False,
     upload_method: Optional[str] = None,
     allow_concurrent_uploads: Optional[str] = None,
+    mark_uploaded: Optional[str] = None,
 ):
     query_specified = older or newer or last or except_last
     if (images or query_specified) and all:
@@ -846,6 +854,13 @@ def main_unwrapped():
             type=str,
             default=None,
             help="Whether to allow direct upload of images with different IDs concurrently.",
+        )
+        p.add_argument(
+            "--mark-uploaded",
+            choices=["true", "false"],
+            type=str,
+            default=None,
+            help="Whether to mark images as uploaded after uploading them. If false, they will be marked as dirty.",
         )
 
     # Arguments that are common for commands that send graphics commands.

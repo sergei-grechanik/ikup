@@ -776,6 +776,28 @@ test_parallel_mixed_noconcurrent() {
 
 ################################################################################
 
+test_mark_uploaded() {
+    start_test "Mark uploaded option"
+
+    subtest "Default behavior (mark as uploaded)"
+    run_command upload $DATA_DIR/tux.png
+    run_command list -v
+
+    subtest "Don't mark as uploaded (but it's already marked)"
+    run_command upload $DATA_DIR/tux.png --mark-uploaded=false
+    run_command list -v
+
+    subtest "Don't mark as uploaded (but reupload, so it will be dirty)"
+    run_command upload $DATA_DIR/tux.png --mark-uploaded=false --force-upload
+    run_command list -v
+
+    subtest "Explicitly mark as uploaded"
+    run_command upload $DATA_DIR/tux.png --mark-uploaded=true
+    run_command list -v $DATA_DIR/tux.png
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

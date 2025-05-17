@@ -76,6 +76,7 @@ class TupimageConfig:
     reupload_max_bytes_ago: int = 20 * 1024 * 1024
     reupload_max_seconds_ago: int = 3600
     force_upload: bool = False
+    mark_uploaded: bool = True
     supported_formats: Union[List[str], Literal["auto"]] = "auto"
     upload_method: Union[TransmissionMedium, Literal["auto"]] = "auto"
     check_response: bool = False
@@ -484,6 +485,7 @@ class TupimageTerminal:
     )
     upload_stall_timeout = _config_property("upload_stall_timeout")
     allow_concurrent_uploads = _config_property("allow_concurrent_uploads")
+    mark_uploaded = _config_property("mark_uploaded")
 
     def _tmux_display_message(self, message: str):
         result = subprocess.run(
@@ -774,6 +776,7 @@ class TupimageTerminal:
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
         update_atime: bool = True,
+        mark_uploaded: Optional[bool] = None,
     ) -> ImageInstance:
         if isinstance(image, ImageInstance):
             inst = image
@@ -810,6 +813,7 @@ class TupimageTerminal:
                 check_response=check_response,
                 upload_method=upload_method,
                 force_upload=force_upload,
+                mark_uploaded=mark_uploaded,
             )
         return inst
 
@@ -865,6 +869,7 @@ class TupimageTerminal:
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
         force_upload: bool = False,
+        mark_uploaded: Optional[bool] = None,
     ):
         if check_response is None:
             check_response = self._config.check_response
@@ -902,7 +907,12 @@ class TupimageTerminal:
                 if size <= max_upload_size:
                     image_object.close()
                     self._transmit_file_or_bytes(
-                        inst.path, inst, size, upload_method, force_upload=force_upload
+                        inst.path,
+                        inst,
+                        size,
+                        upload_method,
+                        force_upload=force_upload,
+                        mark_uploaded=mark_uploaded,
                     )
                     return
         else:
@@ -938,6 +948,7 @@ class TupimageTerminal:
                     size,
                     TransmissionMedium.TEMP_FILE,
                     force_upload=force_upload,
+                    mark_uploaded=mark_uploaded,
                 )
                 return
         elif upload_method == TransmissionMedium.DIRECT:
@@ -952,6 +963,7 @@ class TupimageTerminal:
                 pix_width=image_object.width,
                 pix_height=image_object.height,
                 force_upload=force_upload,
+                mark_uploaded=mark_uploaded,
             )
             return
 
@@ -969,10 +981,14 @@ class TupimageTerminal:
         inst: ImageInstance,
         size: int,
         upload_method: TransmissionMedium,
+        force_upload: bool,
+        mark_uploaded: Optional[bool],
         pix_width: Optional[int] = None,
         pix_height: Optional[int] = None,
-        force_upload: bool = False,
     ):
+        if mark_uploaded is None:
+            mark_uploaded = self._config.mark_uploaded
+
         def upload_fn(info: UploadInfo):
             if (
                 upload_method == TransmissionMedium.FILE
@@ -1032,6 +1048,7 @@ class TupimageTerminal:
             stall_timeout=self._config.upload_stall_timeout,
             force_upload=force_upload,
             allow_concurrent_uploads=self.get_allow_concurrent_uploads(),
+            mark_uploaded=mark_uploaded,
         )
 
     def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo):
@@ -1062,6 +1079,7 @@ class TupimageTerminal:
         abs_pos: Optional[Tuple[int, int]] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
         use_line_feeds: bool = False,
+        mark_uploaded: Optional[bool] = None,
     ) -> ImagePlaceholder:
         inst = self.upload(
             image,
@@ -1076,6 +1094,7 @@ class TupimageTerminal:
             force_upload=force_upload,
             check_response=check_response,
             upload_method=upload_method,
+            mark_uploaded=mark_uploaded,
         )
         return self.display_only(
             inst,
