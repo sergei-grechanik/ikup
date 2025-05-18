@@ -809,13 +809,13 @@ test_concurrent_stalled() {
     start_test "Upload command delay and stall detection"
 
     # Set the stall timeout to a small value
-    export TUPIMAGE_UPLOAD_STALL_TIMEOUT=0.2
+    export TUPIMAGE_UPLOAD_STALL_TIMEOUT=0.1
     export TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL=0.01
 
     echo "Run a process with a long delay in the background"
-    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.5 \
+    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.7 \
         $TUPIMAGE display $DATA_DIR/tux.png -r 2 -m direct --force-id 42 &
-    sleep 0.05
+    sleep 0.2
     echo "Display another image with the same ID in the meanwhile"
     $TUPIMAGE display $DATA_DIR/transparency.png -r 1 --force-id 42
     # There will be a short period when the second image is displayed
