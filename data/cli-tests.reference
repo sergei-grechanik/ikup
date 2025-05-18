@@ -1077,16 +1077,16 @@ reupload [[id_tux]]	4x2	{{.*}}/test_image.png
 error: Failed to upload [[id_wikipedia]] {{.*}}/test_image.png: Image file {{.*}}/test_image.png with mtime {{.*}} does not exist or was overwritten
 Exit code: 1
 
-========== TEST Parallel file uploads ==========
+========== TEST Concurrent file uploads ==========
 
 
----------- SUBTEST Running parallel upload and display commands ----------
+---------- SUBTEST Running concurrent upload and display commands ----------
 
 Waiting for processes to complete...
 {{:SKIP_LINES:}}
 All processes completed.
 
----------- SUBTEST Results of parallel uploads ----------
+---------- SUBTEST Results of concurrent uploads ----------
 
 Output from process 1 (rows=1):
 [0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
@@ -1184,16 +1184,16 @@ tupimage list
 69x2	{{.*}}/ruler.png
 6x2	{{.*}}/transparency.png
 
-========== TEST Parallel stream uploads ==========
+========== TEST Concurrent stream uploads ==========
 
 
----------- SUBTEST Running parallel upload and display commands ----------
+---------- SUBTEST Running concurrent upload and display commands ----------
 
 Waiting for processes to complete...
 {{:SKIP_LINES:}}
 All processes completed.
 
----------- SUBTEST Results of parallel uploads ----------
+---------- SUBTEST Results of concurrent uploads ----------
 
 Output from process 1 (rows=1):
 [0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
@@ -1291,10 +1291,10 @@ tupimage list
 69x2	{{.*}}/ruler.png
 6x2	{{.*}}/transparency.png
 
-========== TEST Parallel stream and file uploads ==========
+========== TEST Concurrent stream and file uploads ==========
 
 
----------- SUBTEST Running parallel upload commands ----------
+---------- SUBTEST Running concurrent upload commands ----------
 
 Waiting for processes to complete...
 {{:SKIP_LINES:}}
@@ -1331,10 +1331,10 @@ tupimage list
 3x1	{{.*}}.cli-tests-data/transparency.png
 3x1	{{.*}}.cli-tests-data/wikipedia.png
 
-========== TEST Parallel stream and file uploads, concurrent uploads disabled ==========
+========== TEST Concurrent stream and file uploads, concurrent uploads disabled ==========
 
 
----------- SUBTEST Running parallel upload commands ----------
+---------- SUBTEST Running concurrent upload commands ----------
 
 Waiting for processes to complete...
 {{:SKIP_LINES:}}
