@@ -979,7 +979,11 @@ class IDManager:
                     # TODO: We can try to abort the other process, but there is a risk
                     #       it will try reuploading before us. It's probably not the
                     #       most important case anyway.
-                    if not force_upload and status == UPLOADING_STATUS_UPLOADED and existing_description == description:
+                    if (
+                        not force_upload
+                        and status == UPLOADING_STATUS_UPLOADED
+                        and existing_description == description
+                    ):
                         return UploadInfo(
                             id=id,
                             description=existing_description,

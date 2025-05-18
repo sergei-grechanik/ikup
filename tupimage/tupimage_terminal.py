@@ -826,9 +826,7 @@ class TupimageTerminal:
                     # Retry if the ID was reassigned to another image
                     continue
             return inst
-        raise RuntimeError(
-            f"Failed to upload image {inst}"
-        )
+        raise RuntimeError(f"Failed to upload image {inst}")
 
     def get_supported_formats(self) -> List[str]:
         if self._config.supported_formats == "auto":
