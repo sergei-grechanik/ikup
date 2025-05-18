@@ -29,7 +29,7 @@ import platformdirs
 import toml
 
 import tupimage
-from tupimage.id_manager import ImageInfo, UploadInfo
+from tupimage.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
 import tupimage.utils
 from tupimage import (
     GraphicsCommand,
@@ -105,7 +105,7 @@ class TupimageConfig:
     cleanup_probability: float = 0.01
 
     # Parallel upload options.
-    upload_progress_update_interval: float = 0.5
+    upload_progress_update_interval: float = 0.2
     upload_stall_timeout: float = 2.0
     allow_concurrent_uploads: Union[bool, Literal["auto"]] = "auto"
     upload_command_delay: float = 0.0
@@ -780,45 +780,55 @@ class TupimageTerminal:
         upload_method: Union[TransmissionMedium, str, None] = None,
         update_atime: bool = True,
         mark_uploaded: Optional[bool] = None,
+        num_attempts: int = 10,
     ) -> ImageInstance:
-        if isinstance(image, ImageInstance):
-            inst = image
-            if cols is not None or rows is not None:
-                raise ValueError(
-                    "Cannot specify cols or rows when uploading an ImageInstance"
+        inst = None
+        for _ in range(num_attempts):
+            if isinstance(image, ImageInstance):
+                inst = image
+                if cols is not None or rows is not None:
+                    raise ValueError(
+                        "Cannot specify cols or rows when uploading an ImageInstance"
+                    )
+                if force_id is not None:
+                    raise ValueError(
+                        "Cannot specify force_id when uploading an ImageInstance"
+                    )
+                if inst.id is None:
+                    raise ValueError("Cannot upload an ImageInstance without an ID")
+            else:
+                inst = self.assign_id(
+                    image,
+                    cols=cols,
+                    rows=rows,
+                    max_cols=max_cols,
+                    max_rows=max_rows,
+                    scale=scale,
+                    id_space=id_space,
+                    id_subspace=id_subspace,
+                    force_id=force_id,
+                    update_atime=update_atime,
                 )
-            if force_id is not None:
-                raise ValueError(
-                    "Cannot specify force_id when uploading an ImageInstance"
-                )
-            if inst.id is None:
-                raise ValueError("Cannot upload an ImageInstance without an ID")
-        else:
-            inst = self.assign_id(
-                image,
-                cols=cols,
-                rows=rows,
-                max_cols=max_cols,
-                max_rows=max_rows,
-                scale=scale,
-                id_space=id_space,
-                id_subspace=id_subspace,
-                force_id=force_id,
-                update_atime=update_atime,
-            )
-        if force_upload is None:
-            force_upload = self._config.force_upload
-        if self._config.redetect_terminal:
-            self.detect_terminal()
-        if force_upload or self.needs_uploading(inst.id):
-            self._upload(
-                inst,
-                check_response=check_response,
-                upload_method=upload_method,
-                force_upload=force_upload,
-                mark_uploaded=mark_uploaded,
-            )
-        return inst
+            if force_upload is None:
+                force_upload = self._config.force_upload
+            if self._config.redetect_terminal:
+                self.detect_terminal()
+            if force_upload or self.needs_uploading(inst.id):
+                try:
+                    self._upload(
+                        inst,
+                        check_response=check_response,
+                        upload_method=upload_method,
+                        force_upload=force_upload,
+                        mark_uploaded=mark_uploaded,
+                    )
+                except RetryAssignIdError:
+                    # Retry if the ID was reassigned to another image
+                    continue
+            return inst
+        raise RuntimeError(
+            f"Failed to upload image {inst}"
+        )
 
     def get_supported_formats(self) -> List[str]:
         if self._config.supported_formats == "auto":

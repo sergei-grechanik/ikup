@@ -382,7 +382,9 @@ class UploadInfo:
 class RetryUploadError(Exception):
     """Exception raised when an upload fails and we need to retry it."""
 
-    pass
+
+class RetryAssignIdError(Exception):
+    """Exception raised when the ID has the wrong description."""
 
 
 class IDManager:
@@ -937,6 +939,7 @@ class IDManager:
                         (id, terminal),
                     )
                     row = cursor.fetchone()
+                    active_upload_time = datetime.fromisoformat(row[1]) if row else None
 
                     # Create a new upload entry if:
                     # - there is no existing entry, or
@@ -952,7 +955,7 @@ class IDManager:
                             row[3] == UPLOADING_STATUS_UPLOADED
                             and row[0] != description
                         )
-                        or existing_upload_time == upload_time
+                        or existing_upload_time == active_upload_time
                         or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS)
                     ):
                         return self._create_new_upload_entry(
@@ -966,19 +969,20 @@ class IDManager:
                         )
 
                     # Parse existing row data
-                    description, upload_time_str, existing_size, status, upload_id = row
-                    existing_upload_time = datetime.fromisoformat(upload_time_str)
+                    existing_description, _, existing_size, status, upload_id = row
+                    assert active_upload_time is not None
+                    existing_upload_time = active_upload_time
 
-                    # If already uploaded, return that info, unless we are force to
+                    # If already uploaded, return that info, unless we are forced to
                     # upload. If we are forced to upload, we must wait for the other
                     # process to finish first.
                     # TODO: We can try to abort the other process, but there is a risk
                     #       it will try reuploading before us. It's probably not the
                     #       most important case anyway.
-                    if not force_upload and status == UPLOADING_STATUS_UPLOADED:
+                    if not force_upload and status == UPLOADING_STATUS_UPLOADED and existing_description == description:
                         return UploadInfo(
                             id=id,
-                            description=description,
+                            description=existing_description,
                             upload_time=existing_upload_time,
                             terminal=terminal,
                             size=existing_size,
@@ -1016,6 +1020,22 @@ class IDManager:
             with closing(self.conn.cursor()) as cursor:
                 cursor.execute("BEGIN IMMEDIATE")
 
+                # Check the description of the ID. of the description for the ID is
+                # different from what we expect, someone has probably hijacked the ID.
+                # We cannot just retry the upload, we need to reassign the ID.
+                id_space = IDSpace.from_id(upload.id)
+                namespace = id_space.namespace_name()
+                cursor.execute(
+                    f"SELECT description FROM {namespace} WHERE id=?",
+                    (upload.id,),
+                )
+                row = cursor.fetchone()
+                if not row or row[0] != upload.description:
+                    raise RetryAssignIdError(
+                        f"ID {upload.id} was reassigned to {row[0]} instead of"
+                        f" {upload.description} during uploading"
+                    )
+
                 # Check if the upload entry still exists with the correct upload_id
                 cursor.execute(
                     """
@@ -1039,6 +1059,7 @@ class IDManager:
                         "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
                         (UPLOADING_STATUS_DIRTY, upload.id, upload.terminal),
                     )
+                    # Otherwise we should try to reupload with the same ID.
                     raise RetryUploadError(
                         f"Upload entry for ID {upload.id} on terminal {upload.terminal} "
                         f"has been modified or deleted"
@@ -1076,7 +1097,7 @@ class IDManager:
         mark_uploaded: bool = True,
     ):
         """Retries uploading the given id by calling `fn` until it succeeds or the
-        maximum number of retries is reached.
+        maximum number of retries is reached or the error is unrecoverable.
 
         Raises an error if the upload fails or the maximum number of retries is reached.
 

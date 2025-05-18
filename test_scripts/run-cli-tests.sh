@@ -35,6 +35,10 @@ while [ $# -gt 0 ]; do
             LIST_TESTS=1
             shift
             ;;
+        --db-dir)
+            DATABASE_DIR="$2"
+            shift 2
+            ;;
         --)
             shift
             break
@@ -150,8 +154,11 @@ fi
 
 ################################################################################
 
+if [ -z "$DATABASE_DIR" ]; then
+    DATABASE_DIR="$TMPDIR/id_database_dir"
+fi
+
 export TUPIMAGE_CONFIG="DEFAULT"
-export DATABASE_DIR="$TMPDIR/id_database_dir"
 export TUPIMAGE_ID_DATABASE_DIR="$DATABASE_DIR"
 
 # Disable 3rd diacritics because they are hard to match with the reference. We
@@ -794,6 +801,36 @@ test_mark_uploaded() {
     subtest "Explicitly mark as uploaded"
     run_command upload $DATA_DIR/tux.png --mark-uploaded=true
     run_command list -v $DATA_DIR/tux.png
+}
+
+################################################################################
+
+test_parallel_stalled() {
+    start_test "Upload command delay and stall detection"
+
+    # Set the stall timeout to a small value
+    export TUPIMAGE_UPLOAD_STALL_TIMEOUT=0.2
+    export TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL=0.01
+
+    echo "Run a process with a long delay in the background"
+    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.5 \
+        $TUPIMAGE display $DATA_DIR/tux.png -r 2 -m direct --force-id 42 &
+    sleep 0.05
+    echo "Display another image with the same ID in the meanwhile"
+    $TUPIMAGE display $DATA_DIR/transparency.png -r 1 --force-id 42
+    # There will be a short period when the second image is displayed
+    sleep 0.1
+    $TUPIMAGE list -v | grep -q "Uploading in progress" || echo "Failed to see that the upload is in progress"
+
+    # Wait for the first process to finish
+    wait
+    echo "Display both images"
+    run_command display $DATA_DIR/tux.png -r 2 --id-space 8bit
+    run_command display $DATA_DIR/transparency.png -r 1 --id-space 8bit
+    run_command list -v
+
+    unset TUPIMAGE_UPLOAD_STALL_TIMEOUT
+    unset TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL
 }
 
 ################################################################################
