@@ -835,6 +835,27 @@ test_concurrent_stalled() {
 
 ################################################################################
 
+test_named_pipe() {
+    start_test "Sending commands through a named pipe"
+
+    PIPE_NAME="$TMPDIR/named_pipe"
+    mkfifo "$PIPE_NAME"
+
+    tail -f "$PIPE_NAME" &
+    TAIL_PID=$!
+
+    run_command display $DATA_DIR/wikipedia.png -r 2 -O "$PIPE_NAME"
+    run_command display $DATA_DIR/tux.png -r 2 -O "$PIPE_NAME"
+
+    sleep 0.5
+    kill $TAIL_PID
+
+    # Clean up the named pipe
+    rm "$PIPE_NAME"
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     $test

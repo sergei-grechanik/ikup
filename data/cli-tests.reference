@@ -1467,4 +1467,12 @@ tupimage list -v
 [0m[38;5;42m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
 --------------------------------------------------------------------------------
 
+========== TEST Sending commands through a named pipe ==========
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2 -O {{.*}}/named_pipe
+{{:SKIP_LINES:}}
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
+{{:SKIP_LINES:}}
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=4;{{.*}}\
+{{:SKIP_LINES:}}
 Script done on {{.*}} [COMMAND_EXIT_CODE="0"]
