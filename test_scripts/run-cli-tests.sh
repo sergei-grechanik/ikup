@@ -812,14 +812,14 @@ test_concurrent_stalled() {
     export TUPIMAGE_UPLOAD_STALL_TIMEOUT=0.1
     export TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL=0.01
 
-    echo "Run a process with a long delay in the background"
-    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.7 \
+    # Run a process with a long delay in the background
+    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.8 \
         $TUPIMAGE display $DATA_DIR/tux.png -r 2 -m direct --force-id 42 &
-    sleep 0.2
-    echo "Display another image with the same ID in the meanwhile"
+    sleep 0.3
+    # Display another image with the same ID in the meanwhile
     $TUPIMAGE display $DATA_DIR/transparency.png -r 1 --force-id 42
     # There will be a short period when the second image is displayed
-    sleep 0.1
+    sleep 0.8
     $TUPIMAGE list -v | grep -q "Uploading in progress" || echo "Failed to see that the upload is in progress"
 
     # Wait for the first process to finish

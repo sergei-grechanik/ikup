@@ -1436,8 +1436,6 @@ tupimage list -v ./.cli-tests-data/tux.png
 
 ========== TEST Upload command delay and stall detection ==========
 
-Run a process with a long delay in the background
-Display another image with the same ID in the meanwhile
 _Gi=42,q=2,m=0,a=t;\
 _Gi=42,t=d,q=2,m=1,f=100,a=T,U=1,r=2,c=4;iVBO{{.*}}\
 _Gi=42,t=f,q=2,f=100,a=T,U=1,r=1,c=3;{{.*}}\
