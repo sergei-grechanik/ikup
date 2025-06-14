@@ -1205,28 +1205,3 @@ class IDManager:
                 """,
                 (max_uploads,),
             )
-
-    def get_all_with_upload_info(
-        self, id_space: IDSpace, subspace: IDSubspace = IDSubspace()
-    ) -> List[ImageInfo]:
-        namespace = id_space.namespace_name()
-        begin, end = id_space.subspace_masked_range(subspace)
-        with closing(self.conn.cursor()) as cursor:
-            cursor.execute(
-                f"""SELECT id, description, atime FROM {namespace}
-                    WHERE (id & ?) BETWEEN ? AND ? ORDER BY atime DESC
-                """,
-                (
-                    id_space.subspace_byte_mask(),
-                    begin,
-                    end - 1,
-                ),
-            )
-            return [
-                ImageInfo(
-                    id=row[0],
-                    description=row[1],
-                    atime=datetime.fromisoformat(row[4]),
-                )
-                for row in cursor.fetchall()
-            ]
