@@ -1,0 +1,55 @@
+========== TEST Force ID ==========
+
+
+---------- SUBTEST Upload an image with a specific id ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2 --force-id [[id:.*]]
+_Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
+
+---------- SUBTEST Redisplay it ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
+
+---------- SUBTEST Check that the id is set ----------
+
+tupimage get-id ./.cli-tests-data/wikipedia.png -r 2
+[[id]]
+tupimage list ./.cli-tests-data/wikipedia.png
+[[id]]	5x2	{{.*}}/wikipedia.png
+
+---------- SUBTEST Assign the same id to a different image without uploading ----------
+
+tupimage get-id ./.cli-tests-data/tux.png -r 2 --force-id [[id]]
+[[id]]
+tupimage list -v
+[1mID: [[id]][0m = 0x00123456 {{.*}}
+  {"path": "{{.*}}/tux.png", {{.*}}}
+  [1mNEEDS UPLOADING[0m to {{.*}}
+  (Needs reuploading) Uploaded to {{.*}}
+    INVALID DESCRIPTION: {"path": "{{.*}}/wikipedia.png", {{.*}}}
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+--------------------------------------------------------------------------------
+
+---------- SUBTEST Fix the image ----------
+
+tupimage fix [[id]]
+_Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=2,c=4;{{.*}}\
+fix [[id]]	4x2	{{.*}}/tux.png
+
+---------- SUBTEST Display the image by id ----------
+
+tupimage display [[id]]
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+tupimage list -v
+[1mID: [[id]][0m = 0x00123456 {{.*}}
+  {"path": "{{.*}}/tux.png", {{.*}}}
+  Uploaded {{.*}} (0 seconds ago)  size: 11913 bytes bytes_ago: 11913 uploads_ago: 1
+[s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+--------------------------------------------------------------------------------

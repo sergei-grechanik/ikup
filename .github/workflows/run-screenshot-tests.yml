@@ -39,17 +39,15 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
-            ./st-graphics/st -e script -e -c ./test_scripts/run-cli-tests.sh
-            mv typescript cli-tests.output
-            ./test_scripts/postprocess-cli-typescript.sh cli-tests.output
-            uv run python -m tupimage.testing.output_comparison cli-tests.output ./data/cli-tests.reference
+            ./st-graphics/st -e ./test_scripts/run-cli-tests.sh
+            uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
 
       - name: Keep the cli test outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cli-tests.output
-          path: cli-tests.output
+          name: cli-test-outputs
+          path: cli_test_outputs/
 
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1.0.1

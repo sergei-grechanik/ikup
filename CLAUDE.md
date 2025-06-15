@@ -34,12 +34,10 @@ CLI tests must be run from a terminal that supports the Kitty graphics protocol,
 like `st` (st should be installed in your environment).
 
 ```bash
-# Run CLI tests in a terminal and record the output in `typescript`:
-xvfb-run st -e script -e -c "./test_scripts/run-cli-tests.sh"
-# Post-process the CLI output:
-./test_scripts/postprocess-cli-typescript.sh typescript
-# Compare the output against reference data:
-uv run python -m tupimage.testing.output_comparison typescript data/cli-tests.reference
+# Run CLI tests and record individual test outputs:
+xvfb-run st -e ./test_scripts/run-cli-tests.sh
+# Compare the outputs against reference data:
+uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
 ```
 
 It is also possible to run individual tests:
@@ -47,9 +45,15 @@ It is also possible to run individual tests:
 # List available CLI tests:
 ./test_scripts/run-cli-tests.sh --list
 # Run specific CLI tests:
-xvfb-run st -e script -e -c "./test_scripts/run-cli-tests.sh test_basics test_display"
-# Post-processing and comparison is done the same way as above.
+xvfb-run st -e ./test_scripts/run-cli-tests.sh test_basics test_display
+# Comparison is done the same way as above.
 ```
+
+**CLI Test Structure:**
+- Each test function generates an individual output file in `cli_test_outputs/<test_name>.out`
+- Reference files are stored in `data/cli_test_references/<test_name>.reference`
+- The comparison script can compare either individual files or entire directories
+- Individual tests can be compared using: `uv run python -m tupimage.testing.output_comparison cli_test_outputs/<test_name>.out data/cli_test_references/<test_name>.reference`
 
 **Running screenshot tests:**
 (TODO)

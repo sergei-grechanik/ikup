@@ -1,0 +1,28 @@
+========== TEST Terminal identification options ==========
+
+
+---------- SUBTEST Default terminal identification ----------
+
+tupimage status
+terminal_name: st-256color
+terminal_id: st-256color-{{.*}}
+session_id: st-256color-{{.*}}
+
+---------- SUBTEST Custom identification options together ----------
+
+tupimage status
+terminal_name: custom-terminal
+terminal_id: custom-terminal-id
+session_id: custom-session-id
+
+---------- SUBTEST Upload and display with custom identification ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2
+{{:SKIP_LINES:}}
+tupimage list -v
+[1mID: {{.*}}
+  {{.*}}
+  Uploaded to custom-terminal-id {{.*}} uploads_ago: 1
+[s[0m[38;2;{{.*}}
+[0m[38;2;{{.*}}
+--------------------------------------------------------------------------------

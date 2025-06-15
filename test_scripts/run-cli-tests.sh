@@ -2,9 +2,8 @@
 
 # This is a helper script to run output tests in a headless environment.
 # The intended use:
-#   st -e script -e -c ./test_scripts/run-cli-tests.sh
-#   ./test_scripts/postprocess-cli-typescript.sh typescript
-#   uv run python -m tupimage.testing.output_comparison typescript ./data/cli-tests.reference
+#   xvfb-run st -e ./test_scripts/run-cli-tests.sh
+#   uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
 #
 # Usage:
 #   ./test_scripts/run-cli-tests.sh [OPTIONS] [TEST_NAMES...]
@@ -12,6 +11,7 @@
 # Options:
 #   -c, --command CMD  Command to test (default: "uv run tupimage")
 #   -l, --list         List all available tests
+#   --no-script        Disable script recording (for internal use)
 #
 # Examples:
 #   # List available tests
@@ -23,6 +23,12 @@
 #   # Test a custom command
 #   ./test_scripts/run-cli-tests.sh --command 'uv run --python 3.13 tupimage'
 #
+
+# Capture original arguments before parsing for script wrapper
+ORIGINAL_COMMAND="$0 --no-script"
+for arg in "$@"; do
+    ORIGINAL_COMMAND="$ORIGINAL_COMMAND \"$arg\""
+done
 
 # Parse command-line options
 while [ $# -gt 0 ]; do
@@ -39,6 +45,10 @@ while [ $# -gt 0 ]; do
             DATABASE_DIR="$2"
             shift 2
             ;;
+        --no-script)
+            NO_SCRIPT=1
+            shift
+            ;;
         --)
             shift
             break
@@ -53,16 +63,49 @@ while [ $# -gt 0 ]; do
     esac
 done
 
+# Remaining positional arguments are test names
+
+# Collect all test function names
+TEST_NAMES=$(grep '^test_.*() {' "$0" | sed 's/() {//' | awk '{print $1}')
+
+# Handle --list option
+if [ -n "$LIST_TESTS" ]; then
+    for test in $TEST_NAMES; do
+        echo "$test"
+    done
+    exit 0
+fi
+
+# Validate test names if provided
+if [ $# -gt 0 ]; then
+    for test in "$@"; do
+        if ! echo "$TEST_NAMES" | grep -qw "$test"; then
+            echo "Error: Invalid test name '$test'" >&2
+            echo "Available tests: $TEST_NAMES" >&2
+            exit 1
+        fi
+    done
+    TESTS_TO_RUN="$@"
+else
+    TESTS_TO_RUN="$TEST_NAMES"
+fi
+
+# Self-execute with script if not disabled
+if [ -z "$NO_SCRIPT" ]; then
+    exec script -q -e -c "$ORIGINAL_COMMAND" typescript
+fi
+
 # Set default command if not provided
 if [ -z "$TUPIMAGE" ]; then
     TUPIMAGE="uv run tupimage"
 fi
 
-# Remaining positional arguments are test names
-set -- "$@"
-
 DATA_DIR="./.cli-tests-data"
 mkdir -p "$DATA_DIR" 2> /dev/null
+
+# Create output directory for individual test results
+OUTPUT_DIR="./cli_test_outputs"
+mkdir -p "$OUTPUT_DIR" 2> /dev/null
 
 TMPDIR="$(mktemp -d)"
 if [ -z "$TMPDIR" ]; then
@@ -96,30 +139,34 @@ run_command() {
     fi
 }
 
-# Collect all test function names
-TEST_NAMES=$(grep '^test_.*() {' "$0" | sed 's/() {//' | awk '{print $1}')
+run_individual_test() {
+    test_name="$1"
+    output_file="$OUTPUT_DIR/${test_name}.out"
 
-# Handle --list option
-if [ -n "$LIST_TESTS" ]; then
-    for test in $TEST_NAMES; do
-        echo "$test"
-    done
-    exit 0
-fi
+    # Clear the typescript file before running the test
+    > typescript
 
-# Validate test names if provided
-if [ $# -gt 0 ]; then
-    for test in "$@"; do
-        if ! echo "$TEST_NAMES" | grep -qw "$test"; then
-            echo "Error: Invalid test name '$test'" >&2
-            echo "Available tests: $TEST_NAMES" >&2
-            exit 1
-        fi
-    done
-    TESTS_TO_RUN="$@"
-else
-    TESTS_TO_RUN="$TEST_NAMES"
-fi
+    # Run the test function
+    $test_name
+
+    # Copy and post-process the typescript file to the output file
+    if [ -f typescript ]; then
+        cp typescript "$output_file"
+
+        # Remove script header and footer lines
+        sed -i '/^Script started on /d' "$output_file"
+        sed -i '/^Script done on /d' "$output_file"
+
+        # Post-process the output file similar to postprocess-cli-typescript.sh
+        # Insert \n after each \033D
+        sed -i 's/\x1bD/\x1bD\n/g' "$output_file"
+
+        # Insert \n before and after each graphics command
+        sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2\n\3/g' "$output_file"
+        sed -i 's/\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2/g' "$output_file"
+        sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)/\1\n\2/g' "$output_file"
+    fi
+}
 
 [ -f $DATA_DIR/wikipedia.png ] || \
     curl -o $DATA_DIR/wikipedia.png https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png
@@ -858,5 +905,5 @@ test_named_pipe() {
 
 # Run the tests.
 for test in $TESTS_TO_RUN; do
-    $test
+    run_individual_test "$test"
 done

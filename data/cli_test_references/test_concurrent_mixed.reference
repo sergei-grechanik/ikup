@@ -1,0 +1,39 @@
+========== TEST Concurrent stream and file uploads ==========
+
+
+---------- SUBTEST Running concurrent upload commands ----------
+
+Waiting for processes to complete...
+{{:SKIP_LINES:}}
+All processes completed.
+
+---------- SUBTEST Show some of the images ----------
+
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+[0m[38;2;{{.*}}m􎻮̅̅[0m[1DD
+
+---------- SUBTEST List all uploaded images ----------
+
+tupimage list
+1x1	{{.*}}.cli-tests-data/column.png
+1x1	{{.*}}.cli-tests-data/earth.jpg
+1x1	{{.*}}.cli-tests-data/flower.jpg
+1x1	{{.*}}.cli-tests-data/ruler.png
+1x1	{{.*}}.cli-tests-data/small_arrow.png
+1x1	{{.*}}.cli-tests-data/transparency.png
+1x1	{{.*}}.cli-tests-data/tux.png
+1x1	{{.*}}.cli-tests-data/wikipedia.png
+1x2	{{.*}}.cli-tests-data/column.png
+2x1	{{.*}}.cli-tests-data/earth.jpg
+2x1	{{.*}}.cli-tests-data/flower.jpg
+2x1	{{.*}}.cli-tests-data/small_arrow.png
+2x1	{{.*}}.cli-tests-data/tux.png
+35x1	{{.*}}.cli-tests-data/ruler.png
+3x1	{{.*}}.cli-tests-data/transparency.png
+3x1	{{.*}}.cli-tests-data/wikipedia.png
