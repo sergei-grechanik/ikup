@@ -1,0 +1,164 @@
+========== TEST Basics: help, status, config ==========
+
+
+---------- SUBTEST Just help ----------
+
+tupimage --help
+usage: tupimage [-h]
+                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup} ...
+
+positional arguments:
+  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}
+    dump-config         Dump the config state.
+    status              Display the status.
+    list                List all known images or known images matching the
+                        criteria.
+    display             Display an image. (default)
+    upload              Upload an image without displaying.
+    get-id              Assign an id to an image without displaying or
+                        uploading it.
+    placeholder         Print a placeholder for the given id, rows and
+                        columns.
+    forget              Forget all matching images. Don't delete them from the
+                        terminal though.
+    dirty               Mark all matching images as dirty (not uploaded to any
+                        terminal).
+    reupload            Reupload all matching images to the current terminal.
+    fix                 Reupload all dirty matching images to the current
+                        terminal.
+    cleanup             Trigger db cleanup.
+
+options:
+  -h, --help            show this help message and exit
+
+---------- SUBTEST Different ways of printing help (only help line is checked) ----------
+
+tupimage 
+  -h, --help            show this help message and exit
+tupimage -h
+  -h, --help            show this help message and exit
+tupimage ./.cli-tests-data/tux.png --help
+  -h, --help            show this help message and exit
+tupimage ./.cli-tests-data/tux.png -h
+  -h, --help            show this help message and exit
+
+---------- SUBTEST Config ----------
+
+tupimage dump-config
+id_space = "24bit"                # set via TUPIMAGE_ID_SPACE
+id_subspace = "0:256"             # default
+max_ids_per_subspace = 1024       # default
+id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"  # set via TUPIMAGE_ID_DATABASE_DIR
+cell_size = "auto"                # default
+default_cell_size = "8x16"        # default
+scale = 1.0                       # default
+global_scale = 1.0                # default
+max_rows = "auto"                 # default
+max_cols = "auto"                 # default
+max_command_size = 4096           # default
+num_tmux_layers = 0               # expanded from 'auto' (default)
+reupload_max_uploads_ago = 1024   # default
+reupload_max_bytes_ago = 20971520  # default
+reupload_max_seconds_ago = 3600   # default
+force_upload = false              # default
+mark_uploaded = true              # default
+supported_formats = "auto"        # default
+upload_method = "auto"            # default
+check_response = false            # default
+check_response_timeout = 3.0      # default
+redetect_terminal = true          # default
+stream_max_size = 2097152         # default
+file_max_size = 10485760          # default
+fewer_diacritics = false          # default
+placeholder_char = "\U0010eeee"   # default
+background = "none"               # default
+terminal_name = ""                # default
+terminal_id = ""                  # default
+session_id = ""                   # default
+ignore_unknown_attributes = false  # default
+max_db_age_days = 7               # default
+max_num_ids = 4096                # default
+cleanup_probability = 0.01        # default
+upload_progress_update_interval = 0.2  # default
+upload_stall_timeout = 2.0        # default
+allow_concurrent_uploads = "auto"  # default
+upload_command_delay = 0.0        # default
+
+---------- SUBTEST Config without provenance ----------
+
+tupimage dump-config --no-provenance
+id_space = "24bit"
+id_subspace = "0:256"
+max_ids_per_subspace = 1024
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
+cell_size = "auto"
+default_cell_size = "8x16"
+scale = 1.0
+global_scale = 1.0
+max_rows = "auto"
+max_cols = "auto"
+max_command_size = 4096
+num_tmux_layers = 0
+reupload_max_uploads_ago = 1024
+reupload_max_bytes_ago = 20971520
+reupload_max_seconds_ago = 3600
+force_upload = false
+mark_uploaded = true
+supported_formats = "auto"
+upload_method = "auto"
+check_response = false
+check_response_timeout = 3.0
+redetect_terminal = true
+stream_max_size = 2097152
+file_max_size = 10485760
+fewer_diacritics = false
+placeholder_char = "\U0010eeee"
+background = "none"
+terminal_name = ""
+terminal_id = ""
+session_id = ""
+ignore_unknown_attributes = false
+max_db_age_days = 7
+max_num_ids = 4096
+cleanup_probability = 0.01
+upload_progress_update_interval = 0.2
+upload_stall_timeout = 2.0
+allow_concurrent_uploads = "auto"
+upload_command_delay = 0.0
+
+---------- SUBTEST Config without defaults ----------
+
+tupimage dump-config --skip-default
+id_space = "24bit"                # set via TUPIMAGE_ID_SPACE
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"  # set via TUPIMAGE_ID_DATABASE_DIR
+num_tmux_layers = 0               # expanded from 'auto' (default)
+
+---------- SUBTEST Config without defaults and provenance ----------
+
+tupimage dump-config --skip-default --no-provenance
+id_space = "24bit"
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
+num_tmux_layers = 0
+
+---------- SUBTEST Status ----------
+
+tupimage status
+Config file: DEFAULT
+num_tmux_layers: 0
+inside_ssh: False
+terminal_name: st-256color
+terminal_id: st-256color-[[winid:.*]]
+session_id: st-256color-[[winid]]
+database_file: /tmp/[[tmpdir]]/id_database_dir/st-256color-[[winid]].db
+Default ID space: 24bit
+Default subspace: 0:256
+Total IDs in the session db: 0
+IDs in the subspace: 0
+Supported formats: ['png', 'jpeg']
+Default uploading method: f
+Allow concurrent uploads: True
+Max size in cells (cols x rows): 80 x 24
+(Assumed) cell size in pixels (w x h): 7 x 14
+
+All databases in /tmp/[[tmpdir]]/id_database_dir
+  st-256color-[[winid]].db  (atime: {{.*}}, size: {{.*}} KiB)

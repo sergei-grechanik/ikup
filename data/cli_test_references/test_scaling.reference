@@ -1,0 +1,25 @@
+========== TEST Scaling ==========
+
+
+---------- SUBTEST Global scale 0.5 via config ----------
+
+_G{{.*}}\
+1
+
+---------- SUBTEST Global scale 0.5 with CLI scale 2 (total 1.0) ----------
+
+_G{{.*}}\
+2
+
+---------- SUBTEST scale 0.5 via config ----------
+
+1
+
+---------- SUBTEST scale 0.5 via config overridden by CLI scale 2 ----------
+
+_G{{.*}}\
+3
+
+---------- SUBTEST combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 ----------
+
+3

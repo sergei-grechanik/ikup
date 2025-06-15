@@ -1,3 +1,4 @@
+import os
 import re
 import sys
 import string
@@ -318,6 +319,80 @@ def compare(input_content: str, ref_content: str) -> Dict[str, Any]:
     }
 
 
+def compare_directories(input_dir: str, ref_dir: str) -> Dict[str, Any]:
+    """Compare directories containing test output files.
+
+    Args:
+        input_dir: Directory containing test output files
+        ref_dir: Directory containing reference files
+
+    Returns:
+        Dictionary with comparison results
+    """
+    if not os.path.isdir(input_dir):
+        return {
+            "errors": [f"Input directory '{input_dir}' not found"],
+            "missing_tests": [],
+            "extra_tests": [],
+            "failed": True,
+        }
+
+    if not os.path.isdir(ref_dir):
+        return {
+            "errors": [f"Reference directory '{ref_dir}' not found"],
+            "missing_tests": [],
+            "extra_tests": [],
+            "failed": True,
+        }
+
+    # Get all test files
+    input_files = {f for f in os.listdir(input_dir) if f.endswith(".out")}
+    ref_files = {f for f in os.listdir(ref_dir) if f.endswith(".reference")}
+
+    # Convert to test names for comparison
+    input_tests = {f[:-4] for f in input_files}  # Remove .out
+    ref_tests = {f[:-10] for f in ref_files}  # Remove .reference
+
+    errors = []
+    missing_tests = []
+    extra_tests = []
+    failed = False
+
+    # Compare files that exist in both directories
+    for test_name in ref_tests:
+        if test_name not in input_tests:
+            missing_tests.append(test_name)
+            continue
+
+        input_file = os.path.join(input_dir, f"{test_name}.out")
+        ref_file = os.path.join(ref_dir, f"{test_name}.reference")
+
+        try:
+            with open(input_file, "r", errors="backslashreplace") as f:
+                input_content = f.read()
+            with open(ref_file, "r", errors="backslashreplace") as f:
+                ref_content = f.read()
+
+            result = compare(input_content, ref_content)
+            if result["failed"]:
+                errors.extend(result["errors"])
+                failed = True
+
+        except Exception as e:
+            errors.append(f"Error comparing {test_name}: {e}")
+            failed = True
+
+    # Find extra tests in input
+    extra_tests = list(input_tests - ref_tests)
+
+    return {
+        "errors": errors,
+        "missing_tests": missing_tests,
+        "extra_tests": extra_tests,
+        "failed": failed or bool(missing_tests) or bool(extra_tests),
+    }
+
+
 def main() -> None:
     """Command line interface entry point for comparison tool.
 
@@ -325,31 +400,41 @@ def main() -> None:
     if any discrepancies are found.
     """
     if len(sys.argv) != 3:
-        print("Usage: compare.py input.txt reference.txt")
+        print("Usage: compare.py input_file_or_dir reference_file_or_dir")
         sys.exit(1)
 
-    try:
-        with open(sys.argv[1], errors="backslashreplace") as f:
-            input_content = f.read()
-        with open(sys.argv[2]) as f:
-            ref_content = f.read()
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        sys.exit(1)
+    input_path = sys.argv[1]
+    ref_path = sys.argv[2]
 
-    result = compare(input_content, ref_content)
+    # Check if we're comparing directories or files
+    if os.path.isdir(input_path) and os.path.isdir(ref_path):
+        result = compare_directories(input_path, ref_path)
+    elif os.path.isfile(input_path) and os.path.isfile(ref_path):
+        try:
+            with open(input_path, errors="backslashreplace") as f:
+                input_content = f.read()
+            with open(ref_path) as f:
+                ref_content = f.read()
+        except FileNotFoundError as e:
+            print(f"Error: {e}")
+            sys.exit(1)
+
+        result = compare(input_content, ref_content)
+    else:
+        print("Error: Both arguments must be files or both must be directories")
+        sys.exit(1)
 
     for error in result["errors"]:
         print(error)
 
     if result["missing_tests"]:
-        print("Missing tests in input file:")
+        print("Missing tests in input:")
         for test in result["missing_tests"]:
             print(f" {test}")
         print()
 
     if result["extra_tests"]:
-        print("Extra tests in input file not present in reference:")
+        print("Extra tests in input not present in reference:")
         for test in result["extra_tests"]:
             print(f" {test}")
 

@@ -1,0 +1,36 @@
+========== TEST Database cleanup ==========
+
+
+---------- SUBTEST Create old databases ----------
+
+{{:SKIP_LINES:}}
+
+---------- SUBTEST Explicit cleanup of old databases ----------
+
+tupimage cleanup
+Removed old databases:
+  {{.*}}/old_db1.db
+  {{.*}}/old_db2.db
+Remaining databases after cleanup:
+total {{.*}}
+{{.*}} .
+{{.*}} ..
+{{.*}} recent_db.db
+{{:SKIP_LINES:}}
+old_db1.db was successfully removed
+old_db2.db was successfully removed
+recent_db.db was correctly preserved
+
+---------- SUBTEST Test random cleanup via probability ----------
+
+{{:SKIP_LINES:}}
+tupimage status
+Total IDs in the session db: 6
+Random cleanup successfully limited IDs to 5 + 1
+tupimage list
+{{.*}}	22x10	{{.*}}/wikipedia.png
+{{.*}}	20x9	{{.*}}/wikipedia.png
+{{.*}}	18x8	{{.*}}/wikipedia.png
+{{.*}}	16x7	{{.*}}/wikipedia.png
+{{.*}}	14x6	{{.*}}/wikipedia.png
+{{.*}}	11x5	{{.*}}/wikipedia.png

@@ -1,0 +1,76 @@
+========== TEST Uploading methods ==========
+
+
+---------- SUBTEST File ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2 -m file
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
+tupimage display ./.cli-tests-data/transparency.png -r 2 -m f
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=6;{{.*}}\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽[0m[6DD
+
+---------- SUBTEST Stream ----------
+
+tupimage display ./.cli-tests-data/tux.png -r 2 -m stream
+_Gi=[[id:.*]],q=2,m=0,a=t;\
+_Gi=[[id]],t=d,q=2,m=1,f=100,a=T,U=1,r=2,c=4;iVBO{{.*}}\
+_Gi=[[id]],m=1;{{.*}}\
+_Gi=[[id]],m=1;{{.*}}\
+_Gi=[[id]],m=0;{{.*}}QmCC\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
+tupimage display ./.cli-tests-data/tux.png -r 3 -m direct
+_Gi={{.*}},q=2,m=0,a=t;\
+_Gi={{.*}},t=d,q=2,m=1,f=100,a=T,U=1,r=3,c=6;iVBO{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=0;{{.*}}QmCC\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽[0m[uD
+[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽[0m[6DD
+tupimage display ./.cli-tests-data/tux.png -r 4
+_Gi={{.*}},q=2,m=0,a=t;\
+_Gi={{.*}},t=d,q=2,m=1,f=100,a=T,U=1,r=4,c=7;iVBO{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=0;{{.*}}QmCC\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽􎻮̎̾[0m[uD
+[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍􎻮̐̎􎻮̐̐􎻮̐̒􎻮̐̽􎻮̐̾[0m[7DD
+
+---------- SUBTEST The fix command ----------
+
+tupimage dirty --all
+{{:SKIP_LINES:}}
+tupimage fix ./.cli-tests-data/tux.png -m direct
+_Gi={{.*}},q=2,m=0,a=t;\
+_Gi={{.*}},t=d,q=2,m=1,f=100,a=T,U=1,r=4,c=7;iVBO{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=0;{{.*}}QmCC\
+_Gi={{.*}},q=2,m=0,a=t;\
+_Gi={{.*}},t=d,q=2,m=1,f=100,a=T,U=1,r=3,c=6;iVBO{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=0;{{.*}}QmCC\
+_Gi={{.*}},q=2,m=0,a=t;\
+_Gi={{.*}},t=d,q=2,m=1,f=100,a=T,U=1,r=2,c=4;iVBO{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=1;{{.*}}\
+_Gi={{.*}},m=0;{{.*}}QmCC\
+fix {{.*}}	7x4	{{.*}}/tux.png
+fix {{.*}}	6x3	{{.*}}/tux.png
+fix {{.*}}	4x2	{{.*}}/tux.png
+
+---------- SUBTEST Unknown and unsupported methods ----------
+
+tupimage display ./.cli-tests-data/wikipedia.png -r 2 -m unknown
+error: Unsupported transmission medium: unknown
+Exit code: 2
+tupimage display ./.cli-tests-data/wikipedia.png -r 2 -m temp
+error: Unsupported upload method: t
+Exit code: 2
