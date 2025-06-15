@@ -56,6 +56,13 @@ xvfb-run st -e script -e -c "./test_scripts/run-cli-tests.sh test_basics test_di
 Screenshot tests take a very long time to run, so avoid running them. The
 probability of them failing is quite low if everything else works.
 
+## Development Conventions
+
+**Commit Messages:**
+- Keep all lines in commit messages to 72 characters or fewer
+- Use imperative mood for the subject line
+- Include detailed explanations in the body when needed
+- Avoid too many emojis in commit messages
 
 ## Architecture
 
@@ -81,5 +88,6 @@ probability of them failing is quite low if everything else works.
 
 **Testing Structure:**
 - `tests/` - Unit tests for core components
-- `tupimage/testing/` - Integration tests and test utilities
-- `test_scripts/` - CLI output comparison tests against reference data
+- `tupimage/testing/` - Screenshot testing infrastructure and screenshot tests
+- `test_scripts/` - Various helper scripts for CLI and screenshot tests
+- `test_scripts/run-cli-tests.sh` - The file containing CLI tests
