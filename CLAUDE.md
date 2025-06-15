@@ -14,6 +14,7 @@ assignment, concurrent uploads, and database caching.
 
 **Build and Install:**
 ```bash
+uv build                        # Build source and wheel distributions
 uv run tupimage --help          # Test CLI works
 ```
 
@@ -25,7 +26,7 @@ There are three types of tests in the project:
 
 **Running pytest tests:**
 ```bash
-uv run pytest
+uv run --extra test pytest
 ```
 
 **Running CLI output tests:**

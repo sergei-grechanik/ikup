@@ -1,6 +1,6 @@
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "tupimage"
@@ -11,7 +11,6 @@ requires-python = ">= 3.10"
 dependencies = [
     "Pillow",
     "platformdirs",
-    "pytest",
     "toml",
 ]
 
@@ -20,6 +19,9 @@ test = ["pytest", "numpy"]
 
 [project.scripts]
 tupimage = "tupimage.cli:main"
+
+[tool.hatch.version]
+path = "tupimage/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
