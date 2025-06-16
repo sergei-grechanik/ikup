@@ -910,7 +910,7 @@ test_named_pipe() {
     run_command display $DATA_DIR/wikipedia.png -r 2 -O "$PIPE_NAME"
     run_command display $DATA_DIR/tux.png -r 2 -O "$PIPE_NAME"
 
-    sleep 0.5
+    sleep 1.0
     kill $TAIL_PID
 
     # Clean up the named pipe
