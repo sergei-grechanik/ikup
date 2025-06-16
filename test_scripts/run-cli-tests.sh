@@ -3,7 +3,7 @@
 # This is a helper script to run output tests in a headless environment.
 # The intended use:
 #   xvfb-run st -e ./test_scripts/run-cli-tests.sh
-#   uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
+#   uv run python -m tupimage.testing.output_comparison cli-test-outputs/ data/cli-test-references/
 #
 # Usage:
 #   ./test_scripts/run-cli-tests.sh [OPTIONS] [TEST_NAMES...]
@@ -92,7 +92,56 @@ fi
 
 # Self-execute with script if not disabled
 if [ -z "$NO_SCRIPT" ]; then
-    exec script -q -e -c "$ORIGINAL_COMMAND" typescript
+    # Create output directory for individual test results
+    OUTPUT_DIR="./cli-test-outputs"
+    mkdir -p "$OUTPUT_DIR" 2> /dev/null
+
+    script -q -e -c "$ORIGINAL_COMMAND" "$OUTPUT_DIR/typescript"
+
+    # After script completes, split the typescript file
+    if [ ! -f "$OUTPUT_DIR/typescript" ]; then
+        echo "Error: typescript file not found" >&2
+        exit 1
+    fi
+
+    # Remove script header and footer lines
+    sed -i '/^Script started on /d; /^Script done on /d' "$OUTPUT_DIR/typescript"
+
+    # Split the file by test markers
+    awk -v output_dir="$OUTPUT_DIR" '
+    /^========== TEST [a-zA-Z_]+ - / {
+        if (current_file) close(current_file)
+        # Extract test function name from the line
+        for (i = 1; i <= NF; i++) {
+            if ($i == "TEST") {
+                test_name = $(i+1)
+                break
+            }
+        }
+        current_file = output_dir "/" test_name ".out"
+        print > current_file
+        next
+    }
+    current_file { print > current_file }
+    ' "$OUTPUT_DIR/typescript"
+
+    # Post-process each output file
+    for output_file in "$OUTPUT_DIR"/*.out; do
+        if [ -f "$output_file" ]; then
+            # Remove carriage return characters before newlines
+            sed -i 's/\r$//' "$output_file"
+
+            # Insert \n after each \033D
+            sed -i 's/\x1bD/\x1bD\n/g' "$output_file"
+
+            # Insert \n before and after each graphics command
+            sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2\n\3/g' "$output_file"
+            sed -i 's/\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2/g' "$output_file"
+            sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)/\1\n\2/g' "$output_file"
+        fi
+    done
+
+    exit 0
 fi
 
 # Set default command if not provided
@@ -102,10 +151,6 @@ fi
 
 DATA_DIR="./.cli-tests-data"
 mkdir -p "$DATA_DIR" 2> /dev/null
-
-# Create output directory for individual test results
-OUTPUT_DIR="./cli_test_outputs"
-mkdir -p "$OUTPUT_DIR" 2> /dev/null
 
 TMPDIR="$(mktemp -d)"
 if [ -z "$TMPDIR" ]; then
@@ -119,7 +164,7 @@ cleanup() {
 
 start_test() {
     echo
-    echo "========== TEST $1 =========="
+    echo "========== TEST $CURRENT_TEST_NAME - $1 =========="
     echo
     $TUPIMAGE forget --all --quiet
 }
@@ -136,35 +181,6 @@ run_command() {
     TUPIMAGE_EXIT_CODE="$?"
     if [ $TUPIMAGE_EXIT_CODE -ne 0 ]; then
         echo "Exit code: $TUPIMAGE_EXIT_CODE"
-    fi
-}
-
-run_individual_test() {
-    test_name="$1"
-    output_file="$OUTPUT_DIR/${test_name}.out"
-
-    # Clear the typescript file before running the test
-    > typescript
-
-    # Run the test function
-    $test_name
-
-    # Copy and post-process the typescript file to the output file
-    if [ -f typescript ]; then
-        cp typescript "$output_file"
-
-        # Remove script header and footer lines
-        sed -i '/^Script started on /d' "$output_file"
-        sed -i '/^Script done on /d' "$output_file"
-
-        # Post-process the output file similar to postprocess-cli-typescript.sh
-        # Insert \n after each \033D
-        sed -i 's/\x1bD/\x1bD\n/g' "$output_file"
-
-        # Insert \n before and after each graphics command
-        sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2\n\3/g' "$output_file"
-        sed -i 's/\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2/g' "$output_file"
-        sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)/\1\n\2/g' "$output_file"
     fi
 }
 
@@ -905,5 +921,6 @@ test_named_pipe() {
 
 # Run the tests.
 for test in $TESTS_TO_RUN; do
-    run_individual_test "$test"
+    CURRENT_TEST_NAME="$test"
+    $test
 done

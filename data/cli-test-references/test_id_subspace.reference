@@ -1,4 +1,4 @@
-========== TEST ID subspace ==========
+========== TEST test_id_subspace - ID subspace ==========
 
 
 ---------- SUBTEST Upload an image with different id spaces and the same subspace ----------

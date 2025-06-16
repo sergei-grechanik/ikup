@@ -40,14 +40,14 @@ jobs:
         with:
           run: |
             ./st-graphics/st -e ./test_scripts/run-cli-tests.sh
-            uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
+            test_scripts/compare-cli-test.sh cli-test-outputs
 
       - name: Keep the cli test outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: cli-test-outputs
-          path: cli_test_outputs/
+          path: cli-test-outputs/
 
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1.0.1

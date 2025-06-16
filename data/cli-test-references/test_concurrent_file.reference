@@ -1,4 +1,4 @@
-========== TEST Concurrent file uploads ==========
+========== TEST test_concurrent_file - Concurrent file uploads ==========
 
 
 ---------- SUBTEST Running concurrent upload and display commands ----------

@@ -1,11 +1,13 @@
 tags
 .tupimage-testing
 .cli-tests-data
+cli-test-outputs
 /_*
 massif.out*
 gmon.out
 typescript
 .aider*
+.claude*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

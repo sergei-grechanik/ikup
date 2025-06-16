@@ -1,11 +1,15 @@
-========== TEST Basics: help, status, config ==========
+Note that the text before the test header is ignored, so you can write some
+comments here.
+
+========== TEST test_basics - Basics: help, status, config ==========
 
 
 ---------- SUBTEST Just help ----------
 
 tupimage --help
 usage: tupimage [-h]
-                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup} ...
+                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}{{.*}}
+{{:SKIP_LINES:}}
 
 positional arguments:
   {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}

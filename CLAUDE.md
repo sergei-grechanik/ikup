@@ -36,24 +36,43 @@ like `st` (st should be installed in your environment).
 ```bash
 # Run CLI tests and record individual test outputs:
 xvfb-run st -e ./test_scripts/run-cli-tests.sh
+
 # Compare the outputs against reference data:
-uv run python -m tupimage.testing.output_comparison cli_test_outputs/ data/cli_test_references/
+uv run python -m tupimage.testing.output_comparison cli-test-outputs/ data/cli-test-references/
+
+# A simpler comparison command (must be run from the project root, assumes uv):
+test_scripts/compare-cli-test.sh cli-test-outputs
 ```
+
+Note that the output you get from `xvfb-run st -e <command>` comes from the st
+terminal, not from `<command>`. In most cases it may be ignored, unless you are
+debugging an issue with an image not being displayed correctly.
 
 It is also possible to run individual tests:
 ```bash
 # List available CLI tests:
 ./test_scripts/run-cli-tests.sh --list
+
 # Run specific CLI tests:
 xvfb-run st -e ./test_scripts/run-cli-tests.sh test_basics test_display
-# Comparison is done the same way as above.
+
+# You can compare the whole output directory or just a single test:
+uv run python -m tupimage.testing.output_comparison cli-test-outputs/test_basics.out data/cli-test-references/test_basics.reference
+
+# A simpler command for individual test comparison:
+test_scripts/compare-cli-test.sh cli-test-outputs/test_basics.out
 ```
 
+IMPORTANT: Avoid running CLI tests or tupimage itself without wrapping them in
+`xvfb-run st -e`: the output may be very different since you probably live
+inside a terminal that doesn't support the kitty graphics protocol (or not even
+in a terminal at all).
+
 **CLI Test Structure:**
-- Each test function generates an individual output file in `cli_test_outputs/<test_name>.out`
-- Reference files are stored in `data/cli_test_references/<test_name>.reference`
+- Each test function generates an individual output file in `cli-test-outputs/<test_name>.out`
+- Reference files are stored in `data/cli-test-references/<test_name>.reference`
 - The comparison script can compare either individual files or entire directories
-- Individual tests can be compared using: `uv run python -m tupimage.testing.output_comparison cli_test_outputs/<test_name>.out data/cli_test_references/<test_name>.reference`
+- Individual tests can be compared using: `uv run python -m tupimage.testing.output_comparison cli-test-outputs/<test_name>.out data/cli-test-references/<test_name>.reference`
 
 **Running screenshot tests:**
 (TODO)
@@ -67,6 +86,7 @@ probability of them failing is quite low if everything else works.
 - Use imperative mood for the subject line
 - Include detailed explanations in the body when needed
 - Avoid too many emojis in commit messages
+- Avoid using bold and italics in commit messages
 
 ## Architecture
 
@@ -95,3 +115,49 @@ probability of them failing is quite low if everything else works.
 - `tupimage/testing/` - Screenshot testing infrastructure and screenshot tests
 - `test_scripts/` - Various helper scripts for CLI and screenshot tests
 - `test_scripts/run-cli-tests.sh` - The file containing CLI tests
+
+## CLI Test Reference Files
+
+The CLI test system uses a sophisticated pattern language in reference files to
+handle dynamic content while ensuring consistency (this is very similar to
+llvm's FileCheck utility). Reference files are stored in
+`data/cli-test-references/` and use the following pattern syntax:
+
+### Pattern Types
+
+**Regular Expression Patterns: `{{pattern}}`**
+`{{<regex>}}` will match the output against a regular expression pattern. It's
+used for content that varies but doesn't need to be consistent across the test.
+For example:
+- `{{.*}}` - Matches any text (most common usage)
+- `{{[0-9]+}}` - Matches numbers only
+
+**Variable Capture and Reference: `[[variable:pattern]]` and `[[variable]]`**
+- `[[tmpdir:.*]]` - Captures temporary directory path into "tmpdir" variable
+- `[[id:.*]]` - Captures image ID into "id" variable
+- `[[tmpdir]]` - References previously captured "tmpdir" variable (the output
+  text must match the last captured value of `tmpdir`)
+
+**Conditional Variable Capture: `[[variable?:pattern]]`**
+- `[[wikipedia_png?:.*]]` - Captures into "wikipedia_png" only if not already set
+This is a rarely used feature, it may be removed in the future.
+
+**Function Transformations: `[[function(variable)]]`**
+- `[[rgb(id)]]` - Converts numeric ID to RGB color format `r;g;b`
+- Used for terminal color codes and other transformed output
+
+**Skip Lines Directive: `{{:SKIP_LINES:}}`**
+- Skips any number of input lines until the next reference line matches
+- If used as the last line, skips all remaining input
+- Useful for handling timing-dependent output, optional sections, or long
+  sections that are not very important
+
+### Example
+
+A very common pattern is to match a graphics command, capturing the value of the
+image id, and then using the rgb representation of this id when matching the
+placeholder:
+```
+_Gi=[[id:.*]],t=f,q=2,f=100,a=T,U=1,r=1,c=3;[[wikipedia_png:.*]]\
+[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎[0m[3DD
+```

@@ -1,4 +1,4 @@
-========== TEST Database cleanup ==========
+========== TEST test_cleanup - Database cleanup ==========
 
 
 ---------- SUBTEST Create old databases ----------
