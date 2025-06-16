@@ -1,4 +1,4 @@
-========== TEST Concurrent stream and file uploads ==========
+========== TEST test_concurrent_mixed_noconcurrent - Concurrent stream and file uploads, concurrent uploads disabled ==========
 
 
 ---------- SUBTEST Running concurrent upload commands ----------

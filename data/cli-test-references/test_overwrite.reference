@@ -1,4 +1,4 @@
-========== TEST Image overwriting / mtime change ==========
+========== TEST test_overwrite - Image overwriting / mtime change ==========
 
 
 ---------- SUBTEST Display original image ----------

@@ -1,4 +1,4 @@
-========== TEST Upload command delay and stall detection ==========
+========== TEST test_concurrent_stalled - Upload command delay and stall detection ==========
 
 _Gi=42,q=2,m=0,a=t;\
 _Gi=42,t=d,q=2,m=1,f=100,a=T,U=1,r=2,c=4;iVBO{{.*}}\

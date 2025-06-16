@@ -376,6 +376,13 @@ def compare_directories(input_dir: str, ref_dir: str) -> Dict[str, Any]:
             result = compare(input_content, ref_content)
             if result["failed"]:
                 errors.extend(result["errors"])
+                # Also include missing/extra tests as errors for file-level mismatches
+                if result["missing_tests"]:
+                    for missing_test in result["missing_tests"]:
+                        errors.append(f"Missing test in {test_name}: {missing_test}")
+                if result["extra_tests"]:
+                    for extra_test in result["extra_tests"]:
+                        errors.append(f"Extra test in {test_name}: {extra_test}")
                 failed = True
 
         except Exception as e:

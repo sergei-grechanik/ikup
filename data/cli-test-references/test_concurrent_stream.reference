@@ -1,4 +1,4 @@
-========== TEST Concurrent stream uploads ==========
+========== TEST test_concurrent_stream - Concurrent stream uploads ==========
 
 
 ---------- SUBTEST Running concurrent upload and display commands ----------
