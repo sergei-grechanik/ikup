@@ -63,11 +63,6 @@ uv run python -m tupimage.testing.output_comparison cli-test-outputs/test_basics
 test_scripts/compare-cli-test.sh cli-test-outputs/test_basics.out
 ```
 
-IMPORTANT: Avoid running CLI tests or tupimage itself without wrapping them in
-`xvfb-run st -e`: the output may be very different since you probably live
-inside a terminal that doesn't support the kitty graphics protocol (or not even
-in a terminal at all).
-
 **CLI Test Structure:**
 - Each test function generates an individual output file in `cli-test-outputs/<test_name>.out`
 - Reference files are stored in `data/cli-test-references/<test_name>.reference`
@@ -78,6 +73,36 @@ in a terminal at all).
 (TODO)
 Screenshot tests take a very long time to run, so avoid running them. The
 probability of them failing is quite low if everything else works.
+
+## Debugging
+
+**Terminal Environment Requirement:**
+CRITICAL: tupimage CLI commands MUST be run within a proper terminal environment
+that supports the Kitty graphics protocol. Attempting to debug or test tupimage
+commands outside of this environment will result in errors like:
+
+```
+OSError: [Errno 6] No such device or address: '/dev/tty'
+```
+
+**Correct debugging pattern:**
+```bash
+# CORRECT - Debug CLI tests in proper terminal
+xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
+
+# CORRECT - Debug individual commands
+xvfb-run st -e bash -c 'uv run tupimage display image.png'
+
+# WRONG - Will fail with /dev/tty error
+tupimage display image.png
+uv run tupimage display image.png
+python debug_script.py  # if it calls tupimage directly
+```
+
+**Why this is required:**
+tupimage initializes `GraphicsTerminal` which attempts to open `/dev/tty` for
+terminal communication. This fails when running outside a proper terminal
+environment (e.g., in IDEs, simple shells, or scripts without tty allocation).
 
 ## Development Conventions
 
