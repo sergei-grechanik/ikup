@@ -104,6 +104,34 @@ tupimage initializes `GraphicsTerminal` which attempts to open `/dev/tty` for
 terminal communication. This fails when running outside a proper terminal
 environment (e.g., in IDEs, simple shells, or scripts without tty allocation).
 
+**Debug Terminal Helper:**
+Use `test_scripts/debug-terminal.sh` for easier debugging with a persistent
+terminal environment:
+
+```bash
+# Start persistent terminal (uses st by default)
+./test_scripts/debug-terminal.sh start
+
+# Start with custom terminal and options
+./test_scripts/debug-terminal.sh start st -f "Liberation Mono" -e
+./test_scripts/debug-terminal.sh start kitty
+
+# Execute commands and get typescript + screenshot
+./test_scripts/debug-terminal.sh exec uv run tupimage display image.png
+./test_scripts/debug-terminal.sh exec uv run tupimage status
+
+# Stop when done
+./test_scripts/debug-terminal.sh stop
+```
+
+This tool provides:
+- Persistent Xvfb + terminal environment (no need to restart for each command)
+- Automatic `script` recording of all command output
+- Screenshot capture after each command
+- Escaped output for non-printable characters
+- Timestamped output files in `debug-terminal/` directory
+- Automatic display allocation (no conflicts with existing X servers)
+
 ## Development Conventions
 
 **Commit Messages:**

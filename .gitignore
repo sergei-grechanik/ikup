@@ -2,6 +2,7 @@ tags
 .tupimage-testing
 .cli-tests-data
 cli-test-outputs
+debug-terminal
 /_*
 massif.out*
 gmon.out
