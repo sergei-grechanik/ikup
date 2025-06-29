@@ -31,6 +31,7 @@ import toml
 import tupimage
 from tupimage.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
 import tupimage.utils
+from tupimage.terminal_detection import detect_terminal_info
 from tupimage import (
     GraphicsCommand,
     GraphicsResponse,
@@ -490,44 +491,24 @@ class TupimageTerminal:
     upload_command_delay = _config_property("upload_command_delay")
     mark_uploaded = _config_property("mark_uploaded")
 
-    def _tmux_display_message(self, message: str):
-        result = subprocess.run(
-            ["tmux", "display-message", "-p", message],
-            capture_output=True,
-            text=True,
-        )
-        return result.stdout.strip()
-
-    def _remove_bad_chars(self, string: str) -> str:
-        return re.sub(r"[^a-zA-Z0-9_-]", "_", string)
-
     def detect_terminal(self):
-        self._terminal_name = self._config.terminal_name
-        self._terminal_id = self._config.terminal_id
-        self._session_id = self._config.session_id
-        if self._config.num_tmux_layers == 0:
-            if not self._terminal_name:
-                self._terminal_name = os.environ.get("TERM", "unknown-terminal")
-            if not self._terminal_id:
-                self._terminal_id = (
-                    self._terminal_name
-                    + "-"
-                    + os.environ.get("WINDOWID", "unknown-window")
-                )
-            if not self._session_id:
-                self._session_id = self._terminal_id
+        # Use explicit config values if provided
+        if (
+            not self._config.terminal_name
+            or not self._config.terminal_id
+            or not self._config.session_id
+        ):
+            # Auto-detect missing values
+            detected_name, detected_id, detected_session = detect_terminal_info()
+
+            self._terminal_name = self._config.terminal_name or detected_name
+            self._terminal_id = self._config.terminal_id or detected_id
+            self._session_id = self._config.session_id or detected_session
         else:
-            data = self._tmux_display_message(
-                "#{client_termname}||||#{client_pid}||||#{pid}_#{session_id}"
-            ).split("||||")
-            if not self._terminal_name:
-                self._terminal_name = data[0]
-            if not self._terminal_id:
-                self._terminal_id = f"tmux-client-{data[0]}-{data[1]}"
-            if not self._session_id:
-                self._session_id = f"tmux-{data[2]}"
-        self._terminal_id = self._remove_bad_chars(self._terminal_id)
-        self._session_id = self._remove_bad_chars(self._session_id)
+            # Use all config values as provided
+            self._terminal_name = self._config.terminal_name
+            self._terminal_id = self._config.terminal_id
+            self._session_id = self._config.session_id
 
     def get_cell_size(self) -> Tuple[int, int]:
         if self._config.cell_size == "auto":
