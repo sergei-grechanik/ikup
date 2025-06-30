@@ -20,10 +20,8 @@ while true; do
             break
         fi
 
-        # Parse command and filenames using awk, handling cases where command
-        # contains `@@@`. We assume only the last two @@@ are real separators
-        # (for typescript and screenshot files).
-        cmd=$(echo "$cmd_line" | awk -F'@@@' '{
+        # Parse base64 encoded command and filenames
+        encoded_cmd=$(echo "$cmd_line" | awk -F'@@@' '{
             # Find the total number of fields
             nf = NF
             # Command is everything except the last two fields, joined back with @@@
@@ -35,6 +33,9 @@ while true; do
         }')
         typescript_file=$(echo "$cmd_line" | awk -F'@@@' '{print $(NF-1)}')
         screenshot_file=$(echo "$cmd_line" | awk -F'@@@' '{print $NF}')
+
+        # Decode the command from base64
+        cmd=$(echo "$encoded_cmd" | base64 -d)
 
         echo "Executing: $cmd"
 
