@@ -196,8 +196,10 @@ exec_command() {
 
     echo "Executing command: $cmd_string"
 
-    # Send command with filenames to worker via pipe (using unique delimiter to handle pipes in commands)
-    echo "$cmd_string@@@$typescript_file@@@$screenshot_file" > "$PIPE_FILE"
+    # Send command with filenames to worker via pipe
+    # Always use base64 encoding to handle both single-line and multiline commands
+    local encoded_cmd=$(echo -n "$cmd_string" | base64 -w 0)
+    echo "$encoded_cmd@@@$typescript_file@@@$screenshot_file" > "$PIPE_FILE"
 
     # Wait for command to complete by checking if files exist
     for i in $(seq 30); do
