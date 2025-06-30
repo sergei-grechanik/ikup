@@ -115,8 +115,9 @@ start_terminal() {
     echo "Starting Xvfb..."
     # Use automatic display allocation
     XVFB_OUTPUT=$(mktemp)
-    Xvfb -displayfd 1 -screen 0 1024x768x24 > "$XVFB_OUTPUT" &
+    nohup Xvfb -displayfd 1 -screen 0 1024x768x24 > "$XVFB_OUTPUT" 2>/dev/null < /dev/null &
     XVFB_PID=$!
+    disown
     echo $XVFB_PID > "$XVFB_PID_FILE"
 
     # Wait for Xvfb to write the display number
@@ -149,8 +150,9 @@ start_terminal() {
     echo "Starting terminal: ${terminal_cmd[*]} $worker_script $PIPE_FILE"
 
     # Start terminal with worker script
-    DISPLAY="$DISPLAY_NUM" "${terminal_cmd[@]}" "$worker_script" "$PIPE_FILE" &
+    nohup env DISPLAY="$DISPLAY_NUM" "${terminal_cmd[@]}" "$worker_script" "$PIPE_FILE" >/dev/null 2>&1 < /dev/null &
     echo $! > "$TERM_PID_FILE"
+    disown
 
     # Wait a moment for terminal to start
     sleep 2
