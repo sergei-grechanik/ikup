@@ -54,7 +54,7 @@ while true; do
         log_message "DEBUG" "Output file: $typescript_file, Screenshot: $screenshot_file"
 
         # Execute command with script to capture typescript
-        script -q -e -c "$cmd" "$typescript_file" &
+        script -q -e -c "$cmd" "$typescript_file" < /dev/tty &
         cmd_pid=$!
         echo "$cmd_pid" > "$CURRENT_CMD_PID_FILE"
         log_message "INFO" "Command started with PID $cmd_pid"
