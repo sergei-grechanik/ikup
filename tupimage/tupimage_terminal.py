@@ -70,6 +70,8 @@ class TupimageConfig:
     global_scale: float = 1.0
     max_rows: Union[int, Literal["auto"]] = "auto"
     max_cols: Union[int, Literal["auto"]] = "auto"
+    fallback_max_rows: int = 24
+    fallback_max_cols: int = 80
 
     # Uploading options
     max_command_size: int = select.PIPE_BUF
@@ -528,8 +530,8 @@ class TupimageTerminal:
         if max_rows is None or max_cols is None:
             term_size = self.term.get_size()
             if term_size is None:
-                max_cols = max_cols or 256
-                max_rows = max_rows or 256
+                max_cols = max_cols or self._config.fallback_max_cols
+                max_rows = max_rows or self._config.fallback_max_rows
             else:
                 max_cols = max_cols or term_size[0]
                 max_rows = max_rows or min(term_size[1], 256)

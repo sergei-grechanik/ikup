@@ -350,15 +350,15 @@ class GraphicsTerminal:
         placement_id = put_command.placement_id
         if placement_id is None:
             placement_id = 0
-        term_cols, term_rows = self.get_size()
+        term_cols, term_rows = self.get_size_or_infinity()
         cur_x, cur_y = self.get_cursor_position_tracked()
-        cols = min(put_command.cols, term_cols - cur_x)
+        cols = int(min(put_command.cols, term_cols - cur_x))
         rows = put_command.rows
         if term_rows - cur_y < rows:
             if put_command.do_not_move_cursor:
-                rows = term_rows - cur_y
+                rows = int(term_rows - cur_y)
             else:
-                newlines = rows - (term_rows - cur_y)
+                newlines = rows - int(term_rows - cur_y)
                 self._write(
                     b"\033[%dS" % newlines,
                     comment=f"Move cursor down by {newlines}",
@@ -603,7 +603,7 @@ class GraphicsTerminal:
             # Reset the scroll margins.
             self._write(b"\033[r", comment="Reset scroll margins")
             # Scroll up to clear the screen.
-            cols, lines = self.get_size()
+            cols, lines = self.get_size_or_fail()
             self.scroll_up(lines)
             self.move_cursor_abs(col=0, row=0)
             return
@@ -642,12 +642,26 @@ class GraphicsTerminal:
             self.in_response.fileno(),
         ]
 
-    def get_size(self) -> Tuple[int, int]:
+    def get_size(self) -> Optional[Tuple[int, int]]:
         for fileno in self._get_all_filenos():
             lines, cols, _, _ = self._get_sizes(fileno)
             if lines != 0 and cols != 0:
                 return (cols, lines)
-        raise ValueError("Could not determine terminal size")
+        return None
+
+    def get_size_or_infinity(self) -> Tuple[float, float]:
+        """Get terminal size, returning infinite values if detection fails."""
+        size = self.get_size()
+        if size is None:
+            return (float('inf'), float('inf'))
+        return size
+
+    def get_size_or_fail(self) -> Tuple[int, int]:
+        """Get terminal size, raising an exception if detection fails."""
+        size = self.get_size()
+        if size is None:
+            raise RuntimeError("Could not determine terminal size")
+        return size
 
     def get_cell_size(self) -> Optional[Tuple[int, int]]:
         for fileno in self._get_all_filenos():
@@ -665,7 +679,11 @@ class GraphicsTerminal:
         lines: Optional[int] = None,
     ):
         if columns is None or lines is None:
-            columns, lines = self.get_size()
+            size = self.get_size()
+            if size is None:
+                self.tracked_cursor_position = (x, y)
+                return
+            columns, lines = size
         self.tracked_cursor_position = (
             min(x, columns - 1),
             min(y, lines - 1),

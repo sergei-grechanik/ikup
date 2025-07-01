@@ -919,6 +919,26 @@ test_named_pipe() {
 
 ################################################################################
 
+test_fallback_dimensions() {
+    start_test "Fallback dimensions when terminal size detection fails"
+
+    subtest "Status with simulated terminal size failure"
+    script -q -c "$TUPIMAGE status" < /dev/null
+
+    subtest "Status with custom fallback dimensions"
+    TUPIMAGE_FALLBACK_MAX_ROWS=10 TUPIMAGE_FALLBACK_MAX_COLS=40 \
+        script -q -c "$TUPIMAGE status" < /dev/null
+
+    subtest "Display image with fallback dimensions"
+    script -q -c "$TUPIMAGE display $DATA_DIR/tux.png" < /dev/null
+
+    subtest "Display with custom fallback dimensions"
+    TUPIMAGE_FALLBACK_MAX_ROWS=5 TUPIMAGE_FALLBACK_MAX_COLS=20 \
+        script -q -c "$TUPIMAGE display $DATA_DIR/tux.png" < /dev/null
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     CURRENT_TEST_NAME="$test"
