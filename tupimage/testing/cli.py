@@ -55,7 +55,7 @@ def run(args):
     if args.reset_by_scrolling:
         term.reset_by_scrolling = True
 
-    real_term_size = term.get_size()
+    real_term_size = term.get_size_or_fail()
     real_cell_size = term.get_cell_size()
     if not args.ignore_size:
         if (
