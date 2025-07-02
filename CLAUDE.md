@@ -135,9 +135,11 @@ This tool provides:
 ## Development Conventions
 
 **Commit Messages:**
-- Keep all lines in commit messages to 72 characters or fewer
+- Keep all lines in commit messages to 72 characters or fewer. Ideally, the
+  headers should be even shorter (~50 character, but it's not strict).
 - Use imperative mood for the subject line
-- Include detailed explanations in the body when needed
+- Include detailed explanations in the body when needed, but don't be too
+  verbose.
 - Avoid too many emojis in commit messages
 - Avoid using bold and italics in commit messages
 
@@ -214,3 +216,56 @@ placeholder:
 _Gi=[[id:.*]],t=f,q=2,f=100,a=T,U=1,r=1,c=3;[[wikipedia_png:.*]]\
 [0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎[0m[3DD
 ```
+
+
+### Creating Robust Reference Files
+
+**Step-by-step process:**
+
+1. **Run the test multiple times** to identify what varies between runs:
+   ```bash
+   # Run test several times and compare outputs
+   xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
+   cp cli-test-outputs/test_name.out cli-test-outputs/test_name.out.backup
+   xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
+   diff cli-test-outputs/test_name.out cli-test-outputs/test_name.out.backup
+   ```
+
+2. **Identify dynamic vs static content**:
+   - **Dynamic (use patterns)**: Terminal/session IDs, database paths, timestamps,
+     image IDs, RGB color values, base64 data
+   - **Static (match exactly)**: Test structure, configuration values,
+     Unicode placeholder characters, command parameters
+
+3. **Use appropriate patterns**:
+   ```
+   terminal_id: [[terminal_id:.*]]        # Capture dynamic terminal ID
+   session_id: [[session_id:.*]]          # Don't assume same as terminal_id
+   database_file: {{.*}}                  # Path components with wildcards
+   _Gi=[[img_id:.*]],t=f,q=2;{{.*}}\      # Capture ID, wildcard base64
+   [38;2;[[rgb(img_id)]]m                 # Use RGB transformation of ID
+   {{:SKIP_LINES:}}                       # Skip database listings, etc.
+   ```
+
+4. **Test robustness** by running multiple times:
+   ```bash
+   # Verify the reference file works consistently
+   for i in {1..3}; do
+     xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
+     uv run python -m tupimage.testing.output_comparison \
+       cli-test-outputs/test_name.out data/cli-test-references/test_name.reference
+   done
+   ```
+
+**Common tupimage patterns:**
+- `[[terminal_id:.*]]` and `[[session_id:.*]]` for terminal identification
+- `[[img_id:.*]]` for image IDs, with `[[rgb(img_id)]]` for RGB colors
+- `{{.*}}` for file paths, timestamps, and base64 data
+- `{{:SKIP_LINES:}}` for database listings and timing-dependent output
+
+**Best practices:**
+- Start with exact output, then generalize only what varies
+- Use separate variables for terminal_id and session_id (they may differ)
+- Don't use wildcards for Unicode placeholders (preserve exact characters)
+- Test edge cases like terminal size detection failures
+- Validate that patterns don't over-match (capture only intended content)
