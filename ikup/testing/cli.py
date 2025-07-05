@@ -7,6 +7,7 @@ from fnmatch import fnmatch
 from typing import List
 
 import ikup
+import ikup.testing.comparison
 from ikup import GraphicsTerminal
 from ikup.testing import TestingContext
 from ikup.utils import validate_size
@@ -159,7 +160,7 @@ def compare(args):
     outdir = os.path.dirname(args.output)
     if outdir:
         os.chdir(outdir)
-    report = ikup.testing.create_screenshot_comparison_report(
+    report = ikup.testing.comparison.create_screenshot_comparison_report(
         args.test_output, args.reference
     )
     with open(args.output, "w") as f:

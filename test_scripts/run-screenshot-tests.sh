@@ -7,4 +7,4 @@
 #   uv run python -m ikup.testing.cli compare screenshots/ path/to/referece/screenshots/ -o report.html
 
 xdotool windowfocus --sync $WINDOWID
-uv run python -m ikup.testing.cli run -o report/screenshots
+uv run --extra test python -m ikup.testing.cli run -o report/screenshots

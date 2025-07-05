@@ -1,8 +1,9 @@
 tags
-.ikup-testing
-.cli-tests-data
-cli-test-outputs
-debug-terminal
+/.ikup-testing
+/.cli-tests-data
+/cli-test-outputs
+/debug-terminal
+/report
 /_*
 massif.out*
 gmon.out
