@@ -9,7 +9,6 @@ import urllib.request
 import zlib
 from typing import Callable, List, Optional, Tuple, Union
 
-import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from ikup import GraphicsTerminal
@@ -174,10 +173,9 @@ class TestingContext:
         return img.size
 
     def generate_image(self, width: int, height: int) -> Image.Image:
-        #  xx, yy = np.meshgrid(np.arange(0, width), np.arange(0, height))
-        #  np.stack((xx, yy), axis=-1)
-        data = np.random.random_sample(size=(height, width, 3))
-        img = Image.fromarray((data * 255).astype(np.uint8), "RGB")
+        import numpy
+        data = numpy.random.random_sample(size=(height, width, 3))
+        img = Image.fromarray((data * 255).astype(numpy.uint8), "RGB")
         return img
 
     def alpha_test_image(

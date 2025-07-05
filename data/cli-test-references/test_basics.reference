@@ -8,7 +8,6 @@ comments here.
 
 ikup --help
 usage: ikup [-h]
-                {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}{{.*}}
 {{:SKIP_LINES:}}
 
 positional arguments:
@@ -59,6 +58,8 @@ scale = 1.0                       # default
 global_scale = 1.0                # default
 max_rows = "auto"                 # default
 max_cols = "auto"                 # default
+fallback_max_rows = 24            # default
+fallback_max_cols = 80            # default
 max_command_size = 4096           # default
 num_tmux_layers = 0               # expanded from 'auto' (default)
 reupload_max_uploads_ago = 1024   # default
@@ -101,6 +102,8 @@ scale = 1.0
 global_scale = 1.0
 max_rows = "auto"
 max_cols = "auto"
+fallback_max_rows = 24
+fallback_max_cols = 80
 max_command_size = 4096
 num_tmux_layers = 0
 reupload_max_uploads_ago = 1024
