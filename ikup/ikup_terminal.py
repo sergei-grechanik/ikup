@@ -28,11 +28,11 @@ from typing import (
 import platformdirs
 import toml
 
-import tupimage
-from tupimage.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
-import tupimage.utils
-from tupimage.terminal_detection import detect_terminal_info
-from tupimage import (
+import ikup
+from ikup.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
+import ikup.utils
+from ikup.terminal_detection import detect_terminal_info
+from ikup import (
     GraphicsCommand,
     GraphicsResponse,
     GraphicsTerminal,
@@ -51,17 +51,17 @@ from tupimage import (
 if TYPE_CHECKING:
     from PIL import Image
 
-BackgroundLike = Union[tupimage.AdditionalFormatting, str, int, None]
+BackgroundLike = Union[ikup.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 
 
 @dataclass
-class TupimageConfig:
+class IkupConfig:
     # Id allocation options.
     id_space: IDSpace = IDSpace()
     id_subspace: IDSubspace = IDSubspace()
     max_ids_per_subspace: int = 1024
-    id_database_dir: str = platformdirs.user_state_dir("tupimage")
+    id_database_dir: str = platformdirs.user_state_dir("ikup")
 
     # Image geometry options.
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
@@ -91,7 +91,7 @@ class TupimageConfig:
 
     # Image display options.
     fewer_diacritics: bool = False
-    placeholder_char: str = tupimage.PLACEHOLDER_CHAR
+    placeholder_char: str = ikup.PLACEHOLDER_CHAR
     background: BackgroundLike = "none"
 
     # Terminal identification options.
@@ -121,7 +121,7 @@ class TupimageConfig:
         provenance = self._provenance.get(name)
         if provenance is not None:
             return provenance
-        field_obj = TupimageConfig.__dataclass_fields__[name]
+        field_obj = IkupConfig.__dataclass_fields__[name]
         if getattr(self, name) == field_obj.default:
             return "default"
         return "set in code"
@@ -183,10 +183,10 @@ class TupimageConfig:
         config = toml.loads(string)
         unknown_keys = set()
         for key, value in config.items():
-            if key not in TupimageConfig.__annotations__:
+            if key not in IkupConfig.__annotations__:
                 unknown_keys.add(key)
                 continue
-            normalized = TupimageConfig.validate_and_normalize(key, value, provenance)
+            normalized = IkupConfig.validate_and_normalize(key, value, provenance)
             setattr(self, key, normalized)
         self._current_provenance = None
         if unknown_keys and not self.ignore_unknown_attributes:
@@ -200,19 +200,19 @@ class TupimageConfig:
             if key == "provenance":
                 continue
             if value is not None:
-                normalized = TupimageConfig.validate_and_normalize(
+                normalized = IkupConfig.validate_and_normalize(
                     key, value, provenance
                 )
                 setattr(self, key, normalized)
         self._current_provenance = None
 
     def override_from_env(self):
-        for name in TupimageConfig.__annotations__:
-            env_var_name = f"TUPIMAGE_{name.upper()}"
+        for name in IkupConfig.__annotations__:
+            env_var_name = f"IKUP_{name.upper()}"
             env_value = os.environ.get(env_var_name)
             if env_value is not None:
                 self._current_provenance = f"set via {env_var_name}"
-                normalized = TupimageConfig.validate_and_normalize(
+                normalized = IkupConfig.validate_and_normalize(
                     name, env_value, self._current_provenance
                 )
                 setattr(self, name, normalized)
@@ -225,9 +225,9 @@ class TupimageConfig:
     def validate_and_normalize(
         name: str, value: Any, provenance: Optional[str] = None
     ) -> Any:
-        if name not in TupimageConfig.__annotations__:
+        if name not in IkupConfig.__annotations__:
             raise KeyError(f"Unknown config key: {name}")
-        field_type = TupimageConfig.__annotations__[name]
+        field_type = IkupConfig.__annotations__[name]
         if typing.get_origin(field_type) is Union:
             types_in_union = typing.get_args(field_type)
         else:
@@ -240,9 +240,9 @@ class TupimageConfig:
             if IDSpace in types_in_union:
                 value = IDSpace.from_string(value)
             if name == "cell_size" or name == "default_cell_size":
-                value = tupimage.utils.validate_size(value)
+                value = ikup.utils.validate_size(value)
             if name == "id_database_dir" and value == "":
-                value = platformdirs.user_state_dir("tupimage")
+                value = platformdirs.user_state_dir("ikup")
             if TransmissionMedium in types_in_union:
                 value = TransmissionMedium.from_string(value)
             if int in types_in_union:
@@ -264,7 +264,7 @@ class TupimageConfig:
         provenance = f"({provenance})" if provenance else "(set in code)"
 
         # Verify the type.
-        if not TupimageConfig._verify_type(value, field_type):
+        if not IkupConfig._verify_type(value, field_type):
             raise ValueError(
                 f"Option '{name}' has type {field_type}, but got"
                 f" '{value}' of type {type(value)} {provenance}"
@@ -289,10 +289,10 @@ class TupimageConfig:
         if origin is Optional:
             if value is None:
                 return True
-            return TupimageConfig._verify_type(value, args[0])
+            return IkupConfig._verify_type(value, args[0])
         elif origin is Union:
             for arg in args:
-                if TupimageConfig._verify_type(value, arg):
+                if IkupConfig._verify_type(value, arg):
                     return True
             return False
         elif origin is tuple:
@@ -301,14 +301,14 @@ class TupimageConfig:
             if len(value) != len(args):
                 return False
             for i in range(len(value)):
-                if not TupimageConfig._verify_type(value[i], args[i]):
+                if not IkupConfig._verify_type(value[i], args[i]):
                     return False
             return True
         elif origin is list:
             if not isinstance(value, list):
                 return False
             for subval in value:
-                if not TupimageConfig._verify_type(subval, args[0]):
+                if not IkupConfig._verify_type(subval, args[0]):
                     return False
             return True
         elif origin is Literal:
@@ -377,18 +377,18 @@ ImageOrFilename = Union["PIL.Image.Image", str]
 
 
 def _config_property(name: str):
-    assert name in TupimageConfig.__annotations__
+    assert name in IkupConfig.__annotations__
 
-    def getter(obj: "TupimageTerminal"):
+    def getter(obj: "IkupTerminal"):
         return getattr(obj._config, name)
 
-    def setter(obj: "TupimageTerminal", new_value):
+    def setter(obj: "IkupTerminal", new_value):
         obj._config.override_from_dict({name: new_value})
 
     return property(getter, setter)
 
 
-class TupimageTerminal:
+class IkupTerminal:
     def __init__(
         self,
         *,
@@ -398,26 +398,26 @@ class TupimageTerminal:
         in_response: Union[BinaryIO, str, None] = None,
         id_database: Optional[str] = None,
         final_cursor_pos: FinalCursorPos = "bottom-left",
-        config: Optional[Union[TupimageConfig, str]] = None,
+        config: Optional[Union[IkupConfig, str]] = None,
         config_overrides: dict = {},
         **kwargs,
     ):
         self._config_file: str = "DEFAULT"
         if config is None:
-            if os.environ.get("TUPIMAGE_CONFIG") is not None:
-                config = os.environ["TUPIMAGE_CONFIG"]
+            if os.environ.get("IKUP_CONFIG") is not None:
+                config = os.environ["IKUP_CONFIG"]
             else:
-                config_file = platformdirs.user_config_dir("tupimage") + "/config.toml"
+                config_file = platformdirs.user_config_dir("ikup") + "/config.toml"
                 if os.path.exists(config_file):
                     config = config_file
                 else:
-                    config = TupimageConfig()
+                    config = IkupConfig()
         if isinstance(config, str):
             self._config_file: str = config
             if config == "DEFAULT" or config == "":
-                config = TupimageConfig()
+                config = IkupConfig()
             else:
-                config = TupimageConfig()
+                config = IkupConfig()
                 config.override_from_toml_file(self._config_file)
         assert config is not None
         config.override_from_env()
@@ -443,7 +443,7 @@ class TupimageTerminal:
             or os.environ.get("SSH_CONNECTION") is not None
         )
 
-        self._config: TupimageConfig = config
+        self._config: IkupConfig = config
 
         self.detect_terminal()
 
@@ -660,7 +660,7 @@ class TupimageTerminal:
             return image, datetime.datetime.fromtimestamp(0)
         else:
             md5sum = hashlib.md5(image.tobytes()).hexdigest()
-            return f":tupimage:{md5sum}", datetime.datetime.fromtimestamp(0)
+            return f":ikup:{md5sum}", datetime.datetime.fromtimestamp(0)
 
     def get_id_space(
         self,
@@ -852,7 +852,7 @@ class TupimageTerminal:
             TransmitCommand(
                 image_id=id,
                 more=False,
-                quiet=tupimage.Quietness.QUIET_ALWAYS,
+                quiet=ikup.Quietness.QUIET_ALWAYS,
             )
         )
 
@@ -993,8 +993,8 @@ class TupimageTerminal:
                     TransmitCommand(
                         image_id=inst.id,
                         medium=upload_method,
-                        quiet=tupimage.Quietness.QUIET_ALWAYS,
-                        format=tupimage.Format.PNG,
+                        quiet=ikup.Quietness.QUIET_ALWAYS,
+                        format=ikup.Format.PNG,
                     )
                     .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
                     .set_filename(filename_or_object)
@@ -1007,8 +1007,8 @@ class TupimageTerminal:
                             TransmitCommand(
                                 image_id=inst.id,
                                 medium=TransmissionMedium.DIRECT,
-                                quiet=tupimage.Quietness.QUIET_ALWAYS,
-                                format=tupimage.Format.PNG,
+                                quiet=ikup.Quietness.QUIET_ALWAYS,
+                                format=ikup.Format.PNG,
                             )
                             .set_placement(virtual=True, rows=inst.rows, cols=inst.cols)
                             .set_data(f),
@@ -1021,8 +1021,8 @@ class TupimageTerminal:
                         TransmitCommand(
                             image_id=inst.id,
                             medium=TransmissionMedium.DIRECT,
-                            quiet=tupimage.Quietness.QUIET_ALWAYS,
-                            format=tupimage.Format.PNG,
+                            quiet=ikup.Quietness.QUIET_ALWAYS,
+                            format=ikup.Format.PNG,
                             pix_width=pix_width,
                             pix_height=pix_height,
                         )
@@ -1119,18 +1119,18 @@ class TupimageTerminal:
             allow_256colors_for_image_id=True,
             allow_256colors_for_placement_id=False,
             skip_placement_id_if_zero=True,
-            first_column_diacritic_level=tupimage.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO,
+            first_column_diacritic_level=ikup.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO,
             other_columns_diacritic_level=(
-                tupimage.DiacriticLevel.NONE
+                ikup.DiacriticLevel.NONE
                 if fewer_diacritics
-                else tupimage.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO
+                else ikup.DiacriticLevel.ROW_COLUMN_ID4THBYTE_IF_NONZERO
             ),
             placeholder_char=self._config.placeholder_char,
         )
 
     def get_formatting(
         self, background: Optional[BackgroundLike]
-    ) -> tupimage.AdditionalFormatting:
+    ) -> ikup.AdditionalFormatting:
         if background is None:
             background = self._config.background
         if isinstance(background, str):

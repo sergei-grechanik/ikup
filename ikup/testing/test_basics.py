@@ -1,6 +1,6 @@
-import tupimage
-from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
+import ikup
+from ikup import GraphicsTerminal, PutCommand, TransmitCommand
+from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test

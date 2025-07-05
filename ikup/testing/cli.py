@@ -6,20 +6,20 @@ import warnings
 from fnmatch import fnmatch
 from typing import List
 
-import tupimage
-from tupimage import GraphicsTerminal
-from tupimage.testing import TestingContext
-from tupimage.utils import validate_size
+import ikup
+from ikup import GraphicsTerminal
+from ikup.testing import TestingContext
+from ikup.utils import validate_size
 
 # isort: off
-from tupimage.testing import (
+from ikup.testing import (
     test_basics,
     test_placement,
     test_uploading,
     test_response,
     test_deletion,
     test_placeholder,
-    test_tupimage_terminal,
+    test_ikup_terminal,
 )
 
 # isort: on
@@ -86,18 +86,18 @@ def run(args):
     if args.output_dir is None:
         now = datetime.datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
-        os.makedirs(".tupimage-testing", exist_ok=True)
+        os.makedirs(".ikup-testing", exist_ok=True)
         output_dir_name = (
             "output-"
             f"{args.term_size[0]}x{args.term_size[1]}-"
             f"{args.cell_size[0]}x{args.cell_size[1]}-{date_time_string}"
         )
-        latest_link = ".tupimage-testing/latest"
+        latest_link = ".ikup-testing/latest"
         if os.path.lexists(latest_link) and os.path.islink(latest_link):
             os.remove(latest_link)
         if not os.path.lexists(latest_link):
             os.symlink(output_dir_name, latest_link)
-        args.output_dir = f".tupimage-testing/{output_dir_name}"
+        args.output_dir = f".ikup-testing/{output_dir_name}"
 
     if os.path.exists(args.output_dir) and os.listdir(args.output_dir):
         raise RuntimeError(
@@ -105,7 +105,7 @@ def run(args):
         )
 
     if args.data_dir is None:
-        args.data_dir = f".tupimage-testing/data"
+        args.data_dir = f".ikup-testing/data"
 
     # The max number of pixels in a screenshot.
     screenshot_pixels = (
@@ -159,7 +159,7 @@ def compare(args):
     outdir = os.path.dirname(args.output)
     if outdir:
         os.chdir(outdir)
-    report = tupimage.testing.create_screenshot_comparison_report(
+    report = ikup.testing.create_screenshot_comparison_report(
         args.test_output, args.reference
     )
     with open(args.output, "w") as f:

@@ -3,9 +3,9 @@
 
 ---------- SUBTEST Default behavior (mark as uploaded) ----------
 
-tupimage upload ./.cli-tests-data/tux.png
+ikup upload ./.cli-tests-data/tux.png
 _Gi=[[id:.*]],t=f,q=2,f=100,a=T,U=1,r=23,c=38;{{.*}}\
-tupimage list -v
+ikup list -v
 [1mID: [[id]]{{.*}}
   {{.*}}
   Uploaded to {{.*}}
@@ -18,8 +18,8 @@ tupimage list -v
 
 ---------- SUBTEST Don't mark as uploaded (but it's already marked) ----------
 
-tupimage upload ./.cli-tests-data/tux.png --mark-uploaded=false
-tupimage list -v
+ikup upload ./.cli-tests-data/tux.png --mark-uploaded=false
+ikup list -v
 [1mID: [[id]]{{.*}}
   {{.*}}
   Uploaded to {{.*}}
@@ -32,9 +32,9 @@ tupimage list -v
 
 ---------- SUBTEST Don't mark as uploaded (but reupload, so it will be dirty) ----------
 
-tupimage upload ./.cli-tests-data/tux.png --mark-uploaded=false --force-upload
+ikup upload ./.cli-tests-data/tux.png --mark-uploaded=false --force-upload
 _Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=23,c=38;{{.*}}\
-tupimage list -v
+ikup list -v
 [1mID: [[id]]{{.*}}
   {{.*}}
   [1mNEEDS UPLOADING[0m {{.*}}
@@ -48,9 +48,9 @@ tupimage list -v
 
 ---------- SUBTEST Explicitly mark as uploaded ----------
 
-tupimage upload ./.cli-tests-data/tux.png --mark-uploaded=true
+ikup upload ./.cli-tests-data/tux.png --mark-uploaded=true
 _Gi=[[id]],t=f,q=2,f=100,a=T,U=1,r=23,c=38;{{.*}}\
-tupimage list -v ./.cli-tests-data/tux.png
+ikup list -v ./.cli-tests-data/tux.png
 [1mID: [[id]]{{.*}}
   {{.*}}
   Uploaded to {{.*}}

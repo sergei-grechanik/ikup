@@ -4,7 +4,7 @@
 # The intended use:
 #   st -e script -e -c ./test_scripts/run-screenshot-tests.sh
 #   cd report
-#   uv run python -m tupimage.testing.cli compare screenshots/ path/to/referece/screenshots/ -o report.html
+#   uv run python -m ikup.testing.cli compare screenshots/ path/to/referece/screenshots/ -o report.html
 
 xdotool windowfocus --sync $WINDOWID
-uv run python -m tupimage.testing.cli run -o report/screenshots
+uv run python -m ikup.testing.cli run -o report/screenshots

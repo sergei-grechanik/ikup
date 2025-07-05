@@ -6,9 +6,9 @@ from multiprocessing import shared_memory
 
 import numpy as np
 
-import tupimage
-from tupimage import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
+import ikup
+from ikup import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
+from ikup.testing import TestingContext, screenshot_test
 
 SPLIT_PAYLOAD_SIZE = 2816
 
@@ -21,9 +21,9 @@ def tempfile_png(ctx: TestingContext):
     cmd = (
         TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.TEMP_FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.TEMP_FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         )
         .set_filename(filename)
         .set_placement(
@@ -42,9 +42,9 @@ def direct_png(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     print(f"size: {os.path.getsize(ctx.get_wikipedia_png()) // 1024}K")
     with open(ctx.get_wikipedia_png(), "rb") as f:
@@ -55,7 +55,7 @@ def direct_png(ctx: TestingContext):
             image_id=100,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -68,7 +68,7 @@ def direct_png(ctx: TestingContext):
             image_id=200,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -80,9 +80,9 @@ def direct_jpeg(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     print(f"size: {os.path.getsize(ctx.get_castle_jpg()) // 1024}K")
     with open(ctx.get_castle_jpg(), "rb") as f:
@@ -93,7 +93,7 @@ def direct_jpeg(ctx: TestingContext):
             image_id=100,
             rows=10,
             cols=80,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -106,9 +106,9 @@ def direct_random_png(ctx: TestingContext):
     np.random.seed(42)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     data = ctx.to_png(ctx.generate_image(10, 10))
     print(f"size: {len(data)} bytes")
@@ -118,7 +118,7 @@ def direct_random_png(ctx: TestingContext):
             image_id=100,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -131,7 +131,7 @@ def direct_random_png(ctx: TestingContext):
             image_id=200,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -145,10 +145,10 @@ def direct_rgb(ctx: TestingContext):
         for bits in [24, 32]:
             term.reset()
             cmd = TransmitCommand(
-                medium=tupimage.TransmissionMedium.DIRECT,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.from_bits(bits),
-                compression=tupimage.Compression.from_bool(compress),
+                medium=ikup.TransmissionMedium.DIRECT,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.from_bits(bits),
+                compression=ikup.Compression.from_bool(compress),
             )
             data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
             print(f"size: {len(data) // 1024}K")
@@ -160,7 +160,7 @@ def direct_rgb(ctx: TestingContext):
                     image_id=1,
                     rows=10,
                     cols=20,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
             term.write("\n")
@@ -176,7 +176,7 @@ def direct_rgb(ctx: TestingContext):
                     image_id=2,
                     rows=10,
                     cols=20,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
             ctx.take_screenshot(
@@ -194,9 +194,9 @@ def shm_png(ctx: TestingContext):
 
     term.reset()
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.SHARED_MEMORY,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.SHARED_MEMORY,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     with open(ctx.get_wikipedia_png(), "rb") as f:
         data = f.read()
@@ -212,7 +212,7 @@ def shm_png(ctx: TestingContext):
             image_id=1,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -229,7 +229,7 @@ def direct_default(ctx: TestingContext, placeholder: bool = False):
     data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), 32)
     cmd = TransmitCommand(
         omit_action=True,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         image_id=0x12345678,
         pix_width=w,
         pix_height=h,
@@ -241,7 +241,7 @@ def direct_default(ctx: TestingContext, placeholder: bool = False):
             image_id=0x12345678,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot(f"Tux and wiki, default transmission (direct, 32-bit data)")
@@ -257,10 +257,10 @@ def shm_rgb(ctx: TestingContext):
         for bits in [24, 32]:
             term.reset()
             cmd = TransmitCommand(
-                medium=tupimage.TransmissionMedium.SHARED_MEMORY,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.from_bits(bits),
-                compression=tupimage.Compression.from_bool(compress),
+                medium=ikup.TransmissionMedium.SHARED_MEMORY,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.from_bits(bits),
+                compression=ikup.Compression.from_bool(compress),
             )
             data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
             # If we don't compress, the size can be inferred from width and height.
@@ -282,7 +282,7 @@ def shm_rgb(ctx: TestingContext):
                     image_id=1,
                     rows=10,
                     cols=20,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
             term.write("\n")
@@ -301,10 +301,10 @@ def shm_rgb(ctx: TestingContext):
         for bits in [24, 32]:
             term.reset()
             cmd = TransmitCommand(
-                medium=tupimage.TransmissionMedium.SHARED_MEMORY,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.from_bits(bits),
-                compression=tupimage.Compression.from_bool(compress),
+                medium=ikup.TransmissionMedium.SHARED_MEMORY,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.from_bits(bits),
+                compression=ikup.Compression.from_bool(compress),
             )
             data, w, h = ctx.to_rgb_and_wh(ctx.get_tux_png(), bits, compress=compress)
             # If we don't compress, the size can be inferred from width and height.
@@ -326,7 +326,7 @@ def shm_rgb(ctx: TestingContext):
                     image_id=1,
                     rows=10,
                     cols=20,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
             term.write("\n")
@@ -339,9 +339,9 @@ def shm_rgb(ctx: TestingContext):
 def image_number(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(
         cmd.clone_with(image_number=42)
@@ -359,7 +359,7 @@ def image_number(ctx: TestingContext):
             image_number=43,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Tux, sent with an image number, separate transmit and put.")
@@ -369,14 +369,14 @@ def image_number(ctx: TestingContext):
 def image_number_multiple(ctx: TestingContext):
     term = ctx.term
     transmit_cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     put_cmd = PutCommand(
         rows=10,
         cols=20,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     files = [
         ctx.get_diagonal_png(),
@@ -418,9 +418,9 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     image_id = 0
     for x in range(80):
@@ -439,7 +439,7 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
                     image_id=image_id,
                     rows=1,
                     cols=1,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                     do_not_move_cursor=True,
                 )
             )
@@ -459,11 +459,11 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
         f.flush()
         cmd = TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             pix_width=10 * 500,
             pix_height=2 * 500,
-            format=tupimage.Format.RGBA,
+            format=ikup.Format.RGBA,
         ).set_filename(f.name)
         # Load and display the images. All images are the same but the terminal
         # doesn't know that.
@@ -478,7 +478,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
                         image_id=image_id,
                         rows=2,
                         cols=20,
-                        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                         do_not_move_cursor=True,
                     )
                 )
@@ -502,7 +502,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
                         image_id=image_id,
                         rows=2,
                         cols=20,
-                        quiet=tupimage.Quietness.QUIET_ALWAYS,
+                        quiet=ikup.Quietness.QUIET_ALWAYS,
                         do_not_move_cursor=True,
                     )
                 )
@@ -523,11 +523,11 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
         term.send_command(
             TransmitCommand(
                 image_id=i + 1,
-                medium=tupimage.TransmissionMedium.DIRECT,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                medium=ikup.TransmissionMedium.DIRECT,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 pix_width=1,
                 pix_height=1,
-                format=tupimage.Format.RGB,
+                format=ikup.Format.RGB,
             ).set_data(data)
         )
         term.write(f"{i + 1}\r")
@@ -544,7 +544,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
                     image_id=int(image_id),
                     rows=1,
                     cols=1,
-                    quiet=tupimage.Quietness.QUIET_ALWAYS,
+                    quiet=ikup.Quietness.QUIET_ALWAYS,
                     do_not_move_cursor=True,
                 )
             )
@@ -566,11 +566,11 @@ def stress_too_many_placements(ctx: TestingContext):
         term.send_command(
             TransmitCommand(
                 image_id=i + 1,
-                medium=tupimage.TransmissionMedium.DIRECT,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                medium=ikup.TransmissionMedium.DIRECT,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 pix_width=1,
                 pix_height=1,
-                format=tupimage.Format.RGB,
+                format=ikup.Format.RGB,
             ).set_data(data)
         )
     for j in range(placements_per_image):
@@ -583,7 +583,7 @@ def stress_too_many_placements(ctx: TestingContext):
                     virtual=True,
                     rows=1,
                     cols=1,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
     ctx.term.clear_screen()
@@ -620,9 +620,9 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False):
 
     # A command to upload and display an image using direct transmission.
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
         image_id=image_id,
     )
     cmd.set_placement(rows=10, cols=20)
@@ -641,7 +641,7 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False):
         term.send_command(
             TransmitCommand(
                 image_id=image_id,
-                quiet=tupimage.Quietness.QUIET_ALWAYS,
+                quiet=ikup.Quietness.QUIET_ALWAYS,
                 more=False,
             )
         )
@@ -651,10 +651,10 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False):
         # Send a deletion command.
         term.send_command(
             DeleteCommand(
-                what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+                what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
                 delete_data=True,
                 image_id=image_id,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             )
         )
         ctx.write("Sent deletion command.\n")

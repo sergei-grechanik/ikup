@@ -6,8 +6,8 @@ comments here.
 
 ---------- SUBTEST Just help ----------
 
-tupimage --help
-usage: tupimage [-h]
+ikup --help
+usage: ikup [-h]
                 {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}{{.*}}
 {{:SKIP_LINES:}}
 
@@ -37,22 +37,22 @@ options:
 
 ---------- SUBTEST Different ways of printing help (only help line is checked) ----------
 
-tupimage 
+ikup 
   -h, --help            show this help message and exit
-tupimage -h
+ikup -h
   -h, --help            show this help message and exit
-tupimage ./.cli-tests-data/tux.png --help
+ikup ./.cli-tests-data/tux.png --help
   -h, --help            show this help message and exit
-tupimage ./.cli-tests-data/tux.png -h
+ikup ./.cli-tests-data/tux.png -h
   -h, --help            show this help message and exit
 
 ---------- SUBTEST Config ----------
 
-tupimage dump-config
-id_space = "24bit"                # set via TUPIMAGE_ID_SPACE
+ikup dump-config
+id_space = "24bit"                # set via IKUP_ID_SPACE
 id_subspace = "0:256"             # default
 max_ids_per_subspace = 1024       # default
-id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"  # set via TUPIMAGE_ID_DATABASE_DIR
+id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"  # set via IKUP_ID_DATABASE_DIR
 cell_size = "auto"                # default
 default_cell_size = "8x16"        # default
 scale = 1.0                       # default
@@ -90,7 +90,7 @@ upload_command_delay = 0.0        # default
 
 ---------- SUBTEST Config without provenance ----------
 
-tupimage dump-config --no-provenance
+ikup dump-config --no-provenance
 id_space = "24bit"
 id_subspace = "0:256"
 max_ids_per_subspace = 1024
@@ -132,21 +132,21 @@ upload_command_delay = 0.0
 
 ---------- SUBTEST Config without defaults ----------
 
-tupimage dump-config --skip-default
-id_space = "24bit"                # set via TUPIMAGE_ID_SPACE
-id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"  # set via TUPIMAGE_ID_DATABASE_DIR
+ikup dump-config --skip-default
+id_space = "24bit"                # set via IKUP_ID_SPACE
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"  # set via IKUP_ID_DATABASE_DIR
 num_tmux_layers = 0               # expanded from 'auto' (default)
 
 ---------- SUBTEST Config without defaults and provenance ----------
 
-tupimage dump-config --skip-default --no-provenance
+ikup dump-config --skip-default --no-provenance
 id_space = "24bit"
 id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
 num_tmux_layers = 0
 
 ---------- SUBTEST Status ----------
 
-tupimage status
+ikup status
 Config file: DEFAULT
 num_tmux_layers: 0
 inside_ssh: False

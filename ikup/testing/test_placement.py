@@ -1,8 +1,8 @@
 import math
 
-import tupimage
-from tupimage import GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
+import ikup
+from ikup import GraphicsTerminal, PutCommand, TransmitCommand
+from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
@@ -11,9 +11,9 @@ def movecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(
         cmd.clone_with(image_id=1)
@@ -42,9 +42,9 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(
         cmd.clone_with(image_id=1)
@@ -84,9 +84,9 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False):
 def multisize(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(1, 5):
@@ -115,9 +115,9 @@ def multisize(ctx: TestingContext, placeholder: bool = False):
 def oob(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_ruler_png()))
     for r in range(24):
@@ -134,9 +134,9 @@ def oob(ctx: TestingContext, placeholder: bool = False):
 def oob_down(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(3):
@@ -157,9 +157,9 @@ def oob_down(ctx: TestingContext, placeholder: bool = False):
 def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_tux_png()))
     for r in range(3):
@@ -184,9 +184,9 @@ def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
 def scrolling(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=1).set_filename(ctx.get_wikipedia_png()))
     term.send_command(cmd.clone_with(image_id=2).set_filename(ctx.get_tux_png()))
@@ -246,9 +246,9 @@ def numbers(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     for step in [3, 4]:
         image_id = 0
@@ -267,7 +267,7 @@ def numbers(ctx: TestingContext, placeholder: bool = False):
                         image_id=image_id,
                         rows=1,
                         cols=step,
-                        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                     )
                 )
         ctx.take_screenshot(
@@ -281,9 +281,9 @@ def image_ids(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     image_ids = []
     byte_values = [0, 1, 128, 255]
@@ -311,7 +311,7 @@ def image_ids(ctx: TestingContext, placeholder: bool = False):
                     image_id=image_id,
                     rows=1,
                     cols=5,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
     ctx.take_screenshot(f"Images with different ids.")
@@ -323,9 +323,9 @@ def placement_ids(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     image_ids = []
     byte_values = [0, 1, 128, 255]
@@ -355,7 +355,7 @@ def placement_ids(ctx: TestingContext, placeholder: bool = False):
                     placement_id=image_id & 0x00FFFFFF,
                     rows=1,
                     cols=5,
-                    quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                    quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
                 )
             )
     ctx.take_screenshot(f"Images with different ids and placement ids.")
@@ -367,9 +367,9 @@ def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False):
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.send_command(
         cmd.clone_with(image_id=1)
@@ -399,9 +399,9 @@ def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False):
 def no_id_no_number(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(rows=10, cols=20)
     term.send_command(cmd.clone_with().set_filename(ctx.get_tux_png()))
@@ -416,9 +416,9 @@ def no_id_no_number(ctx: TestingContext):
 def no_columns(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(rows=7)
     term.send_command(cmd.clone_with().set_filename(ctx.get_small_arrow_png()))
@@ -435,9 +435,9 @@ def no_columns(ctx: TestingContext):
 def no_rows(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(cols=20)
     term.send_command(cmd.clone_with().set_filename(ctx.get_transparency_png()))
@@ -456,9 +456,9 @@ def no_rows(ctx: TestingContext):
 def no_size(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement()
     term.send_command(
@@ -487,9 +487,9 @@ def subimage(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     cmd = PutCommand(
@@ -498,7 +498,7 @@ def subimage(ctx: TestingContext):
         src_y=50,
         src_w=200,
         src_h=100,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(cmd)
     term.write("\n80 cols x 5 rows:\n")
@@ -516,16 +516,16 @@ def subimage_no_size(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     cmd = PutCommand(
         image_id=1,
         src_x=300,
         src_y=300,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(cmd)
     term.write("\n80 cols x 5 rows:\n")
@@ -549,13 +549,13 @@ def subimage_slice_horizontally(ctx: TestingContext):
         term.send_command(
             TransmitCommand(
                 image_id=1,
-                medium=tupimage.TransmissionMedium.FILE,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.PNG,
+                medium=ikup.TransmissionMedium.FILE,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.PNG,
             ).set_filename(file)
         )
         cmd = PutCommand(
-            image_id=1, rows=2, quiet=tupimage.Quietness.QUIET_UNLESS_ERROR
+            image_id=1, rows=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR
         )
         _, height = ctx.get_image_size(file)
         slice_h = (height + 9) // 10
@@ -579,13 +579,13 @@ def subimage_slice_vertically(ctx: TestingContext):
         term.send_command(
             TransmitCommand(
                 image_id=1,
-                medium=tupimage.TransmissionMedium.FILE,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.PNG,
+                medium=ikup.TransmissionMedium.FILE,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.PNG,
             ).set_filename(file)
         )
         cmd = PutCommand(
-            image_id=1, cols=2, quiet=tupimage.Quietness.QUIET_UNLESS_ERROR
+            image_id=1, cols=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR
         )
         width, _ = ctx.get_image_size(file)
         slice_w = (width + 9) // 10
@@ -602,9 +602,9 @@ def subimage_oob(ctx: TestingContext):
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     ).set_filename(ctx.get_small_arrow_png())
     term.send_command(trcmd)
     putcmd = PutCommand(
@@ -613,7 +613,7 @@ def subimage_oob(ctx: TestingContext):
         src_y=0,
         src_w=100,
         src_h=100,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(putcmd)
     term.write(". <- bottom-right corner")
@@ -637,9 +637,9 @@ def subimage_thin(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -647,7 +647,7 @@ def subimage_thin(ctx: TestingContext):
             image_id=1,
             src_y=200,
             src_h=3,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("1\n")
@@ -656,7 +656,7 @@ def subimage_thin(ctx: TestingContext):
             image_id=1,
             src_y=200,
             src_h=3,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("2\n")
@@ -665,7 +665,7 @@ def subimage_thin(ctx: TestingContext):
             image_id=1,
             src_y=200,
             src_h=3,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("3\n")
@@ -677,9 +677,9 @@ def subimage_thin(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=1,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -688,7 +688,7 @@ def subimage_thin(ctx: TestingContext):
             src_y=100,
             src_x=200,
             src_w=2,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -699,7 +699,7 @@ def subimage_thin(ctx: TestingContext):
             src_y=100,
             src_x=200,
             src_w=2,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -710,7 +710,7 @@ def subimage_thin(ctx: TestingContext):
             src_y=100,
             src_x=200,
             src_w=2,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -725,9 +725,9 @@ def subimage_oob_xy(ctx: TestingContext):
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     ).set_filename(ctx.get_small_arrow_png())
     term.send_command(trcmd)
     putcmd = PutCommand(
@@ -736,7 +736,7 @@ def subimage_oob_xy(ctx: TestingContext):
         src_y=150,
         src_w=100,
         src_h=100,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(putcmd)
     term.write(". <- bottom-right corner")
@@ -751,9 +751,9 @@ def subimage_negative_xy(ctx: TestingContext):
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     ).set_filename(ctx.get_small_arrow_png())
     term.send_command(trcmd)
     putcmd = PutCommand(
@@ -762,7 +762,7 @@ def subimage_negative_xy(ctx: TestingContext):
         src_y=-100,
         src_w=200,
         src_h=200,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(putcmd)
     term.write(". <- bottom-right corner")
@@ -778,9 +778,9 @@ def subimage_negative_wh(ctx: TestingContext):
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     ).set_filename(ctx.get_small_arrow_png())
     term.send_command(trcmd)
     putcmd = PutCommand(
@@ -789,7 +789,7 @@ def subimage_negative_wh(ctx: TestingContext):
         src_y=10,
         src_w=-9,
         src_h=-9,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
     )
     term.send_command(putcmd)
     term.write(". <- bottom-right corner")
@@ -813,9 +813,9 @@ def alpha(ctx: TestingContext):
         term.send_command(
             TransmitCommand(
                 image_id=1,
-                medium=tupimage.TransmissionMedium.DIRECT,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-                format=tupimage.Format.PNG,
+                medium=ikup.TransmissionMedium.DIRECT,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+                format=ikup.Format.PNG,
             ).set_data(ctx.to_png(ctx.alpha_test_image(320, 160, color)))
         )
         for y in range(3):
@@ -842,7 +842,7 @@ def alpha(ctx: TestingContext):
                 image_id=1,
                 rows=20,
                 cols=80,
-                quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+                quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             )
         )
         ctx.take_screenshot(

@@ -3,23 +3,23 @@
 
 ---------- SUBTEST Default terminal identification ----------
 
-tupimage status
+ikup status
 terminal_name: st-256color
 terminal_id: st-256color-{{.*}}
 session_id: st-256color-{{.*}}
 
 ---------- SUBTEST Custom identification options together ----------
 
-tupimage status
+ikup status
 terminal_name: custom-terminal
 terminal_id: custom-terminal-id
 session_id: custom-session-id
 
 ---------- SUBTEST Upload and display with custom identification ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png -r 2
+ikup display ./.cli-tests-data/wikipedia.png -r 2
 {{:SKIP_LINES:}}
-tupimage list -v
+ikup list -v
 [1mID: {{.*}}
   {{.*}}
   Uploaded to custom-terminal-id {{.*}} uploads_ago: 1

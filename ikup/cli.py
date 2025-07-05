@@ -5,10 +5,10 @@ import time
 from datetime import datetime
 from typing import Optional, List
 
-import tupimage
-from tupimage.id_manager import IDSpace, IDSubspace
-from tupimage.tupimage_terminal import ImageInstance
-from tupimage.utils import *
+import ikup
+from ikup.id_manager import IDSpace, IDSubspace
+from ikup.ikup_terminal import ImageInstance
+from ikup.utils import *
 
 
 class CLIArgumentsError(Exception):
@@ -47,8 +47,8 @@ def time_ago(dt: datetime) -> str:
 
 def dump_config(command: str, provenance: bool, skip_default: bool):
     _ = command
-    tupiterm = tupimage.TupimageTerminal()
-    toml_str = tupiterm._config.to_toml_string(
+    ikupterm = ikup.IkupTerminal()
+    toml_str = ikupterm._config.to_toml_string(
         with_provenance=provenance, skip_default=skip_default
     )
     print(toml_str, end="")
@@ -56,33 +56,33 @@ def dump_config(command: str, provenance: bool, skip_default: bool):
 
 def status(command: str):
     _ = command
-    tupiterm = tupimage.TupimageTerminal()
-    print(f"Config file: {tupiterm._config_file}")
-    print(f"num_tmux_layers: {tupiterm.num_tmux_layers}")
-    print(f"inside_ssh: {tupiterm.inside_ssh}")
-    print(f"terminal_name: {tupiterm._terminal_name}")
-    print(f"terminal_id: {tupiterm._terminal_id}")
-    print(f"session_id: {tupiterm._session_id}")
-    print(f"database_file: {tupiterm.id_manager.database_file}")
-    print(f"Default ID space: {tupiterm.get_id_space()}")
-    print(f"Default subspace: {tupiterm.get_subspace()}")
-    print(f"Total IDs in the session db: {tupiterm.id_manager.count()}")
+    ikupterm = ikup.IkupTerminal()
+    print(f"Config file: {ikupterm._config_file}")
+    print(f"num_tmux_layers: {ikupterm.num_tmux_layers}")
+    print(f"inside_ssh: {ikupterm.inside_ssh}")
+    print(f"terminal_name: {ikupterm._terminal_name}")
+    print(f"terminal_id: {ikupterm._terminal_id}")
+    print(f"session_id: {ikupterm._session_id}")
+    print(f"database_file: {ikupterm.id_manager.database_file}")
+    print(f"Default ID space: {ikupterm.get_id_space()}")
+    print(f"Default subspace: {ikupterm.get_subspace()}")
+    print(f"Total IDs in the session db: {ikupterm.id_manager.count()}")
     print(
-        f"IDs in the subspace: {tupiterm.id_manager.count(tupiterm.get_id_space(), tupiterm.get_subspace())}"
+        f"IDs in the subspace: {ikupterm.id_manager.count(ikupterm.get_id_space(), ikupterm.get_subspace())}"
     )
-    print(f"Supported formats: {tupiterm.get_supported_formats()}")
-    print(f"Default uploading method: {tupiterm.get_upload_method()}")
-    print(f"Allow concurrent uploads: {tupiterm.get_allow_concurrent_uploads()}")
-    maxcols, maxrows = tupiterm.get_max_cols_and_rows()
+    print(f"Supported formats: {ikupterm.get_supported_formats()}")
+    print(f"Default uploading method: {ikupterm.get_upload_method()}")
+    print(f"Allow concurrent uploads: {ikupterm.get_allow_concurrent_uploads()}")
+    maxcols, maxrows = ikupterm.get_max_cols_and_rows()
     print(f"Max size in cells (cols x rows): {maxcols} x {maxrows}")
-    cellw, cellh = tupiterm.get_cell_size()
+    cellw, cellh = ikupterm.get_cell_size()
     print(f"(Assumed) cell size in pixels (w x h): {cellw} x {cellh}")
 
-    print(f"\nAll databases in {tupiterm._config.id_database_dir}")
-    assert tupiterm._config.id_database_dir
+    print(f"\nAll databases in {ikupterm._config.id_database_dir}")
+    assert ikupterm._config.id_database_dir
     db_files = []
-    for db_name in os.listdir(tupiterm._config.id_database_dir):
-        db_path = os.path.join(tupiterm._config.id_database_dir, db_name)
+    for db_name in os.listdir(ikupterm._config.id_database_dir):
+        db_path = os.path.join(ikupterm._config.id_database_dir, db_name)
         if os.path.isfile(db_path) and db_name.endswith(".db"):
             atime = os.path.getatime(db_path)
             size_kib = os.path.getsize(db_path) // 1024
@@ -95,8 +95,8 @@ def status(command: str):
         print(f"  {db_name}  (atime: {time.ctime(atime)}, size: {size_kib} KiB)")
 
 
-def printerr(tupiterm: tupimage.TupimageTerminal, msg):
-    tupiterm.term.out_display.flush()
+def printerr(ikupterm: ikup.IkupTerminal, msg):
+    ikupterm.term.out_display.flush()
     print(msg, file=sys.stderr, flush=True)
 
 
@@ -137,7 +137,7 @@ def handle_command(
     allow_concurrent_uploads: Optional[str],
     mark_uploaded: Optional[str],
 ):
-    tupiterm = tupimage.TupimageTerminal(
+    ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         out_command=out_command if out_command else None,
         config_overrides={
@@ -154,10 +154,10 @@ def handle_command(
         },
     )
     if dump_config:
-        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
+        print(ikupterm._config.to_toml_string(with_provenance=True), end="")
     errors = False
 
-    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+    if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
         use_line_feeds = "true"
 
     if len(images) > 1 and force_id is not None:
@@ -175,10 +175,10 @@ def handle_command(
                         "Cannot use --force-id and specify an ID at the same time."
                     )
                 # image is ImageInstance from now on (containing id, rows and cols).
-                image = tupiterm.get_image_instance(id)
+                image = ikupterm.get_image_instance(id)
                 if image is None:
                     printerr(
-                        tupiterm,
+                        ikupterm,
                         f"error: ID is not assigned or assignment is broken: {id}",
                     )
                     errors = True
@@ -186,7 +186,7 @@ def handle_command(
         # Handle the command itself. Don't stop on errors.
         try:
             if command == "display" and not no_upload:
-                tupiterm.upload_and_display(
+                ikupterm.upload_and_display(
                     image,
                     rows=rows,
                     cols=cols,
@@ -194,7 +194,7 @@ def handle_command(
                     force_id=force_id,
                 )
             elif command == "upload":
-                tupiterm.upload(
+                ikupterm.upload(
                     image,
                     rows=rows,
                     cols=cols,
@@ -204,7 +204,7 @@ def handle_command(
                 if isinstance(image, ImageInstance):
                     instance = image
                 else:
-                    instance = tupiterm.assign_id(
+                    instance = ikupterm.assign_id(
                         image,
                         rows=rows,
                         cols=cols,
@@ -213,12 +213,12 @@ def handle_command(
                 if command == "get-id":
                     print(instance.id)
                 if command == "display":
-                    tupiterm.display_only(
+                    ikupterm.display_only(
                         instance,
                         use_line_feeds=(use_line_feeds == "true"),
                     )
         except (FileNotFoundError, OSError) as e:
-            printerr(tupiterm, f"error: Failed to upload {image}: {e}")
+            printerr(ikupterm, f"error: Failed to upload {image}: {e}")
             errors = True
     if errors:
         sys.exit(1)
@@ -355,24 +355,24 @@ def placeholder(
     use_line_feeds: str,
 ):
     _ = command
-    tupiterm = tupimage.TupimageTerminal(
+    ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         config_overrides={
             "provenance": "set via command line",
         },
     )
     if dump_config:
-        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
+        print(ikupterm._config.to_toml_string(with_provenance=True), end="")
 
     id_int = parse_as_id(id[0])
     if id_int is None:
-        printerr(tupiterm, f"error: ID is incorrect: {id[0]}")
+        printerr(ikupterm, f"error: ID is incorrect: {id[0]}")
         exit(1)
 
-    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+    if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
         use_line_feeds = "true"
 
-    tupiterm.display_only(
+    ikupterm.display_only(
         id_int,
         end_col=cols,
         end_row=rows,
@@ -423,7 +423,7 @@ def foreach(
     older_dt = datetime.fromisoformat(older) if older else None
     newer_dt = datetime.fromisoformat(newer) if newer else None
 
-    tupiterm = tupimage.TupimageTerminal(
+    ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         out_command=out_command if out_command else None,
         config_overrides={
@@ -435,10 +435,10 @@ def foreach(
         },
     )
     if dump_config:
-        print(tupiterm._config.to_toml_string(with_provenance=True), end="")
-    max_cols_int, max_rows_int = tupiterm.get_max_cols_and_rows()
+        print(ikupterm._config.to_toml_string(with_provenance=True), end="")
+    max_cols_int, max_rows_int = ikupterm.get_max_cols_and_rows()
 
-    if use_line_feeds == "auto" and not tupiterm.term.out_display.isatty():
+    if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
         use_line_feeds = "true"
 
     # A set of IDs and filenames we haven't encountered yet.
@@ -464,7 +464,7 @@ def foreach(
     # Get all image infos from the ID manager and filter them.
     # TODO: It's better to build sql queries, of course.
     index = 0
-    for iminfo in tupiterm.id_manager.get_all():
+    for iminfo in ikupterm.id_manager.get_all():
         if all:
             image_infos.append(iminfo)
             continue
@@ -505,14 +505,14 @@ def foreach(
     # Print errors if some of the explicitly specified images were not found.
     for img in not_encountered:
         if isinstance(img, int):
-            printerr(tupiterm, f"error: ID not found in the db: {img}")
+            printerr(ikupterm, f"error: ID not found in the db: {img}")
         else:
-            printerr(tupiterm, f"error: Image not found in the db: {img}")
+            printerr(ikupterm, f"error: Image not found in the db: {img}")
         errors = True
 
     # Note that if we mix images and text, we should write to the same stream object,
     # otherwise there is a risk of buffering issues.
-    write = tupiterm.term.write
+    write = ikupterm.term.write
 
     # Now process the images.
     for iminfo in image_infos:
@@ -520,26 +520,26 @@ def foreach(
         id = iminfo.id
 
         if command == "forget":
-            tupiterm.id_manager.del_id(id)
+            ikupterm.id_manager.del_id(id)
 
         if command == "dirty":
-            tupiterm.id_manager.mark_dirty(id)
+            ikupterm.id_manager.mark_dirty(id)
 
         if command == "reupload" or command == "fix":
             if inst is None:
                 printerr(
-                    tupiterm, f"error: ID is not assigned or assignment is broken: {id}"
+                    ikupterm, f"error: ID is not assigned or assignment is broken: {id}"
                 )
                 errors = True
                 continue
             # 'fix' is like 'reupload', but avoids unnecessary uploads.
-            if command == "fix" and not tupiterm.needs_uploading(id):
+            if command == "fix" and not ikupterm.needs_uploading(id):
                 continue
             # Don't fail other uploads if one fails, but print the error message
             try:
-                tupiterm.upload(inst, force_upload=True, update_atime=False)
+                ikupterm.upload(inst, force_upload=True, update_atime=False)
             except (FileNotFoundError, OSError) as e:
-                printerr(tupiterm, f"error: Failed to upload {id} {inst.path}: {e}")
+                printerr(ikupterm, f"error: Failed to upload {id} {inst.path}: {e}")
                 errors = True
                 continue
 
@@ -564,19 +564,19 @@ def foreach(
             f"\033[1mID: {id}\033[0m = 0x{id:08x} id_space: {space} subspace_byte: {subspace_byte} = 0x{subspace_byte:02x} atime: {iminfo.atime} ({ago})\n"
         )
         write(f"  {iminfo.description}\n")
-        if tupiterm.needs_uploading(id):
-            write(f"  \033[1mNEEDS UPLOADING\033[0m to {tupiterm._terminal_id}\n")
-        uploads = tupiterm.id_manager.get_upload_infos(id)
+        if ikupterm.needs_uploading(id):
+            write(f"  \033[1mNEEDS UPLOADING\033[0m to {ikupterm._terminal_id}\n")
+        uploads = ikupterm.id_manager.get_upload_infos(id)
         for upload in uploads:
             write("  ")
-            if tupiterm.needs_uploading(upload.id, upload.terminal):
+            if ikupterm.needs_uploading(upload.id, upload.terminal):
                 write("(Needs reuploading) ")
             status = f"Uploaded (status = {upload.status}) to"
-            if upload.status == tupimage.id_manager.UPLOADING_STATUS_UPLOADED:
+            if upload.status == ikup.id_manager.UPLOADING_STATUS_UPLOADED:
                 status = "Uploaded to"
-            elif upload.status == tupimage.id_manager.UPLOADING_STATUS_IN_PROGRESS:
+            elif upload.status == ikup.id_manager.UPLOADING_STATUS_IN_PROGRESS:
                 status = "Uploading in progress to"
-            elif upload.status == tupimage.id_manager.UPLOADING_STATUS_DIRTY:
+            elif upload.status == ikup.id_manager.UPLOADING_STATUS_DIRTY:
                 status = "Dirty in"
             write(
                 f"{status} {upload.terminal}"
@@ -595,7 +595,7 @@ def foreach(
                 f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
             )
         else:
-            tupiterm.display_only(
+            ikupterm.display_only(
                 inst,
                 end_col=max_cols_int,
                 end_row=max_rows_int,
@@ -614,13 +614,13 @@ def foreach(
 
 def cleanup(command: str):
     _ = command
-    tupiterm = tupimage.TupimageTerminal()
-    dbs = tupiterm.cleanup_old_databases()
+    ikupterm = ikup.IkupTerminal()
+    dbs = ikupterm.cleanup_old_databases()
     if dbs:
         print("Removed old databases:")
         for db in dbs:
             print(f"  {db}")
-    tupiterm.cleanup_current_database()
+    ikupterm.cleanup_current_database()
 
 
 def main_unwrapped():

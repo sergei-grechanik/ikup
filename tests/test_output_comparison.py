@@ -1,5 +1,5 @@
 import pytest
-from tupimage.testing.output_comparison import (
+from ikup.testing.output_comparison import (
     parse_chunks_from_content,
     process_test_chunk,
     compare,
