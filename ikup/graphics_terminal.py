@@ -11,15 +11,15 @@ import time
 import sys
 from typing import BinaryIO, List, Optional, TextIO, Tuple, Union, Callable
 
-from tupimage import (
+from ikup import (
     GraphicsCommand,
     GraphicsResponse,
     PlacementData,
     PutCommand,
     TransmitCommand,
 )
-from tupimage.graphics_command import TransmissionMedium
-from tupimage.placeholder import (
+from ikup.graphics_command import TransmissionMedium
+from ikup.placeholder import (
     AdditionalFormatting,
     ImagePlaceholder,
     ImagePlaceholderMode,

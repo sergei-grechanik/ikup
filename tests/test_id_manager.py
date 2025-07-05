@@ -4,7 +4,7 @@ from itertools import islice
 
 import pytest
 
-from tupimage.id_manager import *
+from ikup.id_manager import *
 
 
 def interesting_subspaces() -> Iterator[IDSubspace]:

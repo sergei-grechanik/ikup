@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# debug-terminal.sh - Persistent terminal environment for debugging tupimage
+# debug-terminal.sh - Persistent terminal environment for debugging ikup
 #
 # Usage:
 #   debug-terminal.sh start [terminal_cmd [args...]]
@@ -11,7 +11,7 @@
 #   debug-terminal.sh start                              # Use default st
 #   debug-terminal.sh start st -f "Liberation Mono" -e   # Custom st options
 #   debug-terminal.sh start kitty                        # Use kitty instead
-#   debug-terminal.sh exec uv run tupimage display image.png
+#   debug-terminal.sh exec uv run ikup display image.png
 #   debug-terminal.sh stop
 
 set -euo pipefail
@@ -47,7 +47,7 @@ usage() {
     echo "  $0 start"
     echo "  $0 start st -f 'Liberation Mono' -e"
     echo "  $0 start kitty"
-    echo "  $0 exec uv run tupimage display image.png"
+    echo "  $0 exec uv run ikup display image.png"
     echo "  $0 stop"
     exit 1
 }

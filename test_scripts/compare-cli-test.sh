@@ -9,7 +9,7 @@ if [ -z "$1" ]; then
 fi
 
 if [ -d "$1" ]; then
-    uv run python -m tupimage.testing.output_comparison "$1" ./data/cli-test-references
+    uv run python -m ikup.testing.output_comparison "$1" ./data/cli-test-references
     exit 0
 fi
 
@@ -17,4 +17,4 @@ TEST_OUTPUT_FILE="$1"
 TEST_NAME=$(basename "$TEST_OUTPUT_FILE" .out)
 REFERENCE_FILE="./data/cli-test-references/${TEST_NAME}.reference"
 
-uv run python -m tupimage.testing.output_comparison "$TEST_OUTPUT_FILE" "$REFERENCE_FILE"
+uv run python -m ikup.testing.output_comparison "$TEST_OUTPUT_FILE" "$REFERENCE_FILE"

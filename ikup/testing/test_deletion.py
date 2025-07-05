@@ -1,6 +1,6 @@
-import tupimage
-from tupimage import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
+import ikup
+from ikup import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
+from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
@@ -9,9 +9,9 @@ def image_with_data(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=12345,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -19,15 +19,15 @@ def image_with_data(ctx: TestingContext):
             image_id=12345,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Wikipedia image.")
     term.send_command(
         DeleteCommand(
             image_id=12345,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -38,7 +38,7 @@ def image_with_data(ctx: TestingContext):
             image_id=12345,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     response = term.receive_response(timeout=3)
@@ -56,9 +56,9 @@ def image_preserve_data(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=12345,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -66,7 +66,7 @@ def image_preserve_data(ctx: TestingContext):
             image_id=12345,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.write("\n")
@@ -74,8 +74,8 @@ def image_preserve_data(ctx: TestingContext):
     term.send_command(
         DeleteCommand(
             image_id=12345,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=False,
         )
     )
@@ -86,7 +86,7 @@ def image_preserve_data(ctx: TestingContext):
             image_id=12345,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Recreated the image.")
@@ -98,9 +98,9 @@ def image_with_data_two_placements(ctx: TestingContext):
     term.send_command(
         TransmitCommand(
             image_id=12345,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -109,7 +109,7 @@ def image_with_data_two_placements(ctx: TestingContext):
             placement_id=42,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.move_cursor(up=9)
@@ -119,7 +119,7 @@ def image_with_data_two_placements(ctx: TestingContext):
             placement_id=40,
             rows=10,
             cols=10,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.write("\n")
@@ -128,8 +128,8 @@ def image_with_data_two_placements(ctx: TestingContext):
         DeleteCommand(
             image_id=12345,
             placement_id=42,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -141,7 +141,7 @@ def image_with_data_two_placements(ctx: TestingContext):
             placement_id=42,
             rows=5,
             cols=10,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Created another placement with the same id.")
@@ -149,8 +149,8 @@ def image_with_data_two_placements(ctx: TestingContext):
         DeleteCommand(
             image_id=12345,
             placement_id=42,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -158,8 +158,8 @@ def image_with_data_two_placements(ctx: TestingContext):
         DeleteCommand(
             image_id=12345,
             placement_id=40,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -170,7 +170,7 @@ def image_with_data_two_placements(ctx: TestingContext):
             image_id=12345,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     response = term.receive_response(timeout=3)
@@ -191,9 +191,9 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
     term.send_command(
         TransmitCommand(
             image_number=1234,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_wikipedia_png())
     )
     term.send_command(
@@ -201,16 +201,16 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
             image_number=1234,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.move_cursor(up=9)
     term.send_command(
         TransmitCommand(
             image_number=42,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_tux_png())
     )
     term.send_command(
@@ -218,16 +218,16 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
             image_number=42,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.move_cursor(up=9)
     term.send_command(
         TransmitCommand(
             image_number=42,
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
         ).set_filename(ctx.get_transparency_png())
     )
     term.send_command(
@@ -235,7 +235,7 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
             image_number=42,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.move_cursor(up=9)
@@ -243,8 +243,8 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
     term.send_command(
         DeleteCommand(
             image_number=42,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
             delete_data=True,
         )
     )
@@ -252,8 +252,8 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
     term.send_command(
         DeleteCommand(
             image_number=1234,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
             delete_data=True,
         )
     )
@@ -263,15 +263,15 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
             image_number=42,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Created another tux.")
     term.send_command(
         DeleteCommand(
             image_number=42,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_NUMBER,
             delete_data=True,
         )
     )
@@ -287,9 +287,9 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
 def everything(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     ).set_placement(rows=10, cols=20)
     term.send_command(cmd.clone_with(image_id=42).set_filename(ctx.get_wikipedia_png()))
     term.move_cursor(up=9)
@@ -304,7 +304,7 @@ def everything(ctx: TestingContext):
             image_id=43,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         ),
         force_placeholders=True,
     )
@@ -312,8 +312,8 @@ def everything(ctx: TestingContext):
     ctx.take_screenshot("Wiki, tux, dice, then tux using placeholders")
     term.send_command(
         DeleteCommand(
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.VISIBLE_PLACEMENTS,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.VISIBLE_PLACEMENTS,
             delete_data=True,
         )
     )
@@ -324,7 +324,7 @@ def everything(ctx: TestingContext):
             image_id=43,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot("Two tuxes.")
@@ -334,7 +334,7 @@ def everything(ctx: TestingContext):
             image_id=42,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
         )
     )
     response = term.receive_response(timeout=3)
@@ -350,9 +350,9 @@ def everything(ctx: TestingContext):
 def underneath_text_restoration(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     # First create some placeholder images.
     id1 = 0x12345678
@@ -390,7 +390,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=1,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -401,7 +401,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=1,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -412,7 +412,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=2,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -423,7 +423,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=1,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -436,7 +436,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=2,
             rows=6,
             cols=12,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -448,7 +448,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=2,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -459,7 +459,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=3,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -470,7 +470,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=3,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -481,7 +481,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=4,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -492,7 +492,7 @@ def underneath_text_restoration(ctx: TestingContext):
             placement_id=2,
             rows=10,
             cols=20,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
             do_not_move_cursor=True,
         )
     )
@@ -504,8 +504,8 @@ def underneath_text_restoration(ctx: TestingContext):
         DeleteCommand(
             image_id=id4,
             placement_id=1,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -513,8 +513,8 @@ def underneath_text_restoration(ctx: TestingContext):
         DeleteCommand(
             image_id=id4,
             placement_id=3,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -525,8 +525,8 @@ def underneath_text_restoration(ctx: TestingContext):
     term.send_command(
         DeleteCommand(
             image_id=id3,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.IMAGE_OR_PLACEMENT_BY_ID,
             delete_data=True,
         )
     )
@@ -536,8 +536,8 @@ def underneath_text_restoration(ctx: TestingContext):
     # Now delete everything visible.
     term.send_command(
         DeleteCommand(
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            what=tupimage.WhatToDelete.VISIBLE_PLACEMENTS,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            what=ikup.WhatToDelete.VISIBLE_PLACEMENTS,
             delete_data=True,
         )
     )

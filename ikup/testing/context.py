@@ -12,7 +12,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-from tupimage import GraphicsTerminal
+from ikup import GraphicsTerminal
 
 
 def take_screenshot(
@@ -329,8 +329,8 @@ def screenshot_test(func=None, suffix: Optional[str] = None, params: dict = {}):
         name = func.__module__ + "." + func.__name__
         if suffix is not None:
             name += "_" + suffix
-        if name.startswith("tupimage.testing."):
-            name = name[len("tupimage.testing.") :]
+        if name.startswith("ikup.testing."):
+            name = name[len("ikup.testing.") :]
 
         def wrapper(ctx):
             with ctx.test(name):

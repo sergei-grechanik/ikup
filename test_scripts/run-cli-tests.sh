@@ -3,13 +3,13 @@
 # This is a helper script to run output tests in a headless environment.
 # The intended use:
 #   xvfb-run st -e ./test_scripts/run-cli-tests.sh
-#   uv run python -m tupimage.testing.output_comparison cli-test-outputs/ data/cli-test-references/
+#   uv run python -m ikup.testing.output_comparison cli-test-outputs/ data/cli-test-references/
 #
 # Usage:
 #   ./test_scripts/run-cli-tests.sh [OPTIONS] [TEST_NAMES...]
 #
 # Options:
-#   -c, --command CMD  Command to test (default: "uv run tupimage")
+#   -c, --command CMD  Command to test (default: "uv run ikup")
 #   -l, --list         List all available tests
 #   --no-script        Disable script recording (for internal use)
 #
@@ -21,7 +21,7 @@
 #   ./test_scripts/run-cli-tests.sh test_basics test_display
 #
 #   # Test a custom command
-#   ./test_scripts/run-cli-tests.sh --command 'uv run --python 3.13 tupimage'
+#   ./test_scripts/run-cli-tests.sh --command 'uv run --python 3.13 ikup'
 #
 
 # Capture original arguments before parsing for script wrapper
@@ -34,7 +34,7 @@ done
 while [ $# -gt 0 ]; do
     case "$1" in
         -c|--command)
-            TUPIMAGE="$2"
+            IKUP="$2"
             shift 2
             ;;
         -l|--list)
@@ -145,8 +145,8 @@ if [ -z "$NO_SCRIPT" ]; then
 fi
 
 # Set default command if not provided
-if [ -z "$TUPIMAGE" ]; then
-    TUPIMAGE="uv run tupimage"
+if [ -z "$IKUP" ]; then
+    IKUP="uv run ikup"
 fi
 
 DATA_DIR="./.cli-tests-data"
@@ -166,7 +166,7 @@ start_test() {
     echo
     echo "========== TEST $CURRENT_TEST_NAME - $1 =========="
     echo
-    $TUPIMAGE forget --all --quiet
+    $IKUP forget --all --quiet
 }
 
 subtest() {
@@ -176,11 +176,11 @@ subtest() {
 }
 
 run_command() {
-    printf "tupimage %s\n" "$*" >&2
-    $TUPIMAGE "$@"
-    TUPIMAGE_EXIT_CODE="$?"
-    if [ $TUPIMAGE_EXIT_CODE -ne 0 ]; then
-        echo "Exit code: $TUPIMAGE_EXIT_CODE"
+    printf "ikup %s\n" "$*" >&2
+    $IKUP "$@"
+    IKUP_EXIT_CODE="$?"
+    if [ $IKUP_EXIT_CODE -ne 0 ]; then
+        echo "Exit code: $IKUP_EXIT_CODE"
     fi
 }
 
@@ -221,12 +221,12 @@ if [ -z "$DATABASE_DIR" ]; then
     DATABASE_DIR="$TMPDIR/id_database_dir"
 fi
 
-export TUPIMAGE_CONFIG="DEFAULT"
-export TUPIMAGE_ID_DATABASE_DIR="$DATABASE_DIR"
+export IKUP_CONFIG="DEFAULT"
+export IKUP_ID_DATABASE_DIR="$DATABASE_DIR"
 
 # Disable 3rd diacritics because they are hard to match with the reference. We
 # will test them only in fixed id tests.
-export TUPIMAGE_ID_SPACE="24bit"
+export IKUP_ID_SPACE="24bit"
 
 ################################################################################
 
@@ -275,12 +275,12 @@ test_display() {
 
     subtest "-r from 1 to 5"
     for i in $(seq 1 5); do
-        $TUPIMAGE $DATA_DIR/wikipedia.png -r $i
+        $IKUP $DATA_DIR/wikipedia.png -r $i
     done
 
     subtest "-c from 1 to 5"
     for i in $(seq 1 5); do
-        $TUPIMAGE $DATA_DIR/wikipedia.png -c $i
+        $IKUP $DATA_DIR/wikipedia.png -c $i
     done
 
     subtest "Test scaling via -s and --scale"
@@ -306,21 +306,21 @@ test_scaling() {
 
     subtest "Global scale 0.5 via config"
     echo "global_scale = 0.5" > $TMPDIR/global_scale.toml
-    TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+    IKUP_CONFIG=$TMPDIR/global_scale.toml $IKUP $DATA_DIR/small_arrow.png | wc -l
 
     subtest "Global scale 0.5 with CLI scale 2 (total 1.0)"
-    TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png --scale 2 | wc -l
+    IKUP_CONFIG=$TMPDIR/global_scale.toml $IKUP $DATA_DIR/small_arrow.png --scale 2 | wc -l
 
     subtest "scale 0.5 via config"
     echo "scale = 0.5" > $TMPDIR/global_scale.toml
-    TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+    IKUP_CONFIG=$TMPDIR/global_scale.toml $IKUP $DATA_DIR/small_arrow.png | wc -l
 
     subtest "scale 0.5 via config overridden by CLI scale 2"
     echo "scale = 0.5" > $TMPDIR/global_scale.toml
-    TUPIMAGE_CONFIG=$TMPDIR/global_scale.toml $TUPIMAGE $DATA_DIR/small_arrow.png --scale 2 | wc -l
+    IKUP_CONFIG=$TMPDIR/global_scale.toml $IKUP $DATA_DIR/small_arrow.png --scale 2 | wc -l
 
-    subtest "combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20"
-    TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 $TUPIMAGE $DATA_DIR/small_arrow.png | wc -l
+    subtest "combining env var scaling IKUP_GLOBAL_SCALE=0.1 IKUP_SCALE=20"
+    IKUP_GLOBAL_SCALE=0.1 IKUP_SCALE=20 $IKUP $DATA_DIR/small_arrow.png | wc -l
 }
 
 ################################################################################
@@ -352,22 +352,22 @@ test_assign_id_upload() {
     run_command upload $DATA_DIR/wikipedia.png --force-upload
 
     subtest "Alloc ID, then upload and display"
-    ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 2)
+    ID=$($IKUP get-id $DATA_DIR/small_arrow.png -r 2)
     run_command display $ID
 
     subtest "Alloc ID, then display, then upload"
-    ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 3)
+    ID=$($IKUP get-id $DATA_DIR/small_arrow.png -r 3)
     run_command display $ID --no-upload
     run_command upload $ID
 
     subtest "Alloc ID, then display, then upload by filename"
-    ID=$($TUPIMAGE get-id $DATA_DIR/small_arrow.png -r 4)
+    ID=$($IKUP get-id $DATA_DIR/small_arrow.png -r 4)
     echo $ID
     run_command display $DATA_DIR/small_arrow.png -r 4 --no-upload
     run_command upload $DATA_DIR/small_arrow.png -r 4
 
     subtest "The placeholder command"
-    ID=$($TUPIMAGE get-id $DATA_DIR/wikipedia.png)
+    ID=$($IKUP get-id $DATA_DIR/wikipedia.png)
     echo $ID
     run_command placeholder $ID -r 3 -c 50
 }
@@ -401,7 +401,7 @@ test_multiple_images() {
     subtest "Mix ids and filenames"
     # Note that getting the id of wikipedia will update its atime, making it
     # the last image in the subsequent calls.
-    ID=$($TUPIMAGE get-id $DATA_DIR/wikipedia.png)
+    ID=$($IKUP get-id $DATA_DIR/wikipedia.png)
     run_command list $ID $DATA_DIR/tux.png id:123 $DATA_DIR/nonexisting.png
 
     subtest "Mark dirty last 2 images, then fix last 3"
@@ -416,7 +416,7 @@ test_multiple_images() {
 
     subtest "Mark dirty the last image, then display it"
     run_command dirty --last 1
-    ID=$($TUPIMAGE list --last 1 | awk '{print $1}')
+    ID=$($IKUP list --last 1 | awk '{print $1}')
     run_command display id:$ID
 
     subtest "Mixing queries and images/ids is not supported"
@@ -476,8 +476,8 @@ test_id_space() {
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 32
     # 256 = 8bit
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 256
-    TUPIMAGE_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
-    TUPIMAGE_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
+    IKUP_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
+    IKUP_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
 
     subtest "Invalid id space"
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 123
@@ -493,7 +493,7 @@ test_id_subspace() {
     subtest "Upload an image with different id spaces and the same subspace"
     run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 24bit --id-subspace $SUBSPACE
     run_command upload $DATA_DIR/wikipedia.png -r 2 --id-space 32 --id-subspace $SUBSPACE
-    export TUPIMAGE_ID_SUBSPACE=$SUBSPACE
+    export IKUP_ID_SUBSPACE=$SUBSPACE
     run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit
     run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 8bit_diacritic
     run_command get-id $DATA_DIR/wikipedia.png -r 2 --id-space 16bit
@@ -506,8 +506,8 @@ test_id_subspace() {
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 32
     # 256 = 8bit
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-space 256
-    TUPIMAGE_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
-    TUPIMAGE_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
+    IKUP_ID_SPACE="8bit_diacritic" run_command display $DATA_DIR/wikipedia.png -r 2
+    IKUP_ID_SPACE="16bit" run_command display $DATA_DIR/wikipedia.png -r 2
 
     subtest "Invalid id subspace"
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace 0:1
@@ -515,7 +515,7 @@ test_id_subspace() {
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace abc
     run_command display $DATA_DIR/wikipedia.png -r 2 --id-subspace a:b
 
-    unset TUPIMAGE_ID_SUBSPACE
+    unset IKUP_ID_SUBSPACE
 }
 
 ################################################################################
@@ -530,7 +530,7 @@ test_upload_method() {
     subtest "Stream"
     run_command display $DATA_DIR/tux.png -r 2 -m stream
     run_command display $DATA_DIR/tux.png -r 3 -m direct
-    TUPIMAGE_UPLOAD_METHOD=stream run_command display $DATA_DIR/tux.png -r 4
+    IKUP_UPLOAD_METHOD=stream run_command display $DATA_DIR/tux.png -r 4
 
     subtest "The fix command"
     run_command dirty --all
@@ -550,18 +550,18 @@ test_terminal_identification() {
     run_command status | grep "terminal_name\|terminal_id\|session_id"
 
     subtest "Custom identification options together"
-    export TUPIMAGE_TERMINAL_NAME="custom-terminal"
-    export TUPIMAGE_TERMINAL_ID="custom-terminal-id"
-    export TUPIMAGE_SESSION_ID="custom-session-id"
+    export IKUP_TERMINAL_NAME="custom-terminal"
+    export IKUP_TERMINAL_ID="custom-terminal-id"
+    export IKUP_SESSION_ID="custom-session-id"
     run_command status | grep "terminal_name\|terminal_id\|session_id"
 
     subtest "Upload and display with custom identification"
     run_command display $DATA_DIR/wikipedia.png -r 2
     run_command list -v
 
-    unset TUPIMAGE_TERMINAL_NAME
-    unset TUPIMAGE_TERMINAL_ID
-    unset TUPIMAGE_SESSION_ID
+    unset IKUP_TERMINAL_NAME
+    unset IKUP_TERMINAL_ID
+    unset IKUP_SESSION_ID
 }
 
 ################################################################################
@@ -572,7 +572,7 @@ test_cleanup() {
     # Create a temporary directory for test databases
     TEST_DB_DIR="$TMPDIR/cleanup_test_db_dir"
     mkdir -p "$TEST_DB_DIR"
-    export TUPIMAGE_ID_DATABASE_DIR="$TEST_DB_DIR"
+    export IKUP_ID_DATABASE_DIR="$TEST_DB_DIR"
 
     subtest "Create old databases"
     # Create some "old" database files with timestamps in the past
@@ -585,7 +585,7 @@ test_cleanup() {
 
     subtest "Explicit cleanup of old databases"
     # Set max age to 7 days
-    export TUPIMAGE_MAX_DB_AGE_DAYS=7
+    export IKUP_MAX_DB_AGE_DAYS=7
     run_command cleanup
 
     # Check if old databases were removed
@@ -599,9 +599,9 @@ test_cleanup() {
 
     subtest "Test random cleanup via probability"
     # Set cleanup probability to 100% to ensure it triggers
-    export TUPIMAGE_CLEANUP_PROBABILITY=1.0
+    export IKUP_CLEANUP_PROBABILITY=1.0
     # Set max_num_ids to a small number
-    export TUPIMAGE_MAX_NUM_IDS=5
+    export IKUP_MAX_NUM_IDS=5
 
     # Upload several images to exceed the max_num_ids
     for i in $(seq 1 10); do
@@ -611,22 +611,22 @@ test_cleanup() {
     # Check how many IDs we have now
     run_command status | grep "Total IDs"
 
-    # The number of IDs should be equal to TUPIMAGE_MAX_NUM_IDS + 1 because we
+    # The number of IDs should be equal to IKUP_MAX_NUM_IDS + 1 because we
     # do the cleanup before each ID assignment.
-    ID_COUNT=$($TUPIMAGE status | grep "Total IDs" | awk '{print $NF}')
+    ID_COUNT=$($IKUP status | grep "Total IDs" | awk '{print $NF}')
     if [ "$ID_COUNT" -le 6 ]; then
-        echo "Random cleanup successfully limited IDs to $TUPIMAGE_MAX_NUM_IDS + 1"
+        echo "Random cleanup successfully limited IDs to $IKUP_MAX_NUM_IDS + 1"
     else
-        echo "Random cleanup failed: $ID_COUNT IDs remain (should be <= $TUPIMAGE_MAX_NUM_IDS + 1)"
+        echo "Random cleanup failed: $ID_COUNT IDs remain (should be <= $IKUP_MAX_NUM_IDS + 1)"
     fi
 
     run_command list
 
     # Restore original database directory
-    export TUPIMAGE_ID_DATABASE_DIR="$DATABASE_DIR"
-    unset TUPIMAGE_MAX_DB_AGE_DAYS
-    unset TUPIMAGE_CLEANUP_PROBABILITY
-    unset TUPIMAGE_MAX_NUM_IDS
+    export IKUP_ID_DATABASE_DIR="$DATABASE_DIR"
+    unset IKUP_MAX_DB_AGE_DAYS
+    unset IKUP_CLEANUP_PROBABILITY
+    unset IKUP_MAX_NUM_IDS
 }
 
 ################################################################################
@@ -662,12 +662,12 @@ test_overwrite() {
     subtest "Display original image"
     cp "$DATA_DIR/wikipedia.png" "$TEST_IMAGE"
     run_command display "$TEST_IMAGE" -r 2
-    WIKIPEDIA_ID=$($TUPIMAGE get-id "$TEST_IMAGE" -r 2)
+    WIKIPEDIA_ID=$($IKUP get-id "$TEST_IMAGE" -r 2)
 
     subtest "Replace image and display again"
     cp "$DATA_DIR/tux.png" "$TEST_IMAGE"
     run_command display "$TEST_IMAGE" -r 2
-    TUX_ID=$($TUPIMAGE get-id "$TEST_IMAGE" -r 2)
+    TUX_ID=$($IKUP get-id "$TEST_IMAGE" -r 2)
 
     subtest "List images with the given name"
     run_command list "$TEST_IMAGE"
@@ -701,15 +701,15 @@ test_concurrent_file() {
 
     # Run 5 processes in concurrent with different parameters
     # We do -r 1 twice to increase collision probability
-    $TUPIMAGE display $CONCURRENT_IMAGES -r 1 -o "$OUTFILE1" &
+    $IKUP display $CONCURRENT_IMAGES -r 1 -o "$OUTFILE1" &
     PID1=$!
-    $TUPIMAGE display $CONCURRENT_IMAGES -r 1 -o "$OUTFILE2" &
+    $IKUP display $CONCURRENT_IMAGES -r 1 -o "$OUTFILE2" &
     PID2=$!
-    $TUPIMAGE display $CONCURRENT_IMAGES -r 2 -o "$OUTFILE3" &
+    $IKUP display $CONCURRENT_IMAGES -r 2 -o "$OUTFILE3" &
     PID3=$!
-    $TUPIMAGE display $CONCURRENT_IMAGES -c 1 -o "$OUTFILE4" &
+    $IKUP display $CONCURRENT_IMAGES -c 1 -o "$OUTFILE4" &
     PID4=$!
-    $TUPIMAGE display $CONCURRENT_IMAGES -c 2 -o "$OUTFILE5" &
+    $IKUP display $CONCURRENT_IMAGES -c 2 -o "$OUTFILE5" &
     PID5=$!
 
     # Wait for all background processes to complete
@@ -749,11 +749,11 @@ test_concurrent_stream() {
 
     # Run 5 processes in concurrent with different parameters
     # We do -r 1 twice to increase collision probability
-    $TUPIMAGE display $CONCURRENT_IMAGES -m d -r 1 -o "$OUTFILE1" &
-    $TUPIMAGE display $CONCURRENT_IMAGES -m d -r 1 -o "$OUTFILE2" &
-    $TUPIMAGE display $CONCURRENT_IMAGES -m d -r 2 -o "$OUTFILE3" &
-    $TUPIMAGE display $CONCURRENT_IMAGES -m d -c 1 -o "$OUTFILE4" &
-    $TUPIMAGE display $CONCURRENT_IMAGES -m d -c 2 -o "$OUTFILE5" &
+    $IKUP display $CONCURRENT_IMAGES -m d -r 1 -o "$OUTFILE1" &
+    $IKUP display $CONCURRENT_IMAGES -m d -r 1 -o "$OUTFILE2" &
+    $IKUP display $CONCURRENT_IMAGES -m d -r 2 -o "$OUTFILE3" &
+    $IKUP display $CONCURRENT_IMAGES -m d -c 1 -o "$OUTFILE4" &
+    $IKUP display $CONCURRENT_IMAGES -m d -c 2 -o "$OUTFILE5" &
 
     # Wait for all background processes to complete
     echo "Waiting for processes to complete..."
@@ -785,15 +785,15 @@ test_concurrent_mixed() {
 
     # Run may processes in concurrent with different parameters.
     for i in $(seq 1 5); do
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES --force-upload -m d -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES --force-upload -m d -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -c 1  &
     done
 
     # Wait for all background processes to complete
@@ -802,7 +802,7 @@ test_concurrent_mixed() {
     echo "All processes completed."
 
     subtest "Show some of the images"
-    $TUPIMAGE display $CONCURRENT_IMAGES -r 1 -c 1 --no-upload
+    $IKUP display $CONCURRENT_IMAGES -r 1 -c 1 --no-upload
 
     subtest "List all uploaded images"
     run_command list | cut -f2- | sort
@@ -813,21 +813,21 @@ test_concurrent_mixed() {
 test_concurrent_mixed_noconcurrent() {
     start_test "Concurrent stream and file uploads, concurrent uploads disabled"
 
-    export TUPIMAGE_ALLOW_CONCURRENT_UPLOADS=False
+    export IKUP_ALLOW_CONCURRENT_UPLOADS=False
 
     subtest "Running concurrent upload commands"
 
     # Run may processes in concurrent with different parameters.
     for i in $(seq 1 5); do
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES --force-upload -m d -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -r 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m d -c 1  &
-        $TUPIMAGE upload $CONCURRENT_IMAGES -m f -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1 -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES --force-upload -m d -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -r 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m d -c 1  &
+        $IKUP upload $CONCURRENT_IMAGES -m f -c 1  &
     done
 
     # Wait for all background processes to complete
@@ -836,12 +836,12 @@ test_concurrent_mixed_noconcurrent() {
     echo "All processes completed."
 
     subtest "Show some of the images"
-    $TUPIMAGE display $CONCURRENT_IMAGES -r 1 -c 1 --no-upload
+    $IKUP display $CONCURRENT_IMAGES -r 1 -c 1 --no-upload
 
     subtest "List all uploaded images"
     run_command list | cut -f2- | sort
 
-    unset TUPIMAGE_ALLOW_CONCURRENT_UPLOADS
+    unset IKUP_ALLOW_CONCURRENT_UPLOADS
 }
 
 ################################################################################
@@ -872,18 +872,18 @@ test_concurrent_stalled() {
     start_test "Upload command delay and stall detection"
 
     # Set the stall timeout to a small value
-    export TUPIMAGE_UPLOAD_STALL_TIMEOUT=0.1
-    export TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL=0.01
+    export IKUP_UPLOAD_STALL_TIMEOUT=0.1
+    export IKUP_UPLOAD_PROGRESS_UPDATE_INTERVAL=0.01
 
     # Run a process with a long delay in the background
-    TUPIMAGE_UPLOAD_COMMAND_DELAY=0.8 \
-        $TUPIMAGE display $DATA_DIR/tux.png -r 2 -m direct --force-id 42 &
+    IKUP_UPLOAD_COMMAND_DELAY=0.8 \
+        $IKUP display $DATA_DIR/tux.png -r 2 -m direct --force-id 42 &
     sleep 0.3
     # Display another image with the same ID in the meanwhile
-    $TUPIMAGE display $DATA_DIR/transparency.png -r 1 --force-id 42
+    $IKUP display $DATA_DIR/transparency.png -r 1 --force-id 42
     # There will be a short period when the second image is displayed
     sleep 0.8
-    $TUPIMAGE list -v | grep -q "Uploading in progress" || echo "Failed to see that the upload is in progress"
+    $IKUP list -v | grep -q "Uploading in progress" || echo "Failed to see that the upload is in progress"
 
     # Wait for the first process to finish
     wait
@@ -892,8 +892,8 @@ test_concurrent_stalled() {
     run_command display $DATA_DIR/transparency.png -r 1 --id-space 8bit
     run_command list -v
 
-    unset TUPIMAGE_UPLOAD_STALL_TIMEOUT
-    unset TUPIMAGE_UPLOAD_PROGRESS_UPDATE_INTERVAL
+    unset IKUP_UPLOAD_STALL_TIMEOUT
+    unset IKUP_UPLOAD_PROGRESS_UPDATE_INTERVAL
 }
 
 ################################################################################
@@ -923,18 +923,18 @@ test_fallback_dimensions() {
     start_test "Fallback dimensions when terminal size detection fails"
 
     subtest "Status with simulated terminal size failure"
-    script -q -c "$TUPIMAGE status" < /dev/null
+    script -q -c "$IKUP status" < /dev/null
 
     subtest "Status with custom fallback dimensions"
-    TUPIMAGE_FALLBACK_MAX_ROWS=10 TUPIMAGE_FALLBACK_MAX_COLS=40 \
-        script -q -c "$TUPIMAGE status" < /dev/null
+    IKUP_FALLBACK_MAX_ROWS=10 IKUP_FALLBACK_MAX_COLS=40 \
+        script -q -c "$IKUP status" < /dev/null
 
     subtest "Display image with fallback dimensions"
-    script -q -c "$TUPIMAGE display $DATA_DIR/tux.png" < /dev/null
+    script -q -c "$IKUP display $DATA_DIR/tux.png" < /dev/null
 
     subtest "Display with custom fallback dimensions"
-    TUPIMAGE_FALLBACK_MAX_ROWS=5 TUPIMAGE_FALLBACK_MAX_COLS=20 \
-        script -q -c "$TUPIMAGE display $DATA_DIR/tux.png" < /dev/null
+    IKUP_FALLBACK_MAX_ROWS=5 IKUP_FALLBACK_MAX_COLS=20 \
+        script -q -c "$IKUP display $DATA_DIR/tux.png" < /dev/null
 }
 
 ################################################################################

@@ -73,7 +73,7 @@ jobs:
           git clone https://github.com/sergei-grechanik/terminal-reference-screenshots.git
           cp -r terminal-reference-screenshots/st/ report/
           cd report
-          uv run python -m tupimage.testing.cli compare screenshots/ st/ -o report.html
+          uv run python -m ikup.testing.cli compare screenshots/ st/ -o report.html
 
       - name: Keep the report
         if: always()

@@ -20,6 +20,6 @@
 _G{{.*}}\
 3
 
----------- SUBTEST combining env var scaling TUPIMAGE_GLOBAL_SCALE=0.1 TUPIMAGE_SCALE=20 ----------
+---------- SUBTEST combining env var scaling IKUP_GLOBAL_SCALE=0.1 IKUP_SCALE=20 ----------
 
 3

@@ -20,7 +20,7 @@ All processes completed.
 
 ---------- SUBTEST List all uploaded images ----------
 
-tupimage list
+ikup list
 1x1	{{.*}}.cli-tests-data/column.png
 1x1	{{.*}}.cli-tests-data/earth.jpg
 1x1	{{.*}}.cli-tests-data/flower.jpg

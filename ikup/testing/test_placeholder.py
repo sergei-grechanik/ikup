@@ -1,5 +1,5 @@
-import tupimage
-from tupimage import (
+import ikup
+from ikup import (
     DiacriticLevel,
     GraphicsTerminal,
     ImagePlaceholder,
@@ -7,16 +7,16 @@ from tupimage import (
     PutCommand,
     TransmitCommand,
 )
-from tupimage.testing import TestingContext, screenshot_test
+from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
 def image_ids(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(virtual=True, rows=2, cols=5)
     image_ids = []
@@ -83,9 +83,9 @@ def full_width(ctx: TestingContext):
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
         cmd = TransmitCommand(
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
             image_id=image_id,
         )
         cmd.set_filename(ctx.get_ruler_png())
@@ -111,9 +111,9 @@ def vertical_stripes(ctx: TestingContext):
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
         cmd = TransmitCommand(
-            medium=tupimage.TransmissionMedium.FILE,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
             image_id=image_id,
         )
         cmd.set_filename(ctx.get_ruler_png())
@@ -138,7 +138,7 @@ def vertical_stripes(ctx: TestingContext):
             ).to_stream_at_cursor(
                 term.out_display,
                 mode=mode,
-                formatting=tupimage.CellFormatting(formatting),
+                formatting=ikup.CellFormatting(formatting),
             )
             term.write(f"\n")
         ctx.take_screenshot(
@@ -163,13 +163,13 @@ def vertical_stripes(ctx: TestingContext):
 @screenshot_test
 def max_columns(ctx: TestingContext):
     term = ctx.term
-    columns = len(tupimage.ROWCOLUMN_DIACRITICS) + 3
+    columns = len(ikup.ROWCOLUMN_DIACRITICS) + 3
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
         cmd = TransmitCommand(
-            medium=tupimage.TransmissionMedium.DIRECT,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.DIRECT,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
             image_id=image_id,
         )
         cmd.set_placement(virtual=True, rows=12, cols=columns)
@@ -220,14 +220,14 @@ def max_columns(ctx: TestingContext):
 @screenshot_test
 def max_rows(ctx: TestingContext):
     term = ctx.term
-    rows = len(tupimage.ROWCOLUMN_DIACRITICS)
+    rows = len(ikup.ROWCOLUMN_DIACRITICS)
     columns = 7
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
         cmd = TransmitCommand(
-            medium=tupimage.TransmissionMedium.DIRECT,
-            quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-            format=tupimage.Format.PNG,
+            medium=ikup.TransmissionMedium.DIRECT,
+            quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+            format=ikup.Format.PNG,
             image_id=image_id,
         )
         cmd.set_placement(virtual=True, rows=rows, cols=columns)

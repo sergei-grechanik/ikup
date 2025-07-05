@@ -3,20 +3,20 @@
 
 ---------- SUBTEST Upload an image with different id spaces and the same subspace ----------
 
-tupimage upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit --id-subspace 42:43
+ikup upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit --id-subspace 42:43
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
-tupimage upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 32 --id-subspace 42:43
+ikup upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 32 --id-subspace 42:43
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit
 42
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit_diacritic
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit_diacritic
 {{.*}}
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 16bit
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 16bit
 {{.*}}
 
 ---------- SUBTEST List all ----------
 
-tupimage list -v
+ikup list -v
 [1mID: {{.*}}[0m = 0x2a0000{{..}} id_space: 16bit subspace_byte: 42 = 0x2a {{.*}}
   {{.*}}
   [1mNEEDS UPLOADING[0m to {{.*}}
@@ -50,36 +50,36 @@ tupimage list -v
 
 ---------- SUBTEST Display them ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
 [0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
 [s[0m[38;2;{{.*}}m􎻮̅̅֜􎻮̅̍֜􎻮̅̎֜􎻮̅̐֜􎻮̅̒֜[0m[uD
 [0m[38;2;{{.*}}m􎻮̍̅֜􎻮̍̍֜􎻮̍̎֜􎻮̍̐֜􎻮̍̒֜[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 256
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 256
 _Gi=42,t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
 [s[0m[38;5;42m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
 [0m[38;5;42m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2
+ikup display ./.cli-tests-data/wikipedia.png -r 2
 _Gi=704643072,t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
 [s[0m[38;5;0m􎻮̅̅֜􎻮̅̍֜􎻮̅̎֜􎻮̅̐֜􎻮̅̒֜[0m[uD
 [0m[38;5;0m􎻮̍̅֜􎻮̍̍֜􎻮̍̎֜􎻮̍̐֜􎻮̍̒֜[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2
+ikup display ./.cli-tests-data/wikipedia.png -r 2
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
 [s[0m[38;5;{{.*}}m􎻮̅̅֜􎻮̅̍֜􎻮̅̎֜􎻮̅̐֜􎻮̅̒֜[0m[uD
 [0m[38;5;{{.*}}m􎻮̍̅֜􎻮̍̍֜􎻮̍̎֜􎻮̍̐֜􎻮̍̒֜[0m[5DD
 
 ---------- SUBTEST Invalid id subspace ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1
 error: Invalid IDSubspace: a subspace must contain at least one non-zero id, got 0:1
 Exit code: 2
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1024
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1024
 error: Invalid IDSubspace: a subspace must be a range such that 0 <= begin < end <= 256, got 0:1024
 Exit code: 2
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace abc
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace abc
 error: Invalid format for IDSubspace: 'abc'. Expected format 'begin:end' with integers.
 Exit code: 2
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace a:b
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace a:b
 error: Invalid format for IDSubspace: 'a:b'. Expected format 'begin:end' with integers.
 Exit code: 2

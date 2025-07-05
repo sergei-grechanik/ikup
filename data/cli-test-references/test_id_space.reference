@@ -3,20 +3,20 @@
 
 ---------- SUBTEST Upload the same image with different id spaces ----------
 
-tupimage upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
+ikup upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
 _Gi=[[id24:.*]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[wikipedia_png:.*]]\
-tupimage upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
+ikup upload ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
 _Gi=[[id32:.*]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[wikipedia_png]]\
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit
 [[id8:.*]]
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit_diacritic
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 8bit_diacritic
 [[id8d:.*]]
-tupimage get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 16bit
+ikup get-id ./.cli-tests-data/wikipedia.png -r 2 --id-space 16bit
 [[id16:.*]]
 
 ---------- SUBTEST List all ----------
 
-tupimage list -v
+ikup list -v
 [1mID: [[id16]][0m = 0x{{..}}0000{{..}} id_space: 16bit {{.*}}
   {{.*}}
   [1mNEEDS UPLOADING[0m to {{.*}}
@@ -50,27 +50,27 @@ tupimage list -v
 
 ---------- SUBTEST Display them ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 24bit
 [s[0m[38;2;[[rgb(id24)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
 [0m[38;2;[[rgb(id24)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 32
 [s[0m[38;2;[[rgb(id32)]]m{{.*}}[0m[uD
 [0m[38;2;[[rgb(id32)]]m{{.*}}[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 256
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 256
 _Gi=[[id8]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[wikipedia_png]]\
 [s[0m[38;5;[[id8]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
 [0m[38;5;[[id8]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2
+ikup display ./.cli-tests-data/wikipedia.png -r 2
 _Gi=[[id8d]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[wikipedia_png]]\
 [s[0m[38;5;0m{{.*}}[0m[uD
 [0m[38;5;0m{{.*}}[0m[5DD
-tupimage display ./.cli-tests-data/wikipedia.png -r 2
+ikup display ./.cli-tests-data/wikipedia.png -r 2
 _Gi=[[id16]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;[[wikipedia_png]]\
 [s[0m[38;5;{{.*}}m{{.*}}[0m[uD
 [0m[38;5;{{.*}}m{{.*}}[0m[5DD
 
 ---------- SUBTEST Invalid id space ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png -r 2 --id-space 123
+ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 123
 error: Invalid IDSpace string: 123
 Exit code: 2

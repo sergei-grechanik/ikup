@@ -1,8 +1,8 @@
 import time
 
-import tupimage
-from tupimage import GraphicsResponse, GraphicsTerminal, PutCommand, TransmitCommand
-from tupimage.testing import TestingContext, screenshot_test
+import ikup
+from ikup import GraphicsResponse, GraphicsTerminal, PutCommand, TransmitCommand
+from ikup.testing import TestingContext, screenshot_test
 
 SPLIT_PAYLOAD_SIZE = 2816
 
@@ -11,9 +11,9 @@ SPLIT_PAYLOAD_SIZE = 2816
 def ok_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
     )
     # Image id.
     term.send_command(cmd.clone_with(image_id=42).set_filename(ctx.get_tux_png()))
@@ -38,9 +38,9 @@ def ok_direct_transmit(ctx: TestingContext):
     term = ctx.term
     # Direct uploading.
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
         image_id=100,
     )
     with open(ctx.get_wikipedia_png(), "rb") as f:
@@ -61,9 +61,9 @@ def ok_direct_transmit(ctx: TestingContext):
     ctx.assert_equal(response, GraphicsResponse.ok_response(image_id=100))
     # Direct uploading with image number.
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
         image_number=200,
     )
     with open(ctx.get_tux_png(), "rb") as f:
@@ -96,9 +96,9 @@ def ok_direct_transmit(ctx: TestingContext):
 def ok_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
     )
     # Transmit+put, image id.
     term.send_command(
@@ -138,7 +138,7 @@ def ok_put(ctx: TestingContext, placement_id=None):
             image_id=42,
             rows=5,
             cols=10,
-            quiet=tupimage.Quietness.VERBOSE,
+            quiet=ikup.Quietness.VERBOSE,
             placement_id=placement_id,
         )
     )
@@ -154,7 +154,7 @@ def ok_put(ctx: TestingContext, placement_id=None):
             image_number=12345,
             rows=5,
             cols=10,
-            quiet=tupimage.Quietness.VERBOSE,
+            quiet=ikup.Quietness.VERBOSE,
             placement_id=placement_id,
         )
     )
@@ -176,9 +176,9 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     # Direct uploading + put.
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
         image_id=100,
     )
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
@@ -207,9 +207,9 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     ctx.take_screenshot("Wikipedia logo.")
     # Same with image number.
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
         image_number=12345,
     )
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
@@ -245,9 +245,9 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
 def ok_two_responses(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.VERBOSE,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.VERBOSE,
+        format=ikup.Format.PNG,
     )
     term.send_command(cmd.clone_with(image_id=43).set_filename(ctx.get_tux_png()))
     term.send_command(cmd.clone_with(image_id=44).set_filename(ctx.get_tux_png()))
@@ -263,9 +263,9 @@ def ok_two_responses(ctx: TestingContext):
 def error_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     # Image id.
     term.write("Image id is specified, file doesn't exist\n")
@@ -307,9 +307,9 @@ def error_transmit(ctx: TestingContext):
 def error_transmit_urandom(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     term.write("Image id is specified, file doesn't exist\n")
     term.send_command(cmd.clone_with(image_id=42).set_filename("/dev/urandom"))
@@ -327,9 +327,9 @@ def error_transmit_urandom(ctx: TestingContext):
 def error_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.FILE,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     # Image id.
@@ -364,9 +364,9 @@ def error_transmit_and_put(ctx: TestingContext, placement_id=None):
 def error_direct_transmit(ctx: TestingContext):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     # Fake non-png data.
     data = ctx.to_rgb(ctx.generate_image(100, 100))
@@ -395,9 +395,9 @@ def error_direct_transmit(ctx: TestingContext):
 def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
     term = ctx.term
     cmd = TransmitCommand(
-        medium=tupimage.TransmissionMedium.DIRECT,
-        quiet=tupimage.Quietness.QUIET_UNLESS_ERROR,
-        format=tupimage.Format.PNG,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
     )
     cmd.set_placement(rows=10, cols=20, placement_id=placement_id)
     # Fake non-png data.
@@ -533,7 +533,7 @@ def stress_too_many_responses(ctx: TestingContext):
                 image_id=i * 100,
                 rows=1,
                 cols=1,
-                quiet=tupimage.Quietness.VERBOSE,
+                quiet=ikup.Quietness.VERBOSE,
                 do_not_move_cursor=True,
             )
         )

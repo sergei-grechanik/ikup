@@ -7,7 +7,7 @@
 
 ---------- SUBTEST Explicit cleanup of old databases ----------
 
-tupimage cleanup
+ikup cleanup
 Removed old databases:
   {{.*}}/old_db1.db
   {{.*}}/old_db2.db
@@ -24,10 +24,10 @@ recent_db.db was correctly preserved
 ---------- SUBTEST Test random cleanup via probability ----------
 
 {{:SKIP_LINES:}}
-tupimage status
+ikup status
 Total IDs in the session db: 6
 Random cleanup successfully limited IDs to 5 + 1
-tupimage list
+ikup list
 {{.*}}	22x10	{{.*}}/wikipedia.png
 {{.*}}	20x9	{{.*}}/wikipedia.png
 {{.*}}	18x8	{{.*}}/wikipedia.png

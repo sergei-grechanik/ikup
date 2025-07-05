@@ -5,7 +5,7 @@ code in this repository.
 
 ## Project Overview
 
-tupimage is a Python tool for displaying images in the terminal using the Kitty
+ikup is a Python tool for displaying images in the terminal using the Kitty
 graphics protocol. The tool provides both a CLI interface and Python API for
 uploading, displaying, and managing terminal images with features like ID
 assignment, concurrent uploads, and database caching.
@@ -14,8 +14,8 @@ assignment, concurrent uploads, and database caching.
 
 **Build and Install:**
 ```bash
-uv build                        # Build source and wheel distributions
-uv run tupimage --help          # Test CLI works
+uv build                    # Build source and wheel distributions
+uv run ikup --help          # Test CLI works
 ```
 
 **Testing:**
@@ -38,7 +38,7 @@ like `st` (st should be installed in your environment).
 xvfb-run st -e ./test_scripts/run-cli-tests.sh
 
 # Compare the outputs against reference data:
-uv run python -m tupimage.testing.output_comparison cli-test-outputs/ data/cli-test-references/
+uv run python -m ikup.testing.output_comparison cli-test-outputs/ data/cli-test-references/
 
 # A simpler comparison command (must be run from the project root, assumes uv):
 test_scripts/compare-cli-test.sh cli-test-outputs
@@ -57,7 +57,7 @@ It is also possible to run individual tests:
 xvfb-run st -e ./test_scripts/run-cli-tests.sh test_basics test_display
 
 # You can compare the whole output directory or just a single test:
-uv run python -m tupimage.testing.output_comparison cli-test-outputs/test_basics.out data/cli-test-references/test_basics.reference
+uv run python -m ikup.testing.output_comparison cli-test-outputs/test_basics.out data/cli-test-references/test_basics.reference
 
 # A simpler command for individual test comparison:
 test_scripts/compare-cli-test.sh cli-test-outputs/test_basics.out
@@ -67,7 +67,7 @@ test_scripts/compare-cli-test.sh cli-test-outputs/test_basics.out
 - Each test function generates an individual output file in `cli-test-outputs/<test_name>.out`
 - Reference files are stored in `data/cli-test-references/<test_name>.reference`
 - The comparison script can compare either individual files or entire directories
-- Individual tests can be compared using: `uv run python -m tupimage.testing.output_comparison cli-test-outputs/<test_name>.out data/cli-test-references/<test_name>.reference`
+- Individual tests can be compared using: `uv run python -m ikup.testing.output_comparison cli-test-outputs/<test_name>.out data/cli-test-references/<test_name>.reference`
 
 **Running screenshot tests:**
 (TODO)
@@ -77,8 +77,8 @@ probability of them failing is quite low if everything else works.
 ## Debugging
 
 **Terminal Environment Requirement:**
-CRITICAL: tupimage CLI commands MUST be run within a proper terminal environment
-that supports the Kitty graphics protocol. Attempting to debug or test tupimage
+CRITICAL: ikup CLI commands MUST be run within a proper terminal environment
+that supports the Kitty graphics protocol. Attempting to debug or test ikup
 commands outside of this environment will result in errors like:
 
 ```
@@ -91,16 +91,16 @@ OSError: [Errno 6] No such device or address: '/dev/tty'
 xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
 
 # CORRECT - Debug individual commands
-xvfb-run st -e bash -c 'uv run tupimage display image.png'
+xvfb-run st -e bash -c 'uv run ikup display image.png'
 
 # WRONG - Will fail with /dev/tty error
-tupimage display image.png
-uv run tupimage display image.png
-python debug_script.py  # if it calls tupimage directly
+ikup display image.png
+uv run ikup display image.png
+python debug_script.py  # if it calls ikup directly
 ```
 
 **Why this is required:**
-tupimage initializes `GraphicsTerminal` which attempts to open `/dev/tty` for
+ikup initializes `GraphicsTerminal` which attempts to open `/dev/tty` for
 terminal communication. This fails when running outside a proper terminal
 environment (e.g., in IDEs, simple shells, or scripts without tty allocation).
 
@@ -117,8 +117,8 @@ terminal environment:
 ./test_scripts/debug-terminal.sh start kitty
 
 # Execute commands and get typescript + screenshot
-./test_scripts/debug-terminal.sh exec uv run tupimage display image.png
-./test_scripts/debug-terminal.sh exec uv run tupimage status
+./test_scripts/debug-terminal.sh exec uv run ikup display image.png
+./test_scripts/debug-terminal.sh exec uv run ikup status
 
 # Stop when done
 ./test_scripts/debug-terminal.sh stop
@@ -146,7 +146,7 @@ This tool provides:
 ## Architecture
 
 **Core Components:**
-- `tupimage_terminal.py` - Main API class `TupimageTerminal` that orchestrates image uploading/display
+- `ikup_terminal.py` - Main API class `IkupTerminal` that orchestrates image uploading/display
 - `graphics_terminal.py` - Low-level terminal communication using Kitty graphics protocol
 - `graphics_command.py` - Command building for Kitty protocol (TransmitCommand, PutCommand, etc.)
 - `id_manager.py` - SQLite-based ID assignment and upload tracking with concurrent safety
@@ -159,7 +159,7 @@ This tool provides:
 - Configuration system using TOML with environment variable overrides
 
 **Data Flow:**
-1. CLI parses arguments and creates `TupimageTerminal` instance
+1. CLI parses arguments and creates `IkupTerminal` instance
 2. `assign_id()` creates `ImageInstance` with unique ID from `IDManager`
 3. `upload()` handles image transmission via `GraphicsTerminal`
 4. Database tracks upload status per terminal for reupload decisions
@@ -167,7 +167,7 @@ This tool provides:
 
 **Testing Structure:**
 - `tests/` - Unit tests for core components
-- `tupimage/testing/` - Screenshot testing infrastructure and screenshot tests
+- `ikup/testing/` - Screenshot testing infrastructure and screenshot tests
 - `test_scripts/` - Various helper scripts for CLI and screenshot tests
 - `test_scripts/run-cli-tests.sh` - The file containing CLI tests
 
@@ -252,12 +252,12 @@ placeholder:
    # Verify the reference file works consistently
    for i in {1..3}; do
      xvfb-run st -e ./test_scripts/run-cli-tests.sh test_name
-     uv run python -m tupimage.testing.output_comparison \
+     uv run python -m ikup.testing.output_comparison \
        cli-test-outputs/test_name.out data/cli-test-references/test_name.reference
    done
    ```
 
-**Common tupimage patterns:**
+**Common ikup patterns:**
 - `[[terminal_id:.*]]` and `[[session_id:.*]]` for terminal identification
 - `[[img_id:.*]]` for image IDs, with `[[rgb(img_id)]]` for RGB colors
 - `{{.*}}` for file paths, timestamps, and base64 data

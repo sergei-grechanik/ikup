@@ -3,7 +3,7 @@
 
 ---------- SUBTEST Max cols ----------
 
-tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-cols 3
+ikup ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-cols 3
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=2,c=3;{{.*}}\
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
 [0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3D
@@ -14,7 +14,7 @@ tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max
 
 ---------- SUBTEST Max rows ----------
 
-tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-rows 3
+ikup ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max-rows 3
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=3,c=7;{{.*}}\
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾[0m[uD
 [s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽􎻮̍̾[0m[uD
@@ -24,7 +24,7 @@ tupimage ./.cli-tests-data/wikipedia.png ./.cli-tests-data/small_arrow.png --max
 
 ---------- SUBTEST Max rows and cols ----------
 
-tupimage display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
+ikup display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
 [s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
 [0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3D
 _Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=4,c=3;{{.*}}\

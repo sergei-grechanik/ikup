@@ -72,7 +72,7 @@ Output from process 5 (cols=2):
 
 ---------- SUBTEST List all uploaded images ----------
 
-tupimage list
+ikup list
 1x1	{{.*}}/column.png
 1x1	{{.*}}/earth.jpg
 1x1	{{.*}}/flower.jpg

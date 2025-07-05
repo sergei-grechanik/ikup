@@ -1,5 +1,5 @@
 """
-Terminal detection utilities for tupimage.
+Terminal detection utilities for ikup.
 
 This module provides functions to detect terminal emulators that support
 the Kitty graphics protocol and generate stable terminal instance identifiers.
