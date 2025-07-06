@@ -653,7 +653,7 @@ class GraphicsTerminal:
         """Get terminal size, returning infinite values if detection fails."""
         size = self.get_size()
         if size is None:
-            return (float('inf'), float('inf'))
+            return (float("inf"), float("inf"))
         return size
 
     def get_size_or_fail(self) -> Tuple[int, int]:

@@ -174,6 +174,7 @@ class TestingContext:
 
     def generate_image(self, width: int, height: int) -> Image.Image:
         import numpy
+
         data = numpy.random.random_sample(size=(height, width, 3))
         img = Image.fromarray((data * 255).astype(numpy.uint8), "RGB")
         return img

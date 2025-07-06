@@ -628,7 +628,9 @@ def main_unwrapped():
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
-    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + ikup.__version__)
+    parser.add_argument(
+        "-v", "--version", action="version", version="%(prog)s " + ikup.__version__
+    )
 
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")

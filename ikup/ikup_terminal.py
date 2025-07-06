@@ -200,9 +200,7 @@ class IkupConfig:
             if key == "provenance":
                 continue
             if value is not None:
-                normalized = IkupConfig.validate_and_normalize(
-                    key, value, provenance
-                )
+                normalized = IkupConfig.validate_and_normalize(key, value, provenance)
                 setattr(self, key, normalized)
         self._current_provenance = None
 
