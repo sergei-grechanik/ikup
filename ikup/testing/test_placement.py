@@ -554,9 +554,7 @@ def subimage_slice_horizontally(ctx: TestingContext):
                 format=ikup.Format.PNG,
             ).set_filename(file)
         )
-        cmd = PutCommand(
-            image_id=1, rows=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR
-        )
+        cmd = PutCommand(image_id=1, rows=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR)
         _, height = ctx.get_image_size(file)
         slice_h = (height + 9) // 10
         for i in range(0, 10):
@@ -584,9 +582,7 @@ def subimage_slice_vertically(ctx: TestingContext):
                 format=ikup.Format.PNG,
             ).set_filename(file)
         )
-        cmd = PutCommand(
-            image_id=1, cols=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR
-        )
+        cmd = PutCommand(image_id=1, cols=2, quiet=ikup.Quietness.QUIET_UNLESS_ERROR)
         width, _ = ctx.get_image_size(file)
         slice_w = (width + 9) // 10
         for i in range(0, 10):
