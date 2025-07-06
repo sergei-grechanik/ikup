@@ -4,46 +4,49 @@ comments here.
 ========== TEST test_basics - Basics: help, status, config ==========
 
 
+---------- SUBTEST Just version ----------
+
+ikup --version
+ikup 0.{{.*}}
+ikup -v
+ikup 0.{{.*}}
+
 ---------- SUBTEST Just help ----------
 
 ikup --help
-usage: ikup [-h]
-{{:SKIP_LINES:}}
+usage: ikup [-h] [-v] COMMAND ...
 
 positional arguments:
-  {dump-config,status,list,display,upload,get-id,placeholder,forget,dirty,reupload,fix,cleanup}
-    dump-config         Dump the config state.
-    status              Display the status.
-    list                List all known images or known images matching the
-                        criteria.
-    display             Display an image. (default)
-    upload              Upload an image without displaying.
-    get-id              Assign an id to an image without displaying or
-                        uploading it.
-    placeholder         Print a placeholder for the given id, rows and
-                        columns.
-    forget              Forget all matching images. Don't delete them from the
-                        terminal though.
-    dirty               Mark all matching images as dirty (not uploaded to any
-                        terminal).
-    reupload            Reupload all matching images to the current terminal.
-    fix                 Reupload all dirty matching images to the current
-                        terminal.
-    cleanup             Trigger db cleanup.
+  COMMAND
+    dump-config  Dump the config state.
+    status       Display the status.
+    list         List all known images or known images matching the criteria.
+    display      Display an image. (default)
+    upload       Upload an image without displaying.
+    get-id       Assign an id to an image without displaying or uploading it.
+    placeholder  Print a placeholder for the given id, rows and columns.
+    forget       Forget all matching images. Don't delete them from the
+                 terminal though.
+    dirty        Mark all matching images as dirty (not uploaded to any
+                 terminal).
+    reupload     Reupload all matching images to the current terminal.
+    fix          Reupload all dirty matching images to the current terminal.
+    cleanup      Trigger db cleanup.
 
 options:
-  -h, --help            show this help message and exit
+  -h, --help     show this help message and exit
+  -v, --version  show program's version number and exit
 
 ---------- SUBTEST Different ways of printing help (only help line is checked) ----------
 
 ikup 
-  -h, --help            show this help message and exit
+  -h, --help     show this help message and exit
 ikup -h
-  -h, --help            show this help message and exit
+  -h, --help     show this help message and exit
 ikup ./.cli-tests-data/tux.png --help
-  -h, --help            show this help message and exit
+  -h, --help     show this help message and exit
 ikup ./.cli-tests-data/tux.png -h
-  -h, --help            show this help message and exit
+  -h, --help     show this help message and exit
 
 ---------- SUBTEST Config ----------
 
