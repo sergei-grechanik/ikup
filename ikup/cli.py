@@ -628,8 +628,10 @@ def main_unwrapped():
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
 
+    parser.add_argument('-v', '--version', action='version', version='%(prog)s ' + ikup.__version__)
+
     # Subcommands
-    subparsers = parser.add_subparsers(dest="command")
+    subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
 
     p_dump_config = subparsers.add_parser(
         "dump-config",
@@ -967,18 +969,22 @@ def main_unwrapped():
     # Handle the default command case.
     all_commands = subparsers.choices.keys()
     contains_help = False
+    contains_version = False
     for arg in sys.argv[1:]:
         if arg in ["-h", "--help"]:
             contains_help = True
+        elif arg in ["-v", "--version"]:
+            contains_version = True
         if arg in all_commands:
             break
     else:
         # It's not a known command.
-        if not contains_help and len(sys.argv) > 1:
-            # If it doesn't contain help, add the display command.
+        if not contains_help and not contains_version and len(sys.argv) > 1:
+            # If it doesn't contain help or version, add the display command.
             sys.argv.insert(1, "display")
-        else:
-            # Otherwise show the help.
+        elif contains_help or len(sys.argv) == 1:
+            # If there is -h or --help in the arguments or there are no arguments, show
+            # the help.
             sys.argv.insert(1, "--help")
 
     # Parse the arguments
@@ -1020,12 +1026,13 @@ def main():
     except ValueError as e:
         # For known errors coming from incorrectly specified options just print the
         # error message and exit with code 2.
+        message = str(e)
         if (
-            "Unsupported transmission" in str(e)
-            or "Unsupported upload method" in str(e)
-            or "Invalid format for IDSubspace" in str(e)
-            or "Invalid IDSubspace" in str(e)
-            or "Invalid IDSpace" in str(e)
+            "Unsupported transmission" in message
+            or "Unsupported upload method" in message
+            or "Invalid format for IDSubspace" in message
+            or "Invalid IDSubspace" in message
+            or "Invalid IDSpace" in message
         ):
             print(f"error: {e}", file=sys.stderr)
             sys.exit(2)

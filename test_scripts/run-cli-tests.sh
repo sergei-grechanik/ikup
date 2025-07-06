@@ -233,6 +233,9 @@ export IKUP_ID_SPACE="24bit"
 test_basics() {
     start_test "Basics: help, status, config"
 
+    subtest "Just version"
+    run_command --version
+    run_command -v
     subtest "Just help"
     run_command --help
     subtest "Different ways of printing help (only help line is checked)"
