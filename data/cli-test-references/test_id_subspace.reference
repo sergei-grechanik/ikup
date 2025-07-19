@@ -72,14 +72,14 @@ ikup display ./.cli-tests-data/wikipedia.png -r 2
 ---------- SUBTEST Invalid id subspace ----------
 
 ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1
-error: Invalid IDSubspace: a subspace must contain at least one non-zero id, got 0:1
+error: Invalid value for id_subspace: '0:1' (set via command line): Invalid IDSubspace: a subspace must contain at least one non-zero id, got 0:1
 Exit code: 2
 ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace 0:1024
-error: Invalid IDSubspace: a subspace must be a range such that 0 <= begin < end <= 256, got 0:1024
+error: Invalid value for id_subspace: '0:1024' (set via command line): Invalid IDSubspace: a subspace must be a range such that 0 <= begin < end <= 256, got 0:1024
 Exit code: 2
 ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace abc
-error: Invalid format for IDSubspace: 'abc'. Expected format 'begin:end' with integers.
+error: Invalid value for id_subspace: 'abc' (set via command line): Invalid format for IDSubspace: 'abc'. Expected format 'begin:end' with integers.
 Exit code: 2
 ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-subspace a:b
-error: Invalid format for IDSubspace: 'a:b'. Expected format 'begin:end' with integers.
+error: Invalid value for id_subspace: 'a:b' (set via command line): Invalid format for IDSubspace: 'a:b'. Expected format 'begin:end' with integers.
 Exit code: 2
