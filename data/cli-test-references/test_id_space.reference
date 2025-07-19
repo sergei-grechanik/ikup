@@ -72,5 +72,5 @@ ikup display ./.cli-tests-data/wikipedia.png -r 2
 ---------- SUBTEST Invalid id space ----------
 
 ikup display ./.cli-tests-data/wikipedia.png -r 2 --id-space 123
-error: Invalid IDSpace string: 123
+error: Invalid value for id_space: '123' (set via command line): Invalid IDSpace string: 123
 Exit code: 2

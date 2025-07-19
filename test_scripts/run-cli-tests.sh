@@ -942,6 +942,56 @@ test_fallback_dimensions() {
 
 ################################################################################
 
+test_validation() {
+    start_test "Validation of CLI options and environment variables"
+
+    subtest "Invalid string values for cols/rows"
+    run_command placeholder 123 --cols invalid --rows 5
+    run_command placeholder 123 --cols 5 --rows invalid
+    run_command display /nonexistent --cols abc --rows 5
+    run_command upload /nonexistent --rows xyz --cols 3
+
+    subtest "Negative values for cols/rows"
+    run_command placeholder 123 --cols -1 --rows 5
+    run_command placeholder 123 --cols 5 --rows -10
+    run_command display /nonexistent --cols -5 --rows 3
+    run_command upload /nonexistent --rows -2 --cols 4
+
+    subtest "Zero values for cols/rows"
+    run_command placeholder 123 --cols 0 --rows 5
+    run_command placeholder 123 --cols 5 --rows 0
+    run_command display /nonexistent --cols 0 --rows 3
+    run_command upload /nonexistent --rows 0 --cols 4
+
+    subtest "Invalid string values for scale"
+    run_command display /nonexistent --scale invalid
+    run_command display /nonexistent -s abc
+    run_command upload /nonexistent --scale xyz
+
+    subtest "Zero and negative values for scale"
+    run_command display /nonexistent --scale 0
+    run_command display /nonexistent --scale -1.5
+    run_command upload /nonexistent -s -0.1
+
+    subtest "Too large values for scale"
+    run_command display /nonexistent --scale 1000001
+    run_command upload /nonexistent -s 9999999.0
+
+    subtest "Invalid IKUP_SCALE environment variable"
+    IKUP_SCALE=invalid run_command display /nonexistent
+    IKUP_SCALE=0 run_command display /nonexistent
+    IKUP_SCALE=-1 run_command display /nonexistent
+    IKUP_SCALE=1000001 run_command display /nonexistent
+
+    subtest "Invalid IKUP_GLOBAL_SCALE environment variable"
+    IKUP_GLOBAL_SCALE=invalid run_command display /nonexistent
+    IKUP_GLOBAL_SCALE=0 run_command display /nonexistent
+    IKUP_GLOBAL_SCALE=-2.5 run_command display /nonexistent
+    IKUP_GLOBAL_SCALE=2000000 run_command display /nonexistent
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     CURRENT_TEST_NAME="$test"

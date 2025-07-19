@@ -1,0 +1,125 @@
+========== TEST test_validation - Validation of CLI options and environment variables ==========
+
+
+---------- SUBTEST Invalid string values for cols/rows ----------
+
+ikup placeholder 123 --cols invalid --rows 5
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --cols/-c: must be an integer, got 'invalid'
+Exit code: 2
+ikup placeholder 123 --cols 5 --rows invalid
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --rows/-r: must be an integer, got 'invalid'
+Exit code: 2
+ikup display /nonexistent --cols abc --rows 5
+{{:SKIP_LINES:}}
+ikup display: error: argument --cols/-c: must be an integer, got 'abc'
+Exit code: 2
+ikup upload /nonexistent --rows xyz --cols 3
+{{:SKIP_LINES:}}
+ikup upload: error: argument --rows/-r: must be an integer, got 'xyz'
+Exit code: 2
+
+---------- SUBTEST Negative values for cols/rows ----------
+
+ikup placeholder 123 --cols -1 --rows 5
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --cols/-c: must be a positive integer, got -1
+Exit code: 2
+ikup placeholder 123 --cols 5 --rows -10
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --rows/-r: must be a positive integer, got -10
+Exit code: 2
+ikup display /nonexistent --cols -5 --rows 3
+{{:SKIP_LINES:}}
+ikup display: error: argument --cols/-c: must be a positive integer, got -5
+Exit code: 2
+ikup upload /nonexistent --rows -2 --cols 4
+{{:SKIP_LINES:}}
+ikup upload: error: argument --rows/-r: must be a positive integer, got -2
+Exit code: 2
+
+---------- SUBTEST Zero values for cols/rows ----------
+
+ikup placeholder 123 --cols 0 --rows 5
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --cols/-c: must be a positive integer, got 0
+Exit code: 2
+ikup placeholder 123 --cols 5 --rows 0
+{{:SKIP_LINES:}}
+ikup placeholder: error: argument --rows/-r: must be a positive integer, got 0
+Exit code: 2
+ikup display /nonexistent --cols 0 --rows 3
+{{:SKIP_LINES:}}
+ikup display: error: argument --cols/-c: must be a positive integer, got 0
+Exit code: 2
+ikup upload /nonexistent --rows 0 --cols 4
+{{:SKIP_LINES:}}
+ikup upload: error: argument --rows/-r: must be a positive integer, got 0
+Exit code: 2
+
+---------- SUBTEST Invalid string values for scale ----------
+
+ikup display /nonexistent --scale invalid
+{{:SKIP_LINES:}}
+ikup display: error: argument --scale/-s: invalid float value: 'invalid'
+Exit code: 2
+ikup display /nonexistent -s abc
+{{:SKIP_LINES:}}
+ikup display: error: argument --scale/-s: invalid float value: 'abc'
+Exit code: 2
+ikup upload /nonexistent --scale xyz
+{{:SKIP_LINES:}}
+ikup upload: error: argument --scale/-s: invalid float value: 'xyz'
+Exit code: 2
+
+---------- SUBTEST Zero and negative values for scale ----------
+
+ikup display /nonexistent --scale 0
+error: scale must be positive and not too big: '0.0' (set via command line)
+Exit code: 2
+ikup display /nonexistent --scale -1.5
+error: scale must be positive and not too big: '-1.5' (set via command line)
+Exit code: 2
+ikup upload /nonexistent -s -0.1
+error: scale must be positive and not too big: '-0.1' (set via command line)
+Exit code: 2
+
+---------- SUBTEST Too large values for scale ----------
+
+ikup display /nonexistent --scale 1000001
+error: scale must be positive and not too big: '1000001.0' (set via command line)
+Exit code: 2
+ikup upload /nonexistent -s 9999999.0
+error: scale must be positive and not too big: '9999999.0' (set via command line)
+Exit code: 2
+
+---------- SUBTEST Invalid IKUP_SCALE environment variable ----------
+
+ikup display /nonexistent
+error: Invalid value for scale: 'invalid' (set via IKUP_SCALE): could not convert string to float: 'invalid'
+Exit code: 2
+ikup display /nonexistent
+error: scale must be positive and not too big: '0.0' (set via IKUP_SCALE)
+Exit code: 2
+ikup display /nonexistent
+error: scale must be positive and not too big: '-1.0' (set via IKUP_SCALE)
+Exit code: 2
+ikup display /nonexistent
+error: scale must be positive and not too big: '1000001.0' (set via IKUP_SCALE)
+Exit code: 2
+
+---------- SUBTEST Invalid IKUP_GLOBAL_SCALE environment variable ----------
+
+ikup display /nonexistent
+error: Invalid value for global_scale: 'invalid' (set via IKUP_GLOBAL_SCALE): could not convert string to float: 'invalid'
+Exit code: 2
+ikup display /nonexistent
+error: global_scale must be positive and not too big: '0.0' (set via IKUP_GLOBAL_SCALE)
+Exit code: 2
+ikup display /nonexistent
+error: global_scale must be positive and not too big: '-2.5' (set via IKUP_GLOBAL_SCALE)
+Exit code: 2
+ikup display /nonexistent
+error: global_scale must be positive and not too big: '2000000.0' (set via IKUP_GLOBAL_SCALE)
+Exit code: 2

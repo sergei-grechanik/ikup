@@ -17,6 +17,17 @@ class CLIArgumentsError(Exception):
     pass
 
 
+def positive_int(value):
+    """argparse type function for positive integers."""
+    try:
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"must be a positive integer, got {value}")
+        return ivalue
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"must be an integer, got '{value}'")
+
+
 def time_ago(dt: datetime) -> str:
     now = datetime.now()
     diff = now - dt
@@ -762,7 +773,7 @@ def main_unwrapped():
             "--cols",
             "-c",
             metavar="W",
-            type=int,
+            type=positive_int,
             required=True,
             help="Number of columns of the placeholder.",
         )
@@ -770,7 +781,7 @@ def main_unwrapped():
             "--rows",
             "-r",
             metavar="H",
-            type=int,
+            type=positive_int,
             required=True,
             help="Number of rows of the placeholder.",
         )
@@ -788,7 +799,7 @@ def main_unwrapped():
             "--cols",
             "-c",
             metavar="W",
-            type=int,
+            type=positive_int,
             default=None,
             help="Number of columns to fit the image to.",
         )
@@ -796,7 +807,7 @@ def main_unwrapped():
             "--rows",
             "-r",
             metavar="H",
-            type=int,
+            type=positive_int,
             default=None,
             help="Number of rows to fit the image to.",
         )
@@ -1022,24 +1033,16 @@ def main():
         devnull = os.open(os.devnull, os.O_WRONLY)
         os.dup2(devnull, sys.stdout.fileno())
         sys.exit(1)
-    except CLIArgumentsError as e:
-        print(f"error: {e}", file=sys.stderr)
+    except (
+        CLIArgumentsError,
+        ikup.ikup_terminal.ValidationError,
+        NotImplementedError,
+    ) as e:
+        print(
+            f"error: {e}",
+            file=sys.stderr,
+        )
         sys.exit(2)
-    except ValueError as e:
-        # For known errors coming from incorrectly specified options just print the
-        # error message and exit with code 2.
-        message = str(e)
-        if (
-            "Unsupported transmission" in message
-            or "Unsupported upload method" in message
-            or "Invalid format for IDSubspace" in message
-            or "Invalid IDSubspace" in message
-            or "Invalid IDSpace" in message
-        ):
-            print(f"error: {e}", file=sys.stderr)
-            sys.exit(2)
-        else:
-            raise e
 
 
 if __name__ == "__main__":

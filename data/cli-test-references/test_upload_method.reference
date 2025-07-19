@@ -69,7 +69,7 @@ fix {{.*}}	4x2	{{.*}}/tux.png
 ---------- SUBTEST Unknown and unsupported methods ----------
 
 ikup display ./.cli-tests-data/wikipedia.png -r 2 -m unknown
-error: Unsupported transmission medium: unknown
+error: Invalid value for upload_method: 'unknown' (set via command line): Unsupported transmission medium: unknown
 Exit code: 2
 ikup display ./.cli-tests-data/wikipedia.png -r 2 -m temp
 error: Unsupported upload method: t

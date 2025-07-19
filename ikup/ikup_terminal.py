@@ -55,6 +55,10 @@ BackgroundLike = Union[ikup.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 
 
+class ValidationError(ValueError):
+    """Raised when a configuration value is invalid."""
+
+
 @dataclass
 class IkupConfig:
     # Id allocation options.
@@ -231,51 +235,63 @@ class IkupConfig:
         else:
             types_in_union = [field_type]  # Not a Union, just a single type
 
-        # Normalize values specified as strings.
-        if isinstance(value, str) and value != "auto":
-            if IDSubspace in types_in_union:
-                value = IDSubspace.from_string(value)
-            if IDSpace in types_in_union:
-                value = IDSpace.from_string(value)
-            if name == "cell_size" or name == "default_cell_size":
-                value = ikup.utils.validate_size(value)
-            if name == "id_database_dir" and value == "":
-                value = platformdirs.user_state_dir("ikup")
-            if TransmissionMedium in types_in_union:
-                value = TransmissionMedium.from_string(value)
-            if int in types_in_union:
-                value = int(value)
-            if float in types_in_union:
-                value = float(value)
-            if bool in types_in_union:
-                if value.lower() in ["true", "1", "t", "y", "yes"]:
-                    value = True
-                elif value.lower() in ["false", "0", "f", "n", "no"]:
-                    value = False
-                else:
-                    raise ValueError(
-                        f"Invalid boolean value for {name}: {value} {provenance}"
-                    )
-            if name == "supported_formats":
-                value = re.split(r"[, ]+", value)
-
         provenance = f"({provenance})" if provenance else "(set in code)"
+
+        # Normalize values specified as strings.
+        try:
+            if isinstance(value, str) and value != "auto":
+                if IDSubspace in types_in_union:
+                    value = IDSubspace.from_string(value)
+                if IDSpace in types_in_union:
+                    value = IDSpace.from_string(value)
+                if name == "cell_size" or name == "default_cell_size":
+                    value = ikup.utils.validate_size(value)
+                if name == "id_database_dir" and value == "":
+                    value = platformdirs.user_state_dir("ikup")
+                if TransmissionMedium in types_in_union:
+                    value = TransmissionMedium.from_string(value)
+                if int in types_in_union:
+                    value = int(value)
+                if float in types_in_union:
+                    value = float(value)
+                if bool in types_in_union:
+                    if value.lower() in ["true", "1", "t", "y", "yes"]:
+                        value = True
+                    elif value.lower() in ["false", "0", "f", "n", "no"]:
+                        value = False
+                    else:
+                        raise ValidationError(
+                            f"Invalid boolean value for {name}: '{value}' {provenance}"
+                        )
+                if name == "supported_formats":
+                    value = re.split(r"[, ]+", value)
+        except ValueError as e:
+            raise ValidationError(
+                f"Invalid value for {name}: '{value}' {provenance}: {e}"
+            ) from e
 
         # Verify the type.
         if not IkupConfig._verify_type(value, field_type):
-            raise ValueError(
-                f"Option '{name}' has type {field_type}, but got"
+            raise ValidationError(
+                f"Option {name} has type {field_type}, but got"
                 f" '{value}' of type {type(value)} {provenance}"
             )
 
         # Verify additional constraints.
+        if isinstance(value, float) or isinstance(value, int):
+            if "scale" in name and not (0.0 < value <= 1000000.0):
+                raise ValidationError(
+                    f"{name} must be positive and not too big: '{value}' {provenance}"
+                )
         if isinstance(value, int):
-            if name == "max_cols" and value <= 0:
-                raise ValueError(f"max_cols must be positive: {value} {provenance}")
-            if name == "max_rows" and not (0 < value <= 256):
-                raise ValueError(
-                    "max_rows must be positive and not greater than 256:"
-                    f" {value} {provenance}"
+            if "max_cols" in name and not (0 < value <= 4096):
+                raise ValidationError(
+                    f"{name} must be positive and not greater than 4096: '{value}' {provenance}"
+                )
+            if "max_rows" in name and not (0 < value <= 256):
+                raise ValidationError(
+                    "{name} must be positive and not greater than 256:"
+                    f" '{value}' {provenance}"
                 )
 
         return value
@@ -549,12 +565,12 @@ class IkupTerminal:
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
     ) -> Tuple[int, int]:
-        if cols is not None and rows is not None:
-            return cols, rows
         if cols is not None and cols <= 0:
             raise ValueError(f"cols must be positive: {cols}")
         if rows is not None and rows <= 0:
             raise ValueError(f"rows must be positive: {rows}")
+        if cols is not None and rows is not None:
+            return cols, rows
         max_cols, max_rows = self.get_max_cols_and_rows(
             max_cols=max_cols, max_rows=max_rows
         )
@@ -830,7 +846,7 @@ class IkupTerminal:
         elif upload_method == TransmissionMedium.DIRECT:
             return self._config.stream_max_size
         else:
-            raise ValueError(f"Unsupported upload method: {upload_method}")
+            raise NotImplementedError(f"Unsupported upload method: {upload_method}")
 
     def get_upload_method(self) -> TransmissionMedium:
         upload_method = self._config.upload_method
@@ -878,7 +894,7 @@ class IkupTerminal:
             TransmissionMedium.FILE,
             TransmissionMedium.DIRECT,
         ]:
-            raise ValueError(f"Unsupported upload method: {upload_method}")
+            raise NotImplementedError(f"Unsupported upload method: {upload_method}")
 
         if check_response:
             raise NotImplementedError("Checking the response is not yet implemented")
