@@ -427,6 +427,13 @@ test_multiple_images() {
 
     subtest "Mixing queries and --all is not supported"
     run_command list --last 1 -a
+
+    subtest "list -p"
+    run_command list -p '%cx%r %i %%\\ %i\n%x\t%p %P %m %a %D'
+
+    subtest "list -p, incorrect format"
+    run_command list -p '%O'
+    run_command list -p '\o'
 }
 
 ################################################################################
@@ -808,7 +815,7 @@ test_concurrent_mixed() {
     $IKUP display $CONCURRENT_IMAGES -r 1 -c 1 --no-upload
 
     subtest "List all uploaded images"
-    run_command list | cut -f2- | sort
+    run_command list -p "%cx%r\t%p" | sort
 }
 
 ################################################################################

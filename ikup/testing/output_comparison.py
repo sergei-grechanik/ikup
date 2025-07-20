@@ -39,6 +39,8 @@ def transform_captured_var(func_name: str, args: str, variables: Dict[str, str])
         g = (val >> 8) & 0xFF
         r = (val >> 16) & 0xFF
         return f"{r};{g};{b}"
+    elif func_name == "hex":
+        return f"{int(variables[args]):08x}"
 
     raise ValueError(f"Unknown function '{func_name}' with args '{args}'")
 
