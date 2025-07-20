@@ -573,41 +573,49 @@ class IDManager:
     ) -> int:
         namespace = id_space.namespace_name()
         begin, end = id_space.subspace_masked_range(subspace)
+        subspace_size = id_space.subspace_size(subspace)
 
         atime = datetime.now()
 
-        with self.conn:
-            with closing(self.conn.cursor()) as cursor:
-                cursor.execute("BEGIN IMMEDIATE")
-                # Find the row with the given `description` and id subspace.
-                cursor.execute(
-                    f"""SELECT id FROM {namespace}
-                        WHERE description=? AND (id & ?) BETWEEN ? AND ?
-                    """,
-                    (
-                        description,
-                        id_space.subspace_byte_mask(),
-                        begin,
-                        end - 1,
-                    ),
-                )
-                row = cursor.fetchone()
+        # A helper to find an ID with the given description in the given subspace.
+        def _find_id_helper(cursor):
+            # Find the row with the given `description` and id subspace.
+            cursor.execute(
+                f"""SELECT id FROM {namespace}
+                    WHERE description=? AND (id & ?) BETWEEN ? AND ?
+                """,
+                (
+                    description,
+                    id_space.subspace_byte_mask(),
+                    begin,
+                    end - 1,
+                ),
+            )
+            row = cursor.fetchone()
 
-                # If there is such a row, update the `atime` and return the `id`.
-                if row:
-                    id = row[0]
-                    if update_atime:
-                        cursor.execute(
-                            f"UPDATE {namespace} SET atime=? WHERE id=?",
-                            (atime.isoformat(), id),
-                        )
-                    return id
+            # If there is such a row, update the `atime` and return the `id`.
+            if row:
+                id = row[0]
+                if update_atime:
+                    cursor.execute(
+                        f"UPDATE {namespace} SET atime=? WHERE id=?",
+                        (atime.isoformat(), id),
+                    )
+                return id
 
-                subspace_size = id_space.subspace_size(subspace)
+            return None
 
-                # If the subspace is small enough, we will select all the rows and
-                # identify unused IDs.
-                if subspace_size <= min(1024, self.max_ids_per_subspace):
+        # If the subspace is small enough, we will select all the rows and
+        # identify unused IDs.
+        if subspace_size <= min(1024, self.max_ids_per_subspace):
+            with self.conn:
+                with closing(self.conn.cursor()) as cursor:
+                    cursor.execute("BEGIN IMMEDIATE")
+                    # First, try to find an existing ID with the given description.
+                    id = _find_id_helper(cursor)
+                    if id is not None:
+                        return id
+
                     # First check the count of rows in the subspace. If the subspace
                     # is full, select the oldest row and update it.
                     if self.count(id_space, subspace) >= subspace_size:
@@ -661,9 +669,13 @@ class IDManager:
         # again. Cleanups are progressively more aggressive.
         for frac in [0.75, 0.6, 0.5, 0]:
             with self.conn:
-                self.conn.execute("BEGIN IMMEDIATE")
-                id = None
                 with closing(self.conn.cursor()) as cursor:
+                    self.conn.execute("BEGIN IMMEDIATE")
+                    # First, try to find an existing ID with the given description. It
+                    # might have been inserted by another process.
+                    id = _find_id_helper(cursor)
+                    if id is not None:
+                        return id
                     # Run rejection sampling.
                     for j in range(8):
                         id = id_space.gen_random_id(subspace)
@@ -681,7 +693,7 @@ class IDManager:
                         return id
             if frac == 0:
                 break
-            # If it failed, try do a cleanup.
+            # If it failed, try to do a cleanup.
             self.cleanup(
                 id_space,
                 subspace,
