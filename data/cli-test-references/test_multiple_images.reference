@@ -204,3 +204,37 @@ Exit code: 2
 ikup list --last 1 -a
 error: Cannot use --all and specify images/ids or queries at the same time.
 Exit code: 2
+
+---------- SUBTEST list -p ----------
+
+ikup list -p %cx%r %i %%\\ %i\n%x\t%p %P %m %a %D
+53x24 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/wikipedia.png {{.*}}/wikipedia.png {{.*}}
+3x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/transparency.png {{.*}}/transparency.png {{.*}}
+2x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/tux.png {{.*}}/tux.png {{.*}}
+35x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/ruler.png {{.*}}/ruler.png {{.*}}
+3x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/wikipedia.png {{.*}}/wikipedia.png {{.*}}
+1x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/column.png {{.*}}/column.png {{.*}}
+2x1 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/small_arrow.png {{.*}}/small_arrow.png {{.*}}
+4x2 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/small_arrow.png {{.*}}/small_arrow.png {{.*}}
+5x2 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/wikipedia.png {{.*}}/wikipedia.png {{.*}}
+2x2 [[id:.*]] %\ [[id]]
+[[hex(id)]]	{{.*}}/small_arrow.png {{.*}}/small_arrow.png {{.*}}
+
+---------- SUBTEST list -p, incorrect format ----------
+
+ikup list -p %O
+error: Unknown format specifier: %O
+Exit code: 2
+ikup list -p \o
+error: Unknown escape sequence: \o
+Exit code: 2
+

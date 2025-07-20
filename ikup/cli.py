@@ -7,14 +7,79 @@ from typing import Optional, List
 
 import ikup
 from ikup.id_manager import IDSpace, IDSubspace
-from ikup.ikup_terminal import ImageInstance
+from ikup.ikup_terminal import ImageInfo, ImageInstance, ValidationError
 from ikup.utils import *
+
+HELP_PRINT = """\
+The --print (-p) option takes a string argument which may use the following
+format specifiers:
+
+    %%  A literal %
+    %i  The image ID (decimal)
+    %x  The image ID (hexadecimal), with leading zeros, but without '0x'
+    %c  The number of columns of the image or '?' if not known
+    %r  The number of rows of the image or '?' if not known
+    %p  The path to the image file or '/dev/null' if not known
+    %P  The path to the image file or the description if not known
+    %m  The modified time of the (original) image or '?' if not known
+    %a  The access time of the image/ID in the ID database
+    %D  The description of the image (likely json)
+
+It may also use escape sequences: \\\\, \\n, \\t, \\r, \\e
+"""
+
+
+additional_help_topics = {"print": HELP_PRINT}
+
+
+def help(command: str, topic: Optional[str]):
+    _ = command
+    if not topic:
+        print("Use 'ikup help <topic>' to get more information about a topic.")
+        print("Available help topics:")
+        for t in additional_help_topics:
+            print(f"  {t}")
+        return
+
+    matching = []
+    for t in additional_help_topics:
+        if t == topic:
+            print(additional_help_topics[t])
+            return
+        if t.startswith(topic):
+            matching.append(t)
+
+    if not matching:
+        print(f"error: No help topic found for '{topic}'.")
+        print("Available help topics:")
+        for t in additional_help_topics:
+            print(f"  {t}")
+        return
+
+    if len(matching) > 1:
+        print(f"error: Multiple help topics match prefix '{topic}':")
+        for t in matching:
+            print(f"  {t}")
+        return
+
+    print(f"Help for topic '{matching[0]}':")
+    print(additional_help_topics[matching[0]])
 
 
 class CLIArgumentsError(Exception):
     """Custom exception for CLI argument errors."""
 
     pass
+
+
+class UseConfig:
+    """A placeholder class to indicate that the value from the config should be used.
+
+    The only reason for its existence is to print nicer `default: use config` in the
+    help message instead of `default: None`."""
+
+    def __str__(self):
+        return "use config"
 
 
 def positive_int(value):
@@ -54,6 +119,62 @@ def time_ago(dt: datetime) -> str:
         return f"{int(months)} months ago"
     else:
         return f"{int(years)} years ago"
+
+
+def format_info_string(
+    string: str, info: ImageInfo, inst: Optional[ImageInstance]
+) -> str:
+    parts = []
+    i = 0
+    cur_start = 0
+    while i < len(string):
+        if string[i] == "\\" and i + 1 < len(string):
+            parts.append(string[cur_start:i])
+            i += 1
+            esc = string[i]
+            cur_start = i + 1
+            if esc == "\\":
+                parts.append("\\")
+            elif esc == "n":
+                parts.append("\n")
+            elif esc == "t":
+                parts.append("\t")
+            elif esc == "r":
+                parts.append("\r")
+            elif esc == "e":
+                parts.append("\033")
+            else:
+                raise CLIArgumentsError(f"Unknown escape sequence: \\{esc}")
+        if string[i] == "%" and i + 1 < len(string):
+            parts.append(string[cur_start:i])
+            i += 1
+            fmt = string[i]
+            cur_start = i + 1
+            if fmt == "%":
+                parts.append("%")
+            elif fmt == "i":
+                parts.append(str(info.id))
+            elif fmt == "x":
+                parts.append(f"{info.id:08x}")
+            elif fmt == "c":
+                parts.append(str(inst.cols) if inst else "?")
+            elif fmt == "r":
+                parts.append(str(inst.rows) if inst else "?")
+            elif fmt == "p":
+                parts.append(inst.path if inst else "/dev/null")
+            elif fmt == "P":
+                parts.append(inst.path if inst else info.description)
+            elif fmt == "m":
+                parts.append(inst.mtime.isoformat() if inst else "?")
+            elif fmt == "a":
+                parts.append(info.atime.isoformat())
+            elif fmt == "D":
+                parts.append(info.description)
+            else:
+                raise CLIArgumentsError(f"Unknown format specifier: %{fmt}")
+        i += 1
+    parts.append(string[cur_start:i])
+    return "".join(parts)
 
 
 def dump_config(command: str, provenance: bool, skip_default: bool):
@@ -396,6 +517,7 @@ def foreach(
     images: List[str],
     all: bool,
     dump_config: bool,
+    _print: Optional[str],
     use_line_feeds: str = "false",
     older: Optional[str] = None,
     newer: Optional[str] = None,
@@ -443,6 +565,7 @@ def foreach(
             "upload_method": upload_method,
             "provenance": "set via command line",
             "allow_concurrent_uploads": allow_concurrent_uploads,
+            "mark_uploaded": mark_uploaded,
         },
     )
     if dump_config:
@@ -557,20 +680,26 @@ def foreach(
         if quiet:
             continue
 
+        # Format the print string if needed.
+        string = ""
+        if _print:
+            string = format_info_string(_print, iminfo, inst)
+        elif not verbose:
+            string = format_info_string(f"%i\t%cx%r\t%P", iminfo, inst)
+
         # If it's not a verbose mode of 'list', just print some basic info.
         if not verbose:
             if command != "list":
                 write(f"{command} ")
-            if inst is None:
-                write(f"{id}\t?x?\t{iminfo.description}\n")
-                continue
-            write(f"{id}\t{inst.cols}x{inst.rows}\t{inst.path}\n")
+            write(string + "\n")
             continue
 
         # Otherwise print more details and several rows of the image.
         space = str(IDSpace.from_id(id))
         subspace_byte = IDSpace.get_subspace_byte(id)
         ago = time_ago(iminfo.atime)
+        if string:
+            write(string + "\n")
         write(
             f"\033[1mID: {id}\033[0m = 0x{id:08x} id_space: {space} subspace_byte: {subspace_byte} = 0x{subspace_byte:02x} atime: {iminfo.atime} ({ago})\n"
         )
@@ -606,13 +735,17 @@ def foreach(
                 f"    \033[1m\033[38;5;1mCOULD NOT PARSE THE IMAGE DESCRIPTION!\033[0m\n"
             )
         else:
-            ikupterm.display_only(
-                inst,
-                end_col=max_cols_int,
-                end_row=max_rows_int,
-                allow_expansion=False,
-                use_line_feeds=(use_line_feeds == "true"),
-            )
+            try:
+                ikupterm.display_only(
+                    inst,
+                    end_col=max_cols_int,
+                    end_row=max_rows_int,
+                    allow_expansion=False,
+                    use_line_feeds=(use_line_feeds == "true"),
+                )
+            except (ValueError, RuntimeError) as e:
+                write(f"  \033[1m\033[38;5;1mCOULD NOT DISPLAY: {e}\033[0m\n")
+                errors = True
             if inst.cols > max_cols_int or inst.rows > max_rows_int:
                 write(
                     f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}\n"
@@ -706,8 +839,20 @@ def main_unwrapped():
         help="Trigger db cleanup.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+    p_help = subparsers.add_parser(
+        "help",
+        help="Show additional help.",
+    )
 
     # Command-specific arguments.
+
+    # Arguments unique to help
+    p_help.add_argument(
+        "topic",
+        nargs="?",
+        type=str,
+        help="The help topic to show. If not specified, show the list of topics.",
+    )
 
     # Arguments unique to dump-config
     p_dump_config.add_argument(
@@ -800,7 +945,7 @@ def main_unwrapped():
             "-c",
             metavar="W",
             type=positive_int,
-            default=None,
+            default=UseConfig(),
             help="Number of columns to fit the image to.",
         )
         p.add_argument(
@@ -808,21 +953,21 @@ def main_unwrapped():
             "-r",
             metavar="H",
             type=positive_int,
-            default=None,
+            default=UseConfig(),
             help="Number of rows to fit the image to.",
         )
         p.add_argument(
             "--max-cols",
             metavar="W",
             type=str,
-            default=None,
+            default=UseConfig(),
             help="Maximum number of columns when computing the image size. 'auto' to use the terminal width.",
         )
         p.add_argument(
             "--max-rows",
             metavar="H",
             type=str,
-            default=None,
+            default=UseConfig(),
             help="Maximum number of rows when computing the image size. 'auto' to use the terminal width.",
         )
         p.add_argument(
@@ -830,7 +975,7 @@ def main_unwrapped():
             "-s",
             metavar="S",
             type=float,
-            default=None,
+            default=UseConfig(),
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
 
@@ -860,21 +1005,21 @@ def main_unwrapped():
             "-m",
             metavar="{auto,file,stream,...}",
             type=str,
-            default=None,
+            default=UseConfig(),
             help="The upload method to use.",
         )
         p.add_argument(
             "--allow-concurrent-uploads",
             choices=["auto", "true", "false"],
             type=str,
-            default=None,
+            default=UseConfig(),
             help="Whether to allow direct upload of images with different IDs concurrently.",
         )
         p.add_argument(
             "--mark-uploaded",
             choices=["true", "false"],
             type=str,
-            default=None,
+            default=UseConfig(),
             help="Whether to mark images as uploaded after uploading them. If false, they will be marked as dirty.",
         )
 
@@ -946,6 +1091,13 @@ def main_unwrapped():
             type=int,
             help="Affect images except for the N most recently touched ones.",
         )
+        p.add_argument(
+            "--print",
+            "-p",
+            metavar="FORMAT",
+            type=str,
+            help="Print information according to FORMAT. Run `ikup help print` for details.",
+        )
 
     # Some commands will print the affected image IDs, but they can be quieted.
     for p in [p_forget, p_dirty, p_reupload, p_fix]:
@@ -963,19 +1115,19 @@ def main_unwrapped():
             "--force-id",
             metavar="ID",
             type=int,
-            default=None,
+            default=UseConfig(),
             help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
         )
         p.add_argument(
             "--id-space",
             metavar="{" + ",".join(str(v) for v in IDSpace.all_values()) + "}",
-            default=None,
+            default=UseConfig(),
             help="The name of the ID space to use for automatically assigned IDs.",
         )
         p.add_argument(
             "--id-subspace",
             metavar="BEGIN:END",
-            default=None,
+            default=UseConfig(),
             help="The range of the most significand byte for automatically assigned IDs, BEGIN <= msb < END.",
         )
 
@@ -1002,24 +1154,36 @@ def main_unwrapped():
 
     # Parse the arguments
     args = parser.parse_args()
+    vardict = vars(args)
+
+    # Replace UseConfig() with None.
+    for key, value in vardict.items():
+        if isinstance(value, UseConfig):
+            vardict[key] = None
+
+    # Rename some arguments for easier access.
+    if "print" in vardict:
+        vardict["_print"] = vardict.pop("print")
 
     # Execute the function associated with the chosen subcommand
     if args.command == "dump-config":
-        dump_config(**vars(args))
+        dump_config(**vardict)
     elif args.command == "status":
-        status(**vars(args))
+        status(**vardict)
     elif args.command == "display":
-        display(**vars(args))
+        display(**vardict)
     elif args.command == "upload":
-        upload(**vars(args))
+        upload(**vardict)
     elif args.command == "get-id":
-        get_id(**vars(args))
+        get_id(**vardict)
     elif args.command == "placeholder":
-        placeholder(**vars(args))
+        placeholder(**vardict)
     elif args.command in ("forget", "dirty", "reupload", "fix", "list"):
-        foreach(**vars(args))
+        foreach(**vardict)
     elif args.command == "cleanup":
-        cleanup(**vars(args))
+        cleanup(**vardict)
+    elif args.command == "help":
+        help(**vardict)
     else:
         print(f"error: Command not implemented: {args.command}", file=sys.stderr)
         sys.exit(2)
@@ -1035,8 +1199,8 @@ def main():
         sys.exit(1)
     except (
         CLIArgumentsError,
-        ikup.ikup_terminal.ValidationError,
         NotImplementedError,
+        ValidationError,
     ) as e:
         print(
             f"error: {e}",

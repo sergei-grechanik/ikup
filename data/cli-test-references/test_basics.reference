@@ -32,6 +32,7 @@ positional arguments:
     reupload     Reupload all matching images to the current terminal.
     fix          Reupload all dirty matching images to the current terminal.
     cleanup      Trigger db cleanup.
+    help         Show additional help.
 
 options:
   -h, --help     show this help message and exit
@@ -40,12 +41,16 @@ options:
 ---------- SUBTEST Different ways of printing help (only help line is checked) ----------
 
 ikup 
+    help         Show additional help.
   -h, --help     show this help message and exit
 ikup -h
+    help         Show additional help.
   -h, --help     show this help message and exit
 ikup ./.cli-tests-data/tux.png --help
+    help         Show additional help.
   -h, --help     show this help message and exit
 ikup ./.cli-tests-data/tux.png -h
+    help         Show additional help.
   -h, --help     show this help message and exit
 
 ---------- SUBTEST Config ----------
