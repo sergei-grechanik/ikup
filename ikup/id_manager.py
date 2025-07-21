@@ -442,7 +442,6 @@ class IDManager:
                     ON upload (upload_time)
                 """
             )
-            self.conn.commit()
 
     def close(self):
         self.conn.close()
@@ -904,9 +903,14 @@ class IDManager:
         # The upload time seen in the previous iteration.
         existing_upload_time = None
 
+        first_iteration = True
+
         # TODO: Maybe add a total timeout in case the other process is faking image
         #       upload.
         while True:
+            if not first_iteration:
+                time.sleep(stall_timeout)
+            first_iteration = False
             with self.conn:
                 with closing(self.conn.cursor()) as cursor:
                     cursor.execute("BEGIN IMMEDIATE")
@@ -937,11 +941,8 @@ class IDManager:
                                     (UPLOADING_STATUS_DIRTY, terminal, active_id),
                                 )
                             else:
-                                # Wait and try again
+                                # Try again.
                                 existing_upload_time = active_upload_time
-                                cursor.close()
-                                self.conn.commit()
-                                time.sleep(stall_timeout)
                                 continue
 
                     # Check if there's an existing upload entry for this specific ID
@@ -1010,7 +1011,6 @@ class IDManager:
 
             # Otherwise the upload is in progress. Exit the transaction and try again
             # after a short delay.
-            time.sleep(stall_timeout)
 
     def report_upload(
         self,
