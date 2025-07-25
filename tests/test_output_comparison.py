@@ -3,6 +3,7 @@ from ikup.testing.output_comparison import (
     parse_chunks_from_content,
     process_test_chunk,
     compare,
+    evaluate_assertion,
 )
 
 TEST_CASES = {
@@ -291,7 +292,131 @@ abcd [[id?:\d*]] [[id?:\d*]]
         "should_fail": True,
     },
     ####################################################################################
+    "assertion_basic_pass": {
+        "input": """
+========== TEST assertions
+id 123
+name hello
+value 45
+""",
+        "reference": r"""
+========== TEST assertions
+id [[id:\d+]]
+name [[name:\w+]]
+{{:ASSERT: int(id) > 100}}
+{{:ASSERT: len(name) == 5}}
+value [[value:\d+]]
+{{:ASSERT: int(value) < 50}}
+""",
+        "should_fail": False,
+    },
+    ####################################################################################
+    "assertion_basic_fail": {
+        "input": """
+========== TEST assertions
+id 50
+name hello
+""",
+        "reference": r"""
+========== TEST assertions
+id [[id:\d+]]
+{{:ASSERT: int(id) > 100}}
+name [[name:\w+]]
+""",
+        "should_fail": True,
+        "error_pattern": "Assertion failed at reference line 4",
+    },
+    ####################################################################################
+    "assertion_string_operations": {
+        "input": """
+========== TEST string ops
+path /tmp/test.png
+format PNG
+size 1024KB
+""",
+        "reference": r"""
+========== TEST string ops
+path [[path:.*]]
+format [[format:\w+]]
+{{:ASSERT: startswith(path, '/tmp/')}}
+{{:ASSERT: format == 'PNG'}}
+size [[size:.*]]
+{{:ASSERT: endswith(size, 'KB')}}
+{{:ASSERT: contains(size, '1024')}}
+""",
+        "should_fail": False,
+    },
+    ####################################################################################
+    "assertion_evaluation_error": {
+        "input": """
+========== TEST eval error
+name hello
+""",
+        "reference": r"""
+========== TEST eval error
+name [[name:\w+]]
+{{:ASSERT: undefined_function(name)}}
+""",
+        "should_fail": True,
+        "error_pattern": "Assertion evaluation failed",
+    },
+    ####################################################################################
+    "assertion_with_skip_lines": {
+        "input": """
+========== TEST skip and assert
+start 42
+junk1
+junk2
+target 84
+end 126
+""",
+        "reference": r"""
+========== TEST skip and assert
+start [[x:\d+]]
+{{:ASSERT: int(x) == 42}}
+{{:SKIP_LINES:}}
+target [[y:\d+]]
+{{:ASSERT: int(y) == int(x) * 2}}
+end [[z:\d+]]
+{{:ASSERT: int(z) == int(x) + int(y)}}
+""",
+        "should_fail": False,
+    },
+    ####################################################################################
 }
+
+
+def test_evaluate_assertion():
+    """Test the evaluate_assertion function directly."""
+    variables = {
+        "id": "123",
+        "name": "hello",
+        "count": "42",
+        "path": "/tmp/test.png",
+        "format": "PNG",
+    }
+
+    # Test basic expressions
+    assert evaluate_assertion("int(id) > 100", variables) == True
+    assert evaluate_assertion("int(id) < 100", variables) == False
+    assert evaluate_assertion("len(name) == 5", variables) == True
+    assert evaluate_assertion('name == "hello"', variables) == True
+
+    # Test string operations
+    assert evaluate_assertion('startswith(path, "/tmp/")', variables) == True
+    assert evaluate_assertion('endswith(path, ".png")', variables) == True
+    assert evaluate_assertion('contains(path, "test")', variables) == True
+
+    # Test complex expressions
+    assert evaluate_assertion("int(id) > 100 and len(name) == 5", variables) == True
+    assert evaluate_assertion("int(count) in [40, 41, 42, 43]", variables) == True
+
+    # Test failure cases
+    with pytest.raises(AssertionError, match="Assertion evaluation failed"):
+        evaluate_assertion("undefined_func(id)", variables)
+
+    with pytest.raises(AssertionError, match="Assertion evaluation failed"):
+        evaluate_assertion("int(name)", variables)  # Can't convert "hello" to int
 
 
 @pytest.mark.parametrize("test_case", TEST_CASES.keys())

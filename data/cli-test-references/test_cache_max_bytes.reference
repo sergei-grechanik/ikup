@@ -1,0 +1,102 @@
+========== TEST test_cache_max_bytes - Cache max-bytes functionality ==========
+
+
+---------- SUBTEST Clear cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+ikup cache list
+No cached images found.
+
+---------- SUBTEST Test conversion to larger size than original (no resize should happen) ----------
+
+stat -c %s ./.cli-tests-data/earth.jpg
+[[earth_original_size:[0-9]+]]
+{{:ASSERT: int(earth_original_size) > 18000 and int(earth_original_size) < 21000}}
+ikup cache convert ./.cli-tests-data/earth.jpg --max-bytes 1000000
+[[earth_large_cache:.*]]
+ikup cache list ./.cli-tests-data/earth.jpg
+{{.*}}/earth.jpg (mtime: {{.*}})
+  JPEG 240x240 [[earth_large_size:[0-9]+]] [[earth_large_cache]]
+{{:ASSERT: int(earth_large_size) == int(earth_original_size)}}
+
+---------- SUBTEST Test conversion to smaller size ----------
+
+ikup cache convert ./.cli-tests-data/earth.jpg --max-bytes 5000 --format png
+[[earth_5k_cache:.*]]
+ikup cache convert ./.cli-tests-data/earth.jpg --max-bytes 4500 --format png
+[[earth_4500_cache:.*]]
+ikup cache list ./.cli-tests-data/earth.jpg
+{{.*}}/earth.jpg (mtime: {{.*}})
+  JPEG 240x240 [[earth_large_size]] [[earth_large_cache]]
+  PNG [[earth_5k_dims:.*]] [[earth_5k_size:[0-9]+]] [[earth_5k_cache]]
+  PNG [[earth_4500_dims:.*]] [[earth_4500_size:[0-9]+]] [[earth_4500_cache]]
+{{:ASSERT: 4750 <= int(earth_5k_size) <= 5000}}
+{{:ASSERT: 4250 <= int(earth_4500_size) <= 4500}}
+
+---------- SUBTEST Test png conversion to smaller size ----------
+
+stat -c %s ./.cli-tests-data/transparency.png
+[[transparency_original_size:[0-9]+]]
+{{:ASSERT: int(transparency_original_size) > 200000 and int(transparency_original_size) < 250000}}
+ikup cache convert ./.cli-tests-data/transparency.png --max-bytes 100000
+[[transparency_100k_cache:.*]]
+ikup cache convert ./.cli-tests-data/transparency.png --max-bytes 101000
+[[transparency_100k_cache]]
+ikup cache convert ./.cli-tests-data/transparency.png --max-bytes 99000
+[[transparency_100k_cache]]
+ikup cache convert ./.cli-tests-data/transparency.png --max-bytes 94000
+[[transparency_94k_cache:.*]]
+ikup cache list ./.cli-tests-data/transparency.png
+{{.*}}/transparency.png (mtime: {{.*}})
+  PNG [[transparency_10k_dims:.*]] [[transparency_10k_size:[0-9]+]] [[transparency_100k_cache]]
+  PNG [[transparency_94k_dims:.*]] [[transparency_94k_size:[0-9]+]] [[transparency_94k_cache]]
+{{:ASSERT: 95000 <= int(transparency_10k_size) <= 100000}}
+{{:ASSERT: 89000 <= int(transparency_94k_size) <= 94000}}
+
+---------- SUBTEST Test conversion to very small size (should get 1x1) ----------
+
+stat -c %s ./.cli-tests-data/butterfly.jpg
+[[butterfly_original_size:[0-9]+]]
+{{:ASSERT: int(butterfly_original_size) > 1900000 and int(butterfly_original_size) < 2100000}}
+ikup cache convert ./.cli-tests-data/butterfly.jpg --max-bytes 500 --format png
+[[butterfly_small_cache:.*]]
+ikup cache list ./.cli-tests-data/butterfly.jpg
+{{.*}}/butterfly.jpg (mtime: {{.*}})
+  PNG 1x1 [[butterfly_small_size:[0-9]+]] [[butterfly_small_cache]]
+{{:ASSERT: int(butterfly_small_size) < 3000}}
+ikup cache convert ./.cli-tests-data/butterfly.jpg --max-bytes 700 --format png
+[[butterfly_small_cache]]
+ikup cache list ./.cli-tests-data/butterfly.jpg
+{{.*}}/butterfly.jpg (mtime: {{.*}})
+  PNG 1x1 [[butterfly_small_size]] [[butterfly_small_cache]]
+
+---------- SUBTEST Test PNG to JPEG conversion with size limits ----------
+
+ikup cache convert ./.cli-tests-data/tux.png --max-bytes 3000 --format jpeg
+[[tux_jpeg_cache:.*]]
+ikup cache convert ./.cli-tests-data/wikipedia.png --max-bytes 8000 --format jpeg
+[[wiki_jpeg_cache:.*]]
+ikup cache list ./.cli-tests-data/tux.png
+{{.*}}/tux.png (mtime: {{.*}})
+  JPEG [[tux_jpeg_dims:.*]] [[tux_jpeg_size:[0-9]+]] [[tux_jpeg_cache]]
+{{:ASSERT: 2500 <= int(tux_jpeg_size) <= 3000}}
+ikup cache list ./.cli-tests-data/wikipedia.png
+{{.*}}/wikipedia.png (mtime: {{.*}})
+  JPEG [[wiki_jpeg_dims:.*]] [[wiki_jpeg_size:[0-9]+]] [[wiki_jpeg_cache]]
+{{:ASSERT: 7500 <= int(wiki_jpeg_size) <= 8000}}
+
+---------- SUBTEST Test JPEG to PNG conversion with size limits ----------
+
+ikup cache convert ./.cli-tests-data/mars.jpg --max-bytes 10000 --format png
+[[mars_png_cache:.*]]
+ikup cache convert ./.cli-tests-data/sun.jpg --max-bytes 15000 --format png
+[[sun_png_cache:.*]]
+ikup cache list ./.cli-tests-data/mars.jpg
+{{.*}}/mars.jpg (mtime: {{.*}})
+  PNG [[mars_png_dims:.*]] [[mars_png_size:[0-9]+]] [[mars_png_cache]]
+{{:ASSERT: 9500 <= int(mars_png_size) <= 10000}}
+ikup cache list ./.cli-tests-data/sun.jpg
+{{.*}}/sun.jpg (mtime: {{.*}})
+  PNG [[sun_png_dims:.*]] [[sun_png_size:[0-9]+]] [[sun_png_cache]]
+{{:ASSERT: 14000 <= int(sun_png_size) <= 15000}}

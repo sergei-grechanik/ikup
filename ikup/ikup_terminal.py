@@ -7,12 +7,12 @@ import math
 import os
 import re
 import select
-import subprocess
 import tempfile
 import typing
 import time
 import random
-from dataclasses import dataclass, field
+import logging
+from dataclasses import dataclass
 from typing import (
     Any,
     BinaryIO,
@@ -30,6 +30,7 @@ import toml
 
 import ikup
 from ikup.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
+from ikup.conversion_cache import ConversionCache
 import ikup.utils
 from ikup.terminal_detection import detect_terminal_info
 from ikup import (
@@ -47,7 +48,7 @@ from ikup import (
     TransmitCommand,
 )
 
-# PIL is expensive to import, we import is only when needed or when type checking.
+# PIL is expensive to import, we import it only when needed or when type checking.
 if TYPE_CHECKING:
     from PIL import Image
 
@@ -66,6 +67,10 @@ class IkupConfig:
     id_subspace: IDSubspace = IDSubspace()
     max_ids_per_subspace: int = 1024
     id_database_dir: str = platformdirs.user_state_dir("ikup")
+
+    # Conversion and thumbnail cache manager options.
+    cache_dir: str = platformdirs.user_cache_dir("ikup")
+    thumbnail_file_size_tolerance: float = 0.2
 
     # Image geometry options.
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
@@ -105,6 +110,7 @@ class IkupConfig:
 
     # General options.
     ignore_unknown_attributes: bool = False
+    log_level: str = ""
 
     # Cleanup options.
     max_db_age_days: int = 7
@@ -248,6 +254,8 @@ class IkupConfig:
                     value = ikup.utils.validate_size(value)
                 if name == "id_database_dir" and value == "":
                     value = platformdirs.user_state_dir("ikup")
+                if name == "cache_dir" and value == "":
+                    value = platformdirs.user_cache_dir("ikup")
                 if TransmissionMedium in types_in_union:
                     value = TransmissionMedium.from_string(value)
                 if int in types_in_union:
@@ -387,7 +395,7 @@ class ImageInstance:
         )
 
 
-ImageOrFilename = Union["PIL.Image.Image", str]
+ImageOrFilename = Union["Image.Image", str]
 
 
 def _config_property(name: str):
@@ -440,6 +448,9 @@ class IkupTerminal:
 
         self.final_cursor_pos: FinalCursorPos = final_cursor_pos
 
+        if config.log_level:
+            self._configure_logging(config.log_level)
+
         if config.num_tmux_layers == "auto":
             config._current_provenance = (
                 f"expanded from 'auto' ({config.get_provenance('num_tmux_layers')})"
@@ -472,12 +483,14 @@ class IkupTerminal:
 
         if id_database is None:
             os.makedirs(os.path.dirname(config.id_database_dir), exist_ok=True)
-            id_database = f"{config.id_database_dir}/{self._session_id}.db"
+            id_database = os.path.join(config.id_database_dir, f"{self._session_id}.db")
 
         self.id_manager = IDManager(
             database_file=id_database,
             max_ids_per_subspace=config.max_ids_per_subspace,
         )
+
+        self._conversion_cache: Optional[ConversionCache] = None
 
     max_cols = _config_property("max_cols")
     max_rows = _config_property("max_rows")
@@ -506,6 +519,36 @@ class IkupTerminal:
     allow_concurrent_uploads = _config_property("allow_concurrent_uploads")
     upload_command_delay = _config_property("upload_command_delay")
     mark_uploaded = _config_property("mark_uploaded")
+
+    def _configure_logging(self, log_level: str):
+        """Configure logging for ikup based on the provided log level."""
+        try:
+            level = int(log_level)
+        except ValueError:
+            level = getattr(logging, log_level.upper(), logging.DEBUG)
+        ikup_logger = logging.getLogger("ikup")
+        has_real_handler = any(
+            not isinstance(h, logging.NullHandler) for h in ikup_logger.handlers
+        )
+        if not has_real_handler:
+            h = logging.StreamHandler()
+            h.setFormatter(
+                logging.Formatter(
+                    "%(levelname)s %(asctime)s pid=%(process)d %(name)s: %(message)s"
+                )
+            )
+            ikup_logger.addHandler(h)
+            ikup_logger.propagate = False
+        ikup_logger.setLevel(level)
+
+    @property
+    def conversion_cache(self) -> ConversionCache:
+        if self._conversion_cache is None:
+            self._conversion_cache = ConversionCache(
+                self._config.cache_dir,
+                tolerance=self._config.thumbnail_file_size_tolerance,
+            )
+        return self._conversion_cache
 
     def detect_terminal(self):
         # Use explicit config values if provided
@@ -666,7 +709,7 @@ class IkupTerminal:
             if image.startswith(":"):
                 return image, datetime.datetime.fromtimestamp(0)
             if image.startswith("~"):
-                image = os.expanduser(image)
+                image = os.path.expanduser(image)
             if os.path.exists(image):
                 return os.path.abspath(image), datetime.datetime.fromtimestamp(
                     os.path.getmtime(image)

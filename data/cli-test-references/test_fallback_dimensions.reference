@@ -10,6 +10,7 @@ terminal_name: st-256color
 terminal_id: [[terminal_id:.*]]
 session_id: [[session_id:.*]]
 database_file: {{.*}}
+cache_directory: {{.*}}
 Default ID space: 24bit
 Default subspace: 0:256
 Total IDs in the session db: 0
@@ -31,6 +32,7 @@ terminal_name: st-256color
 terminal_id: [[terminal_id]]
 session_id: [[session_id]]
 database_file: {{.*}}
+cache_directory: {{.*}}
 Default ID space: 24bit
 Default subspace: 0:256
 Total IDs in the session db: 0

@@ -32,6 +32,7 @@ positional arguments:
     reupload     Reupload all matching images to the current terminal.
     fix          Reupload all dirty matching images to the current terminal.
     cleanup      Trigger db cleanup.
+    cache        Manage image conversion cache.
     help         Show additional help.
 
 options:
@@ -59,7 +60,9 @@ ikup dump-config
 id_space = "24bit"                # set via IKUP_ID_SPACE
 id_subspace = "0:256"             # default
 max_ids_per_subspace = 1024       # default
-id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"  # set via IKUP_ID_DATABASE_DIR
+id_database_dir = "/tmp/[[tmpdir:.*]]/id_database_dir"{{ *}}# set via IKUP_ID_DATABASE_DIR
+cache_dir = "/tmp/[[tmpdir:.*]]/cache"{{ *}}# set via IKUP_CACHE_DIR
+thumbnail_file_size_tolerance = 0.05  # set via {{.*}}
 cell_size = "auto"                # default
 default_cell_size = "8x16"        # default
 scale = 1.0                       # default
@@ -89,6 +92,7 @@ terminal_name = ""                # default
 terminal_id = ""                  # default
 session_id = ""                   # default
 ignore_unknown_attributes = false  # default
+log_level = ""                    # default
 max_db_age_days = 7               # default
 max_num_ids = 4096                # default
 cleanup_probability = 0.01        # default
@@ -104,6 +108,8 @@ id_space = "24bit"
 id_subspace = "0:256"
 max_ids_per_subspace = 1024
 id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
+cache_dir = "/tmp/[[tmpdir]]/cache"
+thumbnail_file_size_tolerance = 0.05
 cell_size = "auto"
 default_cell_size = "8x16"
 scale = 1.0
@@ -133,6 +139,7 @@ terminal_name = ""
 terminal_id = ""
 session_id = ""
 ignore_unknown_attributes = false
+log_level = ""
 max_db_age_days = 7
 max_num_ids = 4096
 cleanup_probability = 0.01
@@ -145,7 +152,9 @@ upload_command_delay = 0.0
 
 ikup dump-config --skip-default
 id_space = "24bit"                # set via IKUP_ID_SPACE
-id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"  # set via IKUP_ID_DATABASE_DIR
+id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"{{ *}}# set via IKUP_ID_DATABASE_DIR
+cache_dir = "/tmp/[[tmpdir:.*]]/cache"{{ *}}# set via IKUP_CACHE_DIR
+thumbnail_file_size_tolerance = 0.05  # set via {{.*}}
 num_tmux_layers = 0               # expanded from 'auto' (default)
 
 ---------- SUBTEST Config without defaults and provenance ----------
@@ -153,6 +162,8 @@ num_tmux_layers = 0               # expanded from 'auto' (default)
 ikup dump-config --skip-default --no-provenance
 id_space = "24bit"
 id_database_dir = "/tmp/[[tmpdir]]/id_database_dir"
+cache_dir = "/tmp/[[tmpdir:.*]]/cache"
+thumbnail_file_size_tolerance = 0.05
 num_tmux_layers = 0
 
 ---------- SUBTEST Status ----------
@@ -165,6 +176,7 @@ terminal_name: st-256color
 terminal_id: st-256color-[[winid:.*]]
 session_id: st-256color-[[winid]]
 database_file: /tmp/[[tmpdir]]/id_database_dir/st-256color-[[winid]].db
+cache_directory: /tmp/[[tmpdir]]/cache
 Default ID space: 24bit
 Default subspace: 0:256
 Total IDs in the session db: 0
