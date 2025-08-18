@@ -15,9 +15,9 @@ ikup cache convert ./.cli-tests-data/earth.jpg -s 100x80
 ikup cache convert ./.cli-tests-data/butterfly.jpg --size 50x50 --format png
 [[butterfly_cache_path:.*]]
 ikup cache list
-{{.*}}/butterfly.jpg (mtime: 2025-06-15T12:16:40.989498)
+{{.*}}/butterfly.jpg (mtime: {{.*}})
   PNG 50x50 {{\d*}} [[butterfly_cache_path]]
-{{.*}}/earth.jpg (mtime: 2025-06-15T12:16:37.141510)
+{{.*}}/earth.jpg (mtime: {{.*}})
   JPEG 100x80 {{\d*}} [[earth_cache_path]]
 
 ---------- SUBTEST Test resizing with width only (automatic height) ----------
@@ -29,14 +29,14 @@ ikup cache convert ./.cli-tests-data/ruler.png --width 200 --format jpeg
 ikup cache convert ./.cli-tests-data/ruler.png --width 100 --format jpeg
 [[ruler_cache_path_100:.*]]
 ikup cache list
-{{.*}}/butterfly.jpg (mtime: 2025-06-15T12:16:40.989498)
+{{.*}}/butterfly.jpg (mtime: {{.*}})
   PNG 50x50 {{\d*}} [[butterfly_cache_path]]
-{{.*}}/earth.jpg (mtime: 2025-06-15T12:16:37.141510)
+{{.*}}/earth.jpg (mtime: {{.*}})
   JPEG 100x80 {{\d*}} [[earth_cache_path]]
-{{.*}}/ruler.png (mtime: 2025-06-15T12:16:36.945511)
+{{.*}}/ruler.png (mtime: {{.*}})
   JPEG 200x11 {{\d*}} [[ruler_cache_path]]
   JPEG 100x5 {{\d*}} [[ruler_cache_path_100]]
-{{.*}}/tux.png (mtime: 2025-06-15T12:16:36.157513)
+{{.*}}/tux.png (mtime: {{.*}})
   PNG 64x75 {{\d*}} [[tux_cache_path]]
 
 ---------- SUBTEST Test resizing with height only. Check idempotence. ----------
@@ -49,7 +49,7 @@ ikup cache convert ./.cli-tests-data/sun.jpg --height 75 --format png
 [[sun_cache_path:.*]] PNG 78x75 {{.*}}
 ikup cache list
 {{:SKIP_LINES:}}
-{{.*}}/sun.jpg (mtime: 2025-06-15T12:16:40.530499)
+{{.*}}/sun.jpg (mtime: {{.*}})
   PNG 78x75 {{\d*}} [[sun_cache_path]]
 {{:SKIP_LINES:}}
 
@@ -61,11 +61,11 @@ ikup cache convert ./.cli-tests-data/tux.png --format jpeg
 [[tux_jpeg_cache_path:.*]]
 ikup cache list
 {{:SKIP_LINES:}}
-{{.*}}/earth.jpg (mtime: 2025-06-15T12:16:37.141510)
+{{.*}}/earth.jpg (mtime: {{.*}})
   JPEG 100x80 {{\d*}} [[earth_cache_path]]
   PNG 240x240 {{\d*}} [[earth_png_cache_path]]
 {{:SKIP_LINES:}}
-{{.*}}/tux.png (mtime: 2025-06-15T12:16:36.157513)
+{{.*}}/tux.png (mtime: {{.*}})
   PNG 64x75 {{\d*}} [[tux_cache_path]]
   JPEG 265x314 {{\d*}} [[tux_jpeg_cache_path]]
 {{:SKIP_LINES:}}
