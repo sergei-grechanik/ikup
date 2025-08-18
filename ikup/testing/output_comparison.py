@@ -31,6 +31,43 @@ def escape(s: str) -> str:
     return "".join(escaped)
 
 
+def evaluate_assertion(assertion: str, variables: Dict[str, str]) -> bool:
+    """Evaluate an assertion expression with captured variables.
+
+    Args:
+        assertion: The assertion expression to evaluate
+        variables: Dictionary of captured variables
+
+    Returns:
+        True if assertion passes, False otherwise
+
+    Raises:
+        AssertionError: If assertion fails or has evaluation errors
+    """
+    # Safe evaluation context with restricted builtins
+    safe_globals = {
+        "__builtins__": {},
+        "len": len,
+        "int": int,
+        "str": str,
+        "float": float,
+        "min": min,
+        "max": max,
+        "abs": abs,
+        "bool": bool,
+        "isinstance": isinstance,
+        "startswith": lambda s, prefix: str(s).startswith(prefix),
+        "endswith": lambda s, suffix: str(s).endswith(suffix),
+        "contains": lambda s, substr: substr in str(s),
+    }
+
+    try:
+        result = eval(assertion, safe_globals, variables)
+        return bool(result)
+    except Exception as e:
+        raise AssertionError(f"Assertion evaluation failed: {assertion} - {e}")
+
+
 def transform_captured_var(func_name: str, args: str, variables: Dict[str, str]) -> str:
     """Transform captured variables based on function name and arguments."""
     if func_name == "rgb":
@@ -215,6 +252,32 @@ def process_test_chunk(
 
             # After successful skip, continue processing from next line
             j += 1  # We already processed the SKIP_LINES marker
+            continue
+
+        # Handle assertion lines
+        if ref_lines[j].startswith("{{:ASSERT:") and ref_lines[j].endswith("}}"):
+            assertion_expr = ref_lines[j][10:-2].strip()  # Remove {{:ASSERT: and }}
+            try:
+                if not evaluate_assertion(assertion_expr, variables):
+                    errors.append(
+                        f"{test}\n"
+                        f"Assertion failed at reference line {ref_nums[j]}:\n"
+                        f"{escape(ref_lines[j])}\n"
+                        f"Expression: {assertion_expr}\n"
+                        f"Variables: {variables}"
+                    )
+                    return errors
+            except AssertionError as e:
+                errors.append(
+                    f"{test}\n"
+                    f"Assertion error at reference line {ref_nums[j]}:\n"
+                    f"{escape(ref_lines[j])}\n"
+                    f"Error: {e}"
+                )
+                return errors
+
+            # Assertion lines don't consume input lines, move to next reference line
+            j += 1
             continue
 
         if i >= len(inp_lines):

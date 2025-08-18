@@ -1,0 +1,152 @@
+========== TEST test_cache_check - Cache check functionality ==========
+
+
+---------- SUBTEST Clear cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+ikup cache list
+No cached images found.
+
+---------- SUBTEST Convert images to cache ----------
+
+ikup cache convert ./.cli-tests-data/earth.jpg --width 80 --height 80
+[[earth_cache:.*]]
+ikup cache convert ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+[[butterfly_cache:.*]]
+
+---------- SUBTEST Check the cache for width/height combinations ----------
+
+ikup cache check ./.cli-tests-data/earth.jpg --width 80 --height 80
+Cached: [[earth_cache]]
+Format: JPEG
+Size: 80x80
+Bytes: [[earth_bytes:[0-9]+]]
+ikup cache check ./.cli-tests-data/earth.jpg --width 80
+Cached: [[earth_cache]]
+Format: JPEG
+Size: 80x80
+Bytes: [[earth_bytes]]
+ikup cache check ./.cli-tests-data/earth.jpg --width 80 --height 81
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/earth.jpg --width 80 --height 80 --format png
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/earth.jpg --width 80 --height 80 --format jpeg
+Cached: [[earth_cache]]
+Format: JPEG
+Size: 80x80
+Bytes: [[earth_bytes]]
+
+---------- SUBTEST Test single dimension tolerance behavior ----------
+
+ikup cache convert ./.cli-tests-data/tux.png --width 64
+[[tux_cache:.*]]
+ikup cache check ./.cli-tests-data/tux.png --width 64
+Cached: [[tux_cache]]
+Format: PNG
+Size: 64x75
+Bytes: [[tux_bytes:[0-9]+]]
+ikup cache check ./.cli-tests-data/tux.png --width 65
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/tux.png --height 75
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/tux.png --height 76
+Not cached
+Exit code: 1
+
+---------- SUBTEST Check the cache for max-bytes ----------
+
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8100 --format png
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 7999 --format png
+Cached: [[butterfly_cache]]
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+
+---------- SUBTEST These images should not be found ----------
+
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 7610 --format png
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8401 --format png
+Not cached
+Exit code: 1
+
+---------- SUBTEST Test max-bytes check with a very big request ----------
+
+This image shouldn't be found in the cache
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 100000
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 11913
+Not cached
+Exit code: 1
+Now request a large image
+ikup cache convert ./.cli-tests-data/tux.png --max-bytes 100000
+[[tux_cache_large:.*]]
+The image should be found in the cache now
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 100000
+Cached: [[tux_cache_large]]
+Format: PNG
+Size: {{.*}}
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 11913
+Cached: [[tux_cache_large]]
+Format: PNG
+Size: {{.*}}
+Bytes: 11913
+But a smaller image should not be found
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 11900
+Not cached
+Exit code: 1
+
+---------- SUBTEST Test max-bytes check with a very small request ----------
+
+ikup cache convert ./.cli-tests-data/tux.png --max-bytes 10
+[[tux_cache_small:.*]]
+
+---------- SUBTEST This should return the minimal image and report impossibility ----------
+
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 20
+Cached: [[tux_cache_small]]
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+
+---------- SUBTEST Corrupt the cache ----------
+
+rm [[butterfly_cache]]
+The next command should return an error
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+Not cached
+Exit code: 1
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+Not cached
+Exit code: 1
+The next command should recreate the file
+ikup cache convert ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+[[butterfly_cache2:.*]]
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+Cached: [[butterfly_cache2]]
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+cp ./.cli-tests-data/butterfly.jpg [[butterfly_cache2]]
+The next command should return another error
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
+Cached: [[butterfly_cache2]]
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+Error: Cached image size {{.*}} bytes exceeds requested max_bytes {{.*}}
+Error: Format mismatch: db entry PNG, file JPEG
+Error: Width mismatch: db entry {{.*}}
+Error: Height mismatch: db entry {{.*}}
+Exit code: 1
+

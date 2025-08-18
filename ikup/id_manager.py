@@ -546,10 +546,9 @@ class IDManager:
     def del_id(self, id: int):
         id_space = IDSpace.from_id(id)
         namespace = id_space.namespace_name()
-        with self.conn:
-            with closing(self.conn.cursor()) as cursor:
-                self.conn.execute("BEGIN IMMEDIATE")
-                cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
+        with self.conn, closing(self.conn.cursor()) as cursor:
+            self.conn.execute("BEGIN IMMEDIATE")
+            cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
 
     def touch_id(self, id: int, atime: Optional[datetime] = None):
         """Update the `atime` of the given ID if it exists."""
@@ -607,89 +606,87 @@ class IDManager:
         # If the subspace is small enough, we will select all the rows and
         # identify unused IDs.
         if subspace_size <= min(1024, self.max_ids_per_subspace):
-            with self.conn:
-                with closing(self.conn.cursor()) as cursor:
-                    cursor.execute("BEGIN IMMEDIATE")
-                    # First, try to find an existing ID with the given description.
-                    id = _find_id_helper(cursor)
-                    if id is not None:
-                        return id
+            with self.conn, closing(self.conn.cursor()) as cursor:
+                cursor.execute("BEGIN IMMEDIATE")
+                # First, try to find an existing ID with the given description.
+                id = _find_id_helper(cursor)
+                if id is not None:
+                    return id
 
-                    # First check the count of rows in the subspace. If the subspace
-                    # is full, select the oldest row and update it.
-                    if self.count(id_space, subspace) >= subspace_size:
-                        cursor.execute(
-                            f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
-                                ORDER BY atime ASC LIMIT 1
-                            """,
-                            (
-                                id_space.subspace_byte_mask(),
-                                begin,
-                                end - 1,
-                            ),
-                        )
-                        id = cursor.fetchone()[0]
-                        self.set_id(
-                            id,
-                            description=description,
-                            atime=atime,
-                        )
-                        return id
+                # First check the count of rows in the subspace. If the subspace
+                # is full, select the oldest row and update it.
+                if self.count(id_space, subspace) >= subspace_size:
                     cursor.execute(
-                        f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
+                        f"""SELECT id FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?
+                            ORDER BY atime ASC LIMIT 1
+                        """,
                         (
                             id_space.subspace_byte_mask(),
                             begin,
                             end - 1,
                         ),
                     )
-                    available_ids = set(id_space.all_ids(subspace))
-                    oldest_atime_id: Optional[Tuple[int, datetime]] = None
-                    for row in cursor.fetchall():
-                        row_id = row[0]
-                        row_atime = datetime.fromisoformat(row[1])
-                        available_ids.remove(row_id)
-                        if oldest_atime_id is None or row_atime < oldest_atime_id[1]:
-                            oldest_atime_id = (row_id, row_atime)
-                    if available_ids:
-                        id = secrets.choice(list(available_ids))
-                    else:
-                        assert oldest_atime_id is not None
-                        id = oldest_atime_id[0]
+                    id = cursor.fetchone()[0]
                     self.set_id(
                         id,
                         description=description,
                         atime=atime,
                     )
                     return id
+                cursor.execute(
+                    f"SELECT id, atime FROM {namespace} WHERE (id & ?) BETWEEN ? AND ?",
+                    (
+                        id_space.subspace_byte_mask(),
+                        begin,
+                        end - 1,
+                    ),
+                )
+                available_ids = set(id_space.all_ids(subspace))
+                oldest_atime_id: Optional[Tuple[int, datetime]] = None
+                for row in cursor.fetchall():
+                    row_id = row[0]
+                    row_atime = datetime.fromisoformat(row[1])
+                    available_ids.remove(row_id)
+                    if oldest_atime_id is None or row_atime < oldest_atime_id[1]:
+                        oldest_atime_id = (row_id, row_atime)
+                if available_ids:
+                    id = secrets.choice(list(available_ids))
+                else:
+                    assert oldest_atime_id is not None
+                    id = oldest_atime_id[0]
+                self.set_id(
+                    id,
+                    description=description,
+                    atime=atime,
+                )
+                return id
 
         # If the subspace is too large, try rejection sampling. We will try to
         # do it several times, and if we fail, we will do a cleanup and try
         # again. Cleanups are progressively more aggressive.
         for frac in [0.75, 0.6, 0.5, 0]:
-            with self.conn:
-                with closing(self.conn.cursor()) as cursor:
-                    self.conn.execute("BEGIN IMMEDIATE")
-                    # First, try to find an existing ID with the given description. It
-                    # might have been inserted by another process.
-                    id = _find_id_helper(cursor)
-                    if id is not None:
-                        return id
-                    # Run rejection sampling.
-                    for j in range(8):
-                        id = id_space.gen_random_id(subspace)
-                        cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
-                        if not cursor.fetchone():
-                            break
-                        id = None
-                    # If it succeeded, insert the row and return the id.
-                    if id is not None:
-                        self.set_id(
-                            id,
-                            description=description,
-                            atime=atime,
-                        )
-                        return id
+            with self.conn, closing(self.conn.cursor()) as cursor:
+                self.conn.execute("BEGIN IMMEDIATE")
+                # First, try to find an existing ID with the given description. It
+                # might have been inserted by another process.
+                id = _find_id_helper(cursor)
+                if id is not None:
+                    return id
+                # Run rejection sampling.
+                for j in range(8):
+                    id = id_space.gen_random_id(subspace)
+                    cursor.execute(f"SELECT id FROM {namespace} WHERE id=?", (id,))
+                    if not cursor.fetchone():
+                        break
+                    id = None
+                # If it succeeded, insert the row and return the id.
+                if id is not None:
+                    self.set_id(
+                        id,
+                        description=description,
+                        atime=atime,
+                    )
+                    return id
             if frac == 0:
                 break
             # If it failed, try to do a cleanup.
@@ -911,103 +908,99 @@ class IDManager:
             if not first_iteration:
                 time.sleep(stall_timeout)
             first_iteration = False
-            with self.conn:
-                with closing(self.conn.cursor()) as cursor:
-                    cursor.execute("BEGIN IMMEDIATE")
+            with self.conn, closing(self.conn.cursor()) as cursor:
+                cursor.execute("BEGIN IMMEDIATE")
 
-                    # If terminal-wide locking is enabled, check for any active uploads
-                    # to this terminal.
-                    if not allow_concurrent_uploads:
-                        cursor.execute(
-                            """
-                            SELECT id, upload_time FROM upload
-                            WHERE terminal=? AND status=?
-                            ORDER BY upload_time DESC LIMIT 1
-                            """,
-                            (terminal, UPLOADING_STATUS_IN_PROGRESS),
-                        )
-                        row = cursor.fetchone()
-
-                        if row:
-                            # There's an active upload.
-                            active_id = row[0]
-                            active_upload_time = datetime.fromisoformat(row[1])
-                            # Check if the upload is stalled
-                            if existing_upload_time == active_upload_time:
-                                # The upload appears stalled, mark it as dirty
-                                cursor.execute(
-                                    """UPDATE upload SET status=?
-                                       WHERE terminal=? AND id=?""",
-                                    (UPLOADING_STATUS_DIRTY, terminal, active_id),
-                                )
-                            else:
-                                # Try again.
-                                existing_upload_time = active_upload_time
-                                continue
-
-                    # Check if there's an existing upload entry for this specific ID
+                # If terminal-wide locking is enabled, check for any active uploads
+                # to this terminal.
+                if not allow_concurrent_uploads:
                     cursor.execute(
-                        """SELECT description, upload_time, size, status, upload_id
-                           FROM upload WHERE id=? AND terminal=?""",
-                        (id, terminal),
+                        """
+                        SELECT id, upload_time FROM upload
+                        WHERE terminal=? AND status=?
+                        ORDER BY upload_time DESC LIMIT 1
+                        """,
+                        (terminal, UPLOADING_STATUS_IN_PROGRESS),
                     )
                     row = cursor.fetchone()
-                    active_upload_time = datetime.fromisoformat(row[1]) if row else None
 
-                    # Create a new upload entry if:
-                    # - there is no existing entry, or
-                    # - the entry is marked as DIRTY, or
-                    # - it's successfully finished, but the description is wrong, or
-                    # - we are checking whether the upload is stalled and we don't see
-                    #   any change in upload time, meaning it's actually stalled.
-                    # - we are forced to upload and the upload is not in progress.
-                    if (
-                        row is None
-                        or row[3] == UPLOADING_STATUS_DIRTY
-                        or (
-                            row[3] == UPLOADING_STATUS_UPLOADED
-                            and row[0] != description
-                        )
-                        or existing_upload_time == active_upload_time
-                        or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS)
-                    ):
-                        return self._create_new_upload_entry(
-                            cursor,
-                            id,
-                            terminal,
-                            description=description,
-                            size=size,
-                            upload_time=upload_time,
-                            upload_id=new_upload_id,
-                        )
+                    if row:
+                        # There's an active upload.
+                        active_id = row[0]
+                        active_upload_time = datetime.fromisoformat(row[1])
+                        # Check if the upload is stalled
+                        if existing_upload_time == active_upload_time:
+                            # The upload appears stalled, mark it as dirty
+                            cursor.execute(
+                                """UPDATE upload SET status=?
+                                   WHERE terminal=? AND id=?""",
+                                (UPLOADING_STATUS_DIRTY, terminal, active_id),
+                            )
+                        else:
+                            # Try again.
+                            existing_upload_time = active_upload_time
+                            continue
 
-                    # Parse existing row data
-                    existing_description, _, existing_size, status, upload_id = row
-                    assert active_upload_time is not None
-                    existing_upload_time = active_upload_time
+                # Check if there's an existing upload entry for this specific ID
+                cursor.execute(
+                    """SELECT description, upload_time, size, status, upload_id
+                       FROM upload WHERE id=? AND terminal=?""",
+                    (id, terminal),
+                )
+                row = cursor.fetchone()
+                active_upload_time = datetime.fromisoformat(row[1]) if row else None
 
-                    # If already uploaded, return that info, unless we are forced to
-                    # upload. If we are forced to upload, we must wait for the other
-                    # process to finish first.
-                    # TODO: We can try to abort the other process, but there is a risk
-                    #       it will try reuploading before us. It's probably not the
-                    #       most important case anyway.
-                    if (
-                        not force_upload
-                        and status == UPLOADING_STATUS_UPLOADED
-                        and existing_description == description
-                    ):
-                        return UploadInfo(
-                            id=id,
-                            description=existing_description,
-                            upload_time=existing_upload_time,
-                            terminal=terminal,
-                            size=existing_size,
-                            bytes_ago=0,
-                            uploads_ago=0,
-                            status=UPLOADING_STATUS_UPLOADED,
-                            upload_id=upload_id,
-                        )
+                # Create a new upload entry if:
+                # - there is no existing entry, or
+                # - the entry is marked as DIRTY, or
+                # - it's successfully finished, but the description is wrong, or
+                # - we are checking whether the upload is stalled and we don't see
+                #   any change in upload time, meaning it's actually stalled.
+                # - we are forced to upload and the upload is not in progress.
+                if (
+                    row is None
+                    or row[3] == UPLOADING_STATUS_DIRTY
+                    or (row[3] == UPLOADING_STATUS_UPLOADED and row[0] != description)
+                    or existing_upload_time == active_upload_time
+                    or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS)
+                ):
+                    return self._create_new_upload_entry(
+                        cursor,
+                        id,
+                        terminal,
+                        description=description,
+                        size=size,
+                        upload_time=upload_time,
+                        upload_id=new_upload_id,
+                    )
+
+                # Parse existing row data
+                existing_description, _, existing_size, status, upload_id = row
+                assert active_upload_time is not None
+                existing_upload_time = active_upload_time
+
+                # If already uploaded, return that info, unless we are forced to
+                # upload. If we are forced to upload, we must wait for the other
+                # process to finish first.
+                # TODO: We can try to abort the other process, but there is a risk
+                #       it will try reuploading before us. It's probably not the
+                #       most important case anyway.
+                if (
+                    not force_upload
+                    and status == UPLOADING_STATUS_UPLOADED
+                    and existing_description == description
+                ):
+                    return UploadInfo(
+                        id=id,
+                        description=existing_description,
+                        upload_time=existing_upload_time,
+                        terminal=terminal,
+                        size=existing_size,
+                        bytes_ago=0,
+                        uploads_ago=0,
+                        status=UPLOADING_STATUS_UPLOADED,
+                        upload_id=upload_id,
+                    )
 
             # Otherwise the upload is in progress. Exit the transaction and try again
             # after a short delay.
@@ -1032,71 +1025,70 @@ class IDManager:
         if upload_time is None:
             upload_time = datetime.now()
 
-        with self.conn:
-            with closing(self.conn.cursor()) as cursor:
-                cursor.execute("BEGIN IMMEDIATE")
+        with self.conn, closing(self.conn.cursor()) as cursor:
+            cursor.execute("BEGIN IMMEDIATE")
 
-                # Check the description of the ID. of the description for the ID is
-                # different from what we expect, someone has probably hijacked the ID.
-                # We cannot just retry the upload, we need to reassign the ID.
-                id_space = IDSpace.from_id(upload.id)
-                namespace = id_space.namespace_name()
-                cursor.execute(
-                    f"SELECT description FROM {namespace} WHERE id=?",
-                    (upload.id,),
+            # Check the description of the ID. of the description for the ID is
+            # different from what we expect, someone has probably hijacked the ID.
+            # We cannot just retry the upload, we need to reassign the ID.
+            id_space = IDSpace.from_id(upload.id)
+            namespace = id_space.namespace_name()
+            cursor.execute(
+                f"SELECT description FROM {namespace} WHERE id=?",
+                (upload.id,),
+            )
+            row = cursor.fetchone()
+            if not row or row[0] != upload.description:
+                raise RetryAssignIdError(
+                    f"ID {upload.id} was reassigned to {row[0]} instead of"
+                    f" {upload.description} during uploading"
                 )
-                row = cursor.fetchone()
-                if not row or row[0] != upload.description:
-                    raise RetryAssignIdError(
-                        f"ID {upload.id} was reassigned to {row[0]} instead of"
-                        f" {upload.description} during uploading"
-                    )
 
-                # Check if the upload entry still exists with the correct upload_id
+            # Check if the upload entry still exists with the correct upload_id
+            cursor.execute(
+                """
+                SELECT status, upload_id, description FROM upload
+                WHERE id=? AND terminal=?
+                """,
+                (upload.id, upload.terminal),
+            )
+            row = cursor.fetchone()
+
+            # If the entry doesn't exist or has a different upload_id or
+            # description, we need to retry.
+            if (
+                not row
+                or row[1] != upload.upload_id
+                or row[2] != upload.description
+                or row[0] != UPLOADING_STATUS_IN_PROGRESS
+            ):
+                # Mark as dirty to ensure it gets reuploaded
                 cursor.execute(
-                    """
-                    SELECT status, upload_id, description FROM upload
-                    WHERE id=? AND terminal=?
-                    """,
-                    (upload.id, upload.terminal),
+                    "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
+                    (UPLOADING_STATUS_DIRTY, upload.id, upload.terminal),
                 )
-                row = cursor.fetchone()
-
-                # If the entry doesn't exist or has a different upload_id or
-                # description, we need to retry.
-                if (
-                    not row
-                    or row[1] != upload.upload_id
-                    or row[2] != upload.description
-                    or row[0] != UPLOADING_STATUS_IN_PROGRESS
-                ):
-                    # Mark as dirty to ensure it gets reuploaded
-                    cursor.execute(
-                        "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
-                        (UPLOADING_STATUS_DIRTY, upload.id, upload.terminal),
-                    )
-                    # Otherwise we should try to reupload with the same ID.
-                    raise RetryUploadError(
-                        f"Upload entry for ID {upload.id} on terminal {upload.terminal} "
-                        f"has been modified or deleted"
-                    )
-
-                # Update the upload time and status.
-                cursor.execute(
-                    """
-                    UPDATE upload SET
-                        upload_time=?,
-                        status=?
-                    WHERE id=? AND terminal=? AND upload_id=?
-                    """,
-                    (
-                        upload_time.isoformat(),
-                        set_status,
-                        upload.id,
-                        upload.terminal,
-                        upload.upload_id,
-                    ),
+                # Otherwise we should try to reupload with the same ID.
+                raise RetryUploadError(
+                    f"Upload entry for ID {upload.id} on terminal {upload.terminal} "
+                    f"has been modified or deleted"
                 )
+
+            # Update the upload time and status.
+            cursor.execute(
+                """
+                UPDATE upload SET
+                    upload_time=?,
+                    status=?
+                WHERE id=? AND terminal=? AND upload_id=?
+                """,
+                (
+                    upload_time.isoformat(),
+                    set_status,
+                    upload.id,
+                    upload.terminal,
+                    upload.upload_id,
+                ),
+            )
 
     def retry_uploading_until_success(
         self,

@@ -1,13 +1,15 @@
 import argparse
+import logging
 import os
 import sys
 import time
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import ikup
 from ikup.id_manager import IDSpace, IDSubspace
 from ikup.ikup_terminal import ImageInfo, ImageInstance, ValidationError
+from ikup.conversion_cache import ConversionCache
 from ikup.utils import *
 
 HELP_PRINT = """\
@@ -196,6 +198,7 @@ def status(command: str):
     print(f"terminal_id: {ikupterm._terminal_id}")
     print(f"session_id: {ikupterm._session_id}")
     print(f"database_file: {ikupterm.id_manager.database_file}")
+    print(f"cache_directory: {ikupterm.conversion_cache.cache_directory}")
     print(f"Default ID space: {ikupterm.get_id_space()}")
     print(f"Default subspace: {ikupterm.get_subspace()}")
     print(f"Total IDs in the session db: {ikupterm.id_manager.count()}")
@@ -767,6 +770,261 @@ def cleanup(command: str):
     ikupterm.cleanup_current_database()
 
 
+def cache(command: str, cache_command: str, **kwargs):
+    """Handle cache subcommands."""
+    _ = command
+    ikupterm = ikup.IkupTerminal()
+    conversion_cache = ikupterm.conversion_cache
+
+    if cache_command == "convert":
+        cache_convert(conversion_cache, **kwargs)
+    elif cache_command == "remove":
+        cache_remove(conversion_cache, **kwargs)
+    elif cache_command == "list":
+        cache_list(conversion_cache, **kwargs)
+    elif cache_command == "check":
+        cache_check(conversion_cache, **kwargs)
+    else:
+        print(f"error: Unknown cache command: {cache_command}", file=sys.stderr)
+        sys.exit(2)
+
+
+def cache_convert(
+    conversion_cache: ConversionCache,
+    image: str,
+    format: Optional[str],
+    width: Optional[int],
+    height: Optional[int],
+    max_bytes: Optional[int],
+    size: Optional[Tuple[int, int]],
+):
+    """Convert an image and print the cached path."""
+    if not os.path.exists(image):
+        raise CLIArgumentsError(f"Image file not found: {image}")
+
+    # Parse --size option if provided
+    if size is not None:
+        if width is not None or height is not None:
+            raise CLIArgumentsError("Cannot specify both --size and --width/--height")
+        width, height = size
+
+    if max_bytes is not None and (width is not None or height is not None):
+        raise CLIArgumentsError(
+            "Cannot specify max_bytes together with width or height."
+        )
+
+    image = os.path.abspath(image)
+
+    cached_image = conversion_cache.convert(
+        image_path=image,
+        format=format,
+        width=width,
+        height=height,
+        max_size_bytes=max_bytes,
+    )
+    print(cached_image.path)
+
+
+def cache_remove(
+    conversion_cache: ConversionCache,
+    image: Optional[str],
+    all: bool,
+    format: Optional[str],
+    width: Optional[int],
+    height: Optional[int],
+    size: Optional[Tuple[int, int]],
+):
+    """Remove cached images."""
+    # Handle --all option
+    if all:
+        if (
+            image is not None
+            or format is not None
+            or width is not None
+            or height is not None
+            or size is not None
+        ):
+            raise CLIArgumentsError("Cannot specify other options with --all")
+
+        removed_count = conversion_cache.remove_all_cached_images()
+        print(f"Removed {removed_count} cached images", file=sys.stderr)
+        return
+
+    # Require image argument if not using --all
+    if image is None:
+        raise CLIArgumentsError("Must specify image path or use --all")
+
+    # Parse --size option if provided
+    if size is not None:
+        if width is not None or height is not None:
+            raise CLIArgumentsError("Cannot specify both --size and --width/--height")
+        width, height = size
+
+    # Check if it's a cached file path vs source image path
+    if image.startswith(conversion_cache.cache_directory) or not os.path.exists(image):
+        # Try to remove by cached path
+        removed = conversion_cache.remove_by_cached_path(image)
+        if not removed:
+            print("No cached image found at that path", file=sys.stderr)
+            sys.exit(1)
+        print("Removed 1 cached image", file=sys.stderr)
+        return
+
+    # Remove by source image criteria
+    image = os.path.abspath(image)
+    removed_count = conversion_cache.remove_cached_images(
+        image_path=image, format=format, width=width, height=height
+    )
+    print(f"Removed {removed_count} cached images", file=sys.stderr)
+    if removed_count == 0:
+        sys.exit(1)
+
+
+def cache_list(
+    conversion_cache: ConversionCache,
+    images: List[str],
+):
+    """List cached images."""
+    cached_images = conversion_cache.get_cached_images()
+
+    if images:
+        # Filter to only show specified images
+        images_abs = [os.path.abspath(img) for img in images if os.path.exists(img)]
+        cached_images = [
+            cached for cached in cached_images if cached.path in images_abs
+        ]
+
+    if not cached_images:
+        if images:
+            print("No cached images found for the specified files.", file=sys.stderr)
+        else:
+            print("No cached images found.", file=sys.stderr)
+        return
+
+    for source_image in cached_images:
+        mtime_str = source_image.mtime.isoformat()
+        print(f"{source_image.path} (mtime: {mtime_str})")
+        for converted in source_image.converted_images:
+            size_str = f"{converted.width}x{converted.height}"
+            bytes_str = f"{converted.size_bytes}"
+            print(
+                f"  {converted.format.upper()} {size_str} {bytes_str} {converted.path}"
+            )
+
+
+def cache_check(
+    conversion_cache: ConversionCache,
+    image: str,
+    format: Optional[str],
+    width: Optional[int],
+    height: Optional[int],
+    max_bytes: Optional[int],
+    size: Optional[Tuple[int, int]],
+):
+    """Check if an image is cached with given parameters."""
+    # Parse --size option if provided
+    if size is not None:
+        if width is not None or height is not None:
+            raise CLIArgumentsError("Cannot specify both --size and --width/--height")
+        width, height = size
+
+    if max_bytes is not None and (width is not None or height is not None):
+        raise CLIArgumentsError(
+            "Cannot specify max_bytes together with width or height."
+        )
+
+    # Find the cached image entry. Don't remove it f the file doesn't exist, don't
+    # update the access time.
+    cached_image = conversion_cache.find_cached_image(
+        image_path=image,
+        format=format,
+        width=width,
+        height=height,
+        max_size_bytes=max_bytes,
+        update_atime=False,
+        remove_if_missing=False,
+    )
+
+    if cached_image is None:
+        print("Not cached", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Cached: {cached_image.path}")
+    print(f"Format: {cached_image.format}")
+    print(f"Size: {cached_image.width}x{cached_image.height}")
+    print(f"Bytes: {cached_image.size_bytes}")
+
+    errors = False
+
+    # Check if the entry is consistent with the request.
+    if width is not None and cached_image.width != width:
+        print(f"Error: Width mismatch: requested {width}, cached {cached_image.width}")
+        errors = True
+    if height is not None and cached_image.height != height:
+        print(
+            f"Error: Height mismatch: requested {height}, cached {cached_image.height}"
+        )
+        errors = True
+
+    # Get the actual information from the cached file.
+    image_object = None
+    actual_size_bytes = None
+    actual_format = None
+    actual_width = None
+    actual_height = None
+    file_exists = os.path.exists(cached_image.path)
+
+    if not file_exists:
+        errors = True
+    else:
+        actual_size_bytes = os.path.getsize(cached_image.path)
+        try:
+            from PIL import Image
+
+            image_object = Image.open(cached_image.path)
+            actual_width, actual_height = image_object.size
+            actual_format = (image_object.format or "UNKNOWN").upper()
+        except Exception as e:
+            print(f"Error reading cached image: {e}", file=sys.stderr)
+            errors = True
+
+        if max_bytes is not None:
+            if actual_size_bytes > max_bytes and (
+                cached_image.width > 1 or cached_image.height > 1
+            ):
+                print(
+                    f"Error: Cached image size {actual_size_bytes} bytes exceeds requested max_bytes {max_bytes} and is not the smallest possible image"
+                )
+                errors = True
+            if (
+                max_bytes - actual_size_bytes > max_bytes * conversion_cache.tolerance
+                and not cached_image.is_biggest
+            ):
+                print(
+                    f"Warning: Cached image size {actual_size_bytes} bytes is not within tolerance of {conversion_cache.tolerance} of max_bytes {max_bytes}"
+                )
+                errors = True
+
+    if actual_format is not None and actual_format != cached_image.format:
+        print(
+            f"Error: Format mismatch: db entry {cached_image.format}, file {actual_format}"
+        )
+        errors = True
+    if actual_width is not None and actual_width != cached_image.width:
+        print(
+            f"Error: Width mismatch: db entry {cached_image.width}, file {actual_width}"
+        )
+        errors = True
+    if actual_height is not None and actual_height != cached_image.height:
+        print(
+            f"Error: Height mismatch: db entry {cached_image.height}, file {actual_height}"
+        )
+        errors = True
+
+    if errors:
+        sys.exit(1)
+
+
 def main_unwrapped():
     parser = argparse.ArgumentParser(
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -837,6 +1095,11 @@ def main_unwrapped():
     p_cleanup = subparsers.add_parser(
         "cleanup",
         help="Trigger db cleanup.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_cache = subparsers.add_parser(
+        "cache",
+        help="Manage image conversion cache.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     p_help = subparsers.add_parser(
@@ -1131,6 +1394,103 @@ def main_unwrapped():
             help="The range of the most significand byte for automatically assigned IDs, BEGIN <= msb < END.",
         )
 
+    # Cache subcommands
+    cache_subparsers = p_cache.add_subparsers(
+        dest="cache_command", metavar="CACHE_COMMAND"
+    )
+
+    # cache convert subcommand
+    p_cache_convert = cache_subparsers.add_parser(
+        "convert",
+        help="Convert an image and write the full path to stdout.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_cache_convert.add_argument("image", help="Path to the image to convert.")
+    p_cache_convert.add_argument(
+        "-f", "--format", help="Output format (e.g., PNG, JPEG)."
+    )
+    p_cache_convert.add_argument(
+        "-W", "--width", type=positive_int, help="Target width in pixels."
+    )
+    p_cache_convert.add_argument(
+        "-H", "--height", type=positive_int, help="Target height in pixels."
+    )
+    p_cache_convert.add_argument(
+        "-s", "--size", type=validate_size, help="Target size as WxH (e.g., 800x600)."
+    )
+    p_cache_convert.add_argument(
+        "-b", "--max-bytes", type=positive_int, help="Maximum size in bytes."
+    )
+
+    # cache remove subcommand
+    p_cache_remove = cache_subparsers.add_parser(
+        "remove",
+        help="Remove cached images.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_cache_remove.add_argument(
+        "image", nargs="?", help="Path to the source image or cached image."
+    )
+    p_cache_remove.add_argument(
+        "--all", action="store_true", help="Remove all cached images."
+    )
+    p_cache_remove.add_argument(
+        "-f", "--format", help="Format to remove (removes all if not specified)."
+    )
+    p_cache_remove.add_argument(
+        "-W",
+        "--width",
+        type=positive_int,
+        help="Width to remove (removes all if not specified).",
+    )
+    p_cache_remove.add_argument(
+        "-H",
+        "--height",
+        type=positive_int,
+        help="Height to remove (removes all if not specified).",
+    )
+    p_cache_remove.add_argument(
+        "-s",
+        "--size",
+        type=validate_size,
+        help="Size to remove as WxH (e.g., 800x600).",
+    )
+
+    # cache list subcommand
+    p_cache_list = cache_subparsers.add_parser(
+        "list",
+        help="List cached images.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_cache_list.add_argument(
+        "images",
+        nargs="*",
+        help="Specific images to list (lists all if not specified).",
+    )
+
+    # cache check subcommand
+    p_cache_check = cache_subparsers.add_parser(
+        "check",
+        help="Check if an image is cached with given parameters.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    p_cache_check.add_argument("image", help="Path to the image to check.")
+    p_cache_check.add_argument(
+        "-f", "--format", help="Output format (e.g., PNG, JPEG)."
+    )
+    p_cache_check.add_argument(
+        "-W", "--width", type=positive_int, help="Target width in pixels."
+    )
+    p_cache_check.add_argument(
+        "-H", "--height", type=positive_int, help="Target height in pixels."
+    )
+    p_cache_check.add_argument(
+        "-s", "--size", type=validate_size, help="Target size as WxH (e.g., 800x600)."
+    )
+    p_cache_check.add_argument(
+        "-b", "--max-bytes", type=positive_int, help="Maximum size in bytes."
+    )
+
     # Handle the default command case.
     all_commands = subparsers.choices.keys()
     contains_help = False
@@ -1155,6 +1515,13 @@ def main_unwrapped():
     # Parse the arguments
     args = parser.parse_args()
     vardict = vars(args)
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.CRITICAL,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%H:%M:%S",
+    )
 
     # Replace UseConfig() with None.
     for key, value in vardict.items():
@@ -1184,6 +1551,8 @@ def main_unwrapped():
         cleanup(**vardict)
     elif args.command == "help":
         help(**vardict)
+    elif args.command == "cache":
+        cache(**vardict)
     else:
         print(f"error: Command not implemented: {args.command}", file=sys.stderr)
         sys.exit(2)

@@ -1,0 +1,174 @@
+========== TEST test_cache_concurrent - Concurrent cache conversion ==========
+
+
+---------- SUBTEST Clear cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+ikup cache list
+No cached images found.
+
+---------- SUBTEST Test multiple concurrent conversions ----------
+
+Starting background processes
+Waiting for background processes to complete...
+wc -l {{.*}}/cache_concurrent_commands_shuf.txt
+135 {{.*}}/cache_concurrent_commands_shuf.txt
+wc -l {{.*}}/outputs.txt
+135 {{.*}}/outputs.txt
+Unique outputs: [[num_outs:.*]]
+{{:ASSERT: 10 <= int(num_outs) <= 50 }}
+Checking the cache
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 1000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 0 <= int(num_bytes) <= 1000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 2000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 0 <= int(num_bytes) <= 2000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 10000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 9500 <= int(num_bytes) <= 10000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 100000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 95000 <= int(num_bytes) <= 100000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 101000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 95000 <= int(num_bytes) <= 101000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 99000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 94000 <= int(num_bytes) <= 99000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 102000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 97000 <= int(num_bytes) <= 102000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 98000
+Cached: {{.*}}
+Format: JPEG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 93000 <= int(num_bytes) <= 98000 }}
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 1000000
+Cached: {{.*}}
+Format: JPEG
+Size: 3792x2528
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: int(num_bytes) <= 1000000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 1000
+Cached: {{.*}}
+Format: PNG
+Size: 1x1
+Bytes: {{.*}}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 2000
+Cached: {{.*}}
+Format: PNG
+Size: 1x1
+Bytes: {{.*}}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 10000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 9500 <= int(num_bytes) <= 10000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 100000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 95000 <= int(num_bytes) <= 100000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 101000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 95000 <= int(num_bytes) <= 101000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 99000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 94000 <= int(num_bytes) <= 99000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 102000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 97000 <= int(num_bytes) <= 102000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 98000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 93000 <= int(num_bytes) <= 98000 }}
+ikup cache check ./.cli-tests-data/column.png --max-bytes 1000000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 93000 <= int(num_bytes) <= 1000000 }}
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 1000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 2000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 10000
+Cached: {{.*}}
+Format: PNG
+Size: {{.*}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 9500 <= int(num_bytes) <= 10000 }}
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 100000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 101000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 99000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 102000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 98000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+ikup cache check ./.cli-tests-data/tux.png --max-bytes 1000000
+Cached: {{.*}}
+Format: PNG
+Size: 265x314
+Bytes: 11913
+

@@ -40,6 +40,7 @@ jobs:
         uses: coactions/setup-xvfb@v1.0.1
         with:
           run: |
+            sudo apt install -y imagemagick
             ./st-graphics/st -e ./test_scripts/run-cli-tests.sh
             test_scripts/compare-cli-test.sh cli-test-outputs
 

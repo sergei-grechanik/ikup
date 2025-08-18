@@ -107,8 +107,11 @@ if [ -z "$NO_SCRIPT" ]; then
     # Remove script header and footer lines
     sed -i '/^Script started on /d; /^Script done on /d' "$OUTPUT_DIR/typescript"
 
+    # Remove any existing new_files file
+    rm -f $OUTPUT_DIR/new_files 2> /dev/null
+
     # Split the file by test markers
-    awk -v output_dir="$OUTPUT_DIR" '
+    awk -v output_dir="$OUTPUT_DIR" -v new_files="$OUTPUT_DIR/new_files" '
     /^========== TEST [a-zA-Z_]+ - / {
         if (current_file) close(current_file)
         # Extract test function name from the line
@@ -119,6 +122,7 @@ if [ -z "$NO_SCRIPT" ]; then
             }
         }
         current_file = output_dir "/" test_name ".out"
+        print current_file >> new_files
         print > current_file
         next
     }
@@ -126,7 +130,7 @@ if [ -z "$NO_SCRIPT" ]; then
     ' "$OUTPUT_DIR/typescript"
 
     # Post-process each output file
-    for output_file in "$OUTPUT_DIR"/*.out; do
+    while IFS= read -r output_file; do
         if [ -f "$output_file" ]; then
             # Remove carriage return characters before newlines
             sed -i 's/\r$//' "$output_file"
@@ -139,7 +143,7 @@ if [ -z "$NO_SCRIPT" ]; then
             sed -i 's/\(\x1b_G[^\x1b]*\x1b\\\)\(.\)/\1\n\2/g' "$output_file"
             sed -i 's/\(.\)\(\x1b_G[^\x1b]*\x1b\\\)/\1\n\2/g' "$output_file"
         fi
-    done
+    done < "$OUTPUT_DIR/new_files"
 
     exit 0
 fi
@@ -167,6 +171,7 @@ start_test() {
     echo "========== TEST $CURRENT_TEST_NAME - $1 =========="
     echo
     $IKUP forget --all --quiet
+    $IKUP dirty --all --quiet
 }
 
 subtest() {
@@ -181,6 +186,15 @@ run_command() {
     IKUP_EXIT_CODE="$?"
     if [ $IKUP_EXIT_CODE -ne 0 ]; then
         echo "Exit code: $IKUP_EXIT_CODE"
+    fi
+}
+
+echorun() {
+    printf "%s\n" "$*" >&2
+    "$@"
+    EXIT_CODE="$?"
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Exit code: $EXIT_CODE"
     fi
 }
 
@@ -223,6 +237,9 @@ fi
 
 export IKUP_CONFIG="DEFAULT"
 export IKUP_ID_DATABASE_DIR="$DATABASE_DIR"
+export IKUP_CACHE_DIR="$TMPDIR/cache"
+# Set a smaller tolerance for the cache tests.
+export IKUP_THUMBNAIL_FILE_SIZE_TOLERANCE=0.05
 
 # Disable 3rd diacritics because they are hard to match with the reference. We
 # will test them only in fixed id tests.
@@ -995,6 +1012,229 @@ test_validation() {
     IKUP_GLOBAL_SCALE=0 run_command display /nonexistent
     IKUP_GLOBAL_SCALE=-2.5 run_command display /nonexistent
     IKUP_GLOBAL_SCALE=2000000 run_command display /nonexistent
+}
+
+################################################################################
+
+test_cache_basic() {
+    start_test "Basic cache functionality"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+    run_command cache list
+
+    subtest "Test resizing to specific dimensions (WxH)"
+    run_command cache convert $DATA_DIR/earth.jpg -s 100x80
+    run_command cache convert $DATA_DIR/butterfly.jpg --size 50x50 --format png
+    run_command cache list
+
+    subtest "Test resizing with width only (automatic height)"
+    run_command cache convert $DATA_DIR/tux.png --width 64
+    run_command cache convert $DATA_DIR/ruler.png --width 200 --format jpeg
+    run_command cache convert $DATA_DIR/ruler.png --width 100 --format jpeg
+    run_command cache list
+
+    subtest "Test resizing with height only. Check idempotence."
+    sun1="$(run_command cache convert $DATA_DIR/sun.jpg --height 75 --format png)"
+    stat -c '%y' "$sun1"
+    identify "$sun1"
+    sun2="$(run_command cache convert $DATA_DIR/sun.jpg --height 75 --format png)"
+    stat -c '%y' "$sun2"
+    identify "$sun2"
+    run_command cache list
+
+    subtest "Test format conversion without resizing"
+    run_command cache convert $DATA_DIR/earth.jpg --format png
+    run_command cache convert $DATA_DIR/tux.png --format jpeg
+    run_command cache list
+}
+
+################################################################################
+
+test_cache_max_bytes() {
+    start_test "Cache max-bytes functionality"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+    run_command cache list
+
+    subtest "Test conversion to larger size than original (no resize should happen)"
+    echorun stat -c %s $DATA_DIR/earth.jpg
+    run_command cache convert $DATA_DIR/earth.jpg --max-bytes 1000000
+    run_command cache list $DATA_DIR/earth.jpg
+
+    subtest "Test conversion to smaller size"
+    run_command cache convert $DATA_DIR/earth.jpg --max-bytes 5000 --format png
+    run_command cache convert $DATA_DIR/earth.jpg --max-bytes 4500 --format png
+    run_command cache list $DATA_DIR/earth.jpg
+
+    subtest "Test png conversion to smaller size"
+    echorun stat -c %s $DATA_DIR/transparency.png
+    run_command cache convert $DATA_DIR/transparency.png --max-bytes 100000
+    run_command cache convert $DATA_DIR/transparency.png --max-bytes 101000
+    run_command cache convert $DATA_DIR/transparency.png --max-bytes 99000
+    run_command cache convert $DATA_DIR/transparency.png --max-bytes 94000
+    run_command cache list $DATA_DIR/transparency.png
+
+    subtest "Test conversion to very small size (should get 1x1)"
+    echorun stat -c %s $DATA_DIR/butterfly.jpg
+    run_command cache convert $DATA_DIR/butterfly.jpg --max-bytes 500 --format png
+    run_command cache list $DATA_DIR/butterfly.jpg
+    run_command cache convert $DATA_DIR/butterfly.jpg --max-bytes 700 --format png
+    run_command cache list $DATA_DIR/butterfly.jpg
+
+    subtest "Test PNG to JPEG conversion with size limits"
+    run_command cache convert $DATA_DIR/tux.png --max-bytes 3000 --format jpeg
+    run_command cache convert $DATA_DIR/wikipedia.png --max-bytes 8000 --format jpeg
+    run_command cache list $DATA_DIR/tux.png
+    run_command cache list $DATA_DIR/wikipedia.png
+
+    subtest "Test JPEG to PNG conversion with size limits"
+    run_command cache convert $DATA_DIR/mars.jpg --max-bytes 10000 --format png
+    run_command cache convert $DATA_DIR/sun.jpg --max-bytes 15000 --format png
+    run_command cache list $DATA_DIR/mars.jpg
+    run_command cache list $DATA_DIR/sun.jpg
+}
+
+################################################################################
+
+test_cache_check() {
+    start_test "Cache check functionality"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+    run_command cache list
+
+    subtest "Convert images to cache"
+    run_command cache convert $DATA_DIR/earth.jpg --width 80 --height 80
+    run_command cache convert $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+
+    subtest "Check the cache for width/height combinations"
+    run_command cache check $DATA_DIR/earth.jpg --width 80 --height 80
+    run_command cache check $DATA_DIR/earth.jpg --width 80
+    run_command cache check $DATA_DIR/earth.jpg --width 80 --height 81
+    run_command cache check $DATA_DIR/earth.jpg --width 80 --height 80 --format png
+    run_command cache check $DATA_DIR/earth.jpg --width 80 --height 80 --format jpeg
+
+    subtest "Test single dimension tolerance behavior"
+    # Create a cache entry with specific dimensions (64x75 for tux.png)
+    run_command cache convert $DATA_DIR/tux.png --width 64
+    # Check that exact width matches
+    run_command cache check $DATA_DIR/tux.png --width 64
+    # Check that slightly different width doesn't match (no tolerance for explicit dimensions)
+    run_command cache check $DATA_DIR/tux.png --width 65
+    # Check that height-only queries also don't use tolerance
+    run_command cache check $DATA_DIR/tux.png --height 75
+    run_command cache check $DATA_DIR/tux.png --height 76
+
+    subtest "Check the cache for max-bytes"
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8100 --format png
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 7999 --format png
+
+    subtest "These images should not be found"
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 7610 --format png
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8401 --format png
+
+    subtest "Test max-bytes check with a very big request"
+    echo "This image shouldn't be found in the cache"
+    run_command cache check $DATA_DIR/tux.png --max-bytes 100000
+    run_command cache check $DATA_DIR/tux.png --max-bytes 11913
+
+    echo "Now request a large image"
+    run_command cache convert $DATA_DIR/tux.png --max-bytes 100000
+    echo "The image should be found in the cache now"
+    run_command cache check $DATA_DIR/tux.png --max-bytes 100000
+    run_command cache check $DATA_DIR/tux.png --max-bytes 11913
+    echo "But a smaller image should not be found"
+    run_command cache check $DATA_DIR/tux.png --max-bytes 11900
+
+    subtest "Test max-bytes check with a very small request"
+    run_command cache convert $DATA_DIR/tux.png --max-bytes 10
+    subtest "This should return the minimal image and report impossibility"
+    run_command cache check $DATA_DIR/tux.png --max-bytes 20
+
+    subtest "Corrupt the cache"
+    cached_file="$($IKUP cache convert $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png)"
+    echorun rm "$cached_file"
+    echo "The next command should return an error"
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+    echo "The next command should recreate the file"
+    run_command cache convert $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+    cached_file="$($IKUP cache convert $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png)"
+    echorun cp $DATA_DIR/butterfly.jpg "$cached_file"
+    echo "The next command should return another error"
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8000 --format png
+}
+
+################################################################################
+
+test_cache_column() {
+    start_test "Cache max-bytes functionality, a tricky column image"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+    run_command cache list
+
+    run_command cache convert .cli-tests-data/column.png -b 1000
+    run_command cache check .cli-tests-data/column.png -b 1000
+    echo "The next command must return no image"
+    run_command cache check .cli-tests-data/column.png -b 10000
+
+    echo "Now check that a big image is found after conversion"
+    run_command cache convert .cli-tests-data/column.png -b 1000000
+    run_command cache check .cli-tests-data/column.png -b 1000000
+}
+
+################################################################################
+
+test_cache_concurrent() {
+    start_test "Concurrent cache conversion"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+    run_command cache list
+
+    subtest "Test multiple concurrent conversions"
+
+    SIZES="1000 2000 10000 100000 101000 99000 102000 98000 1000000"
+
+    # Build many cache commands
+    for img in $DATA_DIR/butterfly.jpg $DATA_DIR/column.png $DATA_DIR/tux.png; do
+        for size in $SIZES; do
+            echo " $img --max-bytes $size "
+        done
+    done > "$TMPDIR/cache_concurrent_commands.txt"
+
+    # Repeat them several times and shuffle
+    for i in $(seq 1 5); do
+        cat "$TMPDIR/cache_concurrent_commands.txt"
+    done | shuf > "$TMPDIR/cache_concurrent_commands_shuf.txt"
+
+    # Run the shuffled commands
+    echo "Starting background processes"
+    while read -r command; do
+        $IKUP cache convert $command >> "$TMPDIR/outputs.txt" &
+    done < "$TMPDIR/cache_concurrent_commands_shuf.txt"
+
+    echo "Waiting for background processes to complete..."
+    wait
+
+    echorun wc -l "$TMPDIR/cache_concurrent_commands_shuf.txt"
+    echorun wc -l "$TMPDIR/outputs.txt"
+    echo "Unique outputs: $(cat "$TMPDIR/outputs.txt" | sort | uniq | wc -l)"
+
+    # Check the original commands
+    echo "Checking the cache"
+    while read -r command; do
+        run_command cache check $command
+    done < "$TMPDIR/cache_concurrent_commands.txt"
 }
 
 ################################################################################

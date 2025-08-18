@@ -1,0 +1,31 @@
+========== TEST test_cache_column - Cache max-bytes functionality, a tricky column image ==========
+
+
+---------- SUBTEST Clear cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+ikup cache list
+No cached images found.
+ikup cache convert .cli-tests-data/column.png -b 1000
+{{.*}}
+ikup cache check .cli-tests-data/column.png -b 1000
+Cached: {{.*}}
+Format: PNG
+Size: 1x1
+Bytes: {{.*}}
+The next command must return no image
+ikup cache check .cli-tests-data/column.png -b 10000
+Not cached
+Exit code: 1
+Now check that a big image is found after conversion
+ikup cache convert .cli-tests-data/column.png -b 1000000
+{{.*}}
+ikup cache check .cli-tests-data/column.png -b 1000000
+Cached: {{.*}}
+Format: PNG
+Size: [[sz:.*]]
+{{:ASSERT: sz != "1x1"}}
+Bytes: [[num_bytes:.*]]
+{{:ASSERT: 950000 <= int(num_bytes) <= 1000000}}
+
