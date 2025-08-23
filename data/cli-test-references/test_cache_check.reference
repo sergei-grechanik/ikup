@@ -140,13 +140,6 @@ Bytes: {{.*}}
 cp ./.cli-tests-data/butterfly.jpg [[butterfly_cache2]]
 The next command should return another error
 ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8000 --format png
-Cached: [[butterfly_cache2]]
-Format: PNG
-Size: {{.*}}
-Bytes: {{.*}}
-Error: Cached image size {{.*}} bytes exceeds requested max_bytes {{.*}}
-Error: Format mismatch: db entry PNG, file JPEG
-Error: Width mismatch: db entry {{.*}}
-Error: Height mismatch: db entry {{.*}}
+Not cached
 Exit code: 1
 

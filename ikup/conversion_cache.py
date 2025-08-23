@@ -3,6 +3,7 @@ import sqlite3
 import secrets
 import logging
 import shutil
+import io
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
@@ -10,6 +11,7 @@ from typing import (
     List,
     Optional,
     Tuple,
+    Union,
     TYPE_CHECKING,
 )
 
@@ -26,7 +28,7 @@ logger = logging.getLogger("ikup.conversion_cache")
 
 @dataclass
 class CachedConvertedImage:
-    path: str  # The full path
+    dst_path: str  # The full path
     name: str  # The unique ID, usually a relative path
     width: int  # The converted width
     height: int  # The converted height
@@ -38,8 +40,8 @@ class CachedConvertedImage:
 
 @dataclass
 class CachedSourceImage:
-    path: str
-    mtime: datetime
+    src_path: str
+    src_mtime: datetime
     converted_images: List[CachedConvertedImage]
 
 
@@ -166,17 +168,15 @@ class ConversionCache:
                         dst_width INTEGER NOT NULL,
                         dst_height INTEGER NOT NULL,
                         dst_is_biggest INTEGER NOT NULL,
-                        dst_name TEXT NOT NULL UNIQUE,
+                        dst_name TEXT NOT NULL PRIMARY KEY,
                         dst_size_bytes INTEGER NOT NULL,
-                        dst_atime TIMESTAMP NOT NULL,
-                        PRIMARY KEY (src_path, src_mtime, dst_format,
-                                     dst_width, dst_height)
+                        dst_atime TIMESTAMP NOT NULL
                     )
                 """
             )
 
             cursor.execute(
-                "CREATE INDEX IF NOT EXISTS idx_src_lookup ON conversion_cache(src_path, src_mtime)"
+                "CREATE INDEX IF NOT EXISTS idx_src_lookup ON conversion_cache(src_path, src_mtime, dst_size_bytes)"
             )
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_cleanup ON conversion_cache(dst_atime)"
@@ -245,72 +245,11 @@ class ConversionCache:
         if cached_image:
             return cached_image
 
-        # The match is not found or it was stale, need to create a new cached image. We
-        # do it outside of the transaction, so we will need to check again if another
-        # process has created the same image in the meantime.
+        # The match is not found or it was stale, need to create a new cached image.
         if max_size_bytes is not None:
-            dst_name, dst_path, width, height, is_biggest = (
-                self._create_cached_image_with_max_size(request)
-            )
+            return self._create_cached_image_with_max_size(request)
         else:
-            width, height = request.width, request.height
-            dst_name, dst_path, is_biggest = self._create_cached_image_with_dimensions(
-                request
-            )
-
-        assert width is not None and height is not None
-
-        # Insert the new image into the database. If there is already an entry,
-        # don't insert a new one, use the old one and delete the new file.
-        with self.conn, closing(self.conn.cursor()) as cursor:
-            cursor.execute("BEGIN IMMEDIATE")
-            # Try to find a cached image with the same parameters. Set the exact width
-            # and height of the new image.
-            request.max_size_bytes = None
-            request.width = width
-            request.height = height
-            cached_image = self._find_cached_image(cursor, request)
-            if cached_image is not None:
-                # Someone else has already created this image, return it and delete the
-                # file we just created.
-                logger.debug("Found existing entry, deleting new file %s", dst_path)
-                os.remove(dst_path)
-                return cached_image
-
-            res = CachedConvertedImage(
-                path=dst_path,
-                name=dst_name,
-                width=width,
-                height=height,
-                format=request.format,
-                size_bytes=os.path.getsize(dst_path),
-                atime=datetime.now(),
-                is_biggest=is_biggest,
-            )
-            logger.debug("Inserting new entry %s", res)
-
-            # Insert the new cached image into the database.
-            cursor.execute(
-                """
-                INSERT INTO conversion_cache
-                (src_path, src_mtime, dst_format, dst_width, dst_height, dst_name,
-                dst_size_bytes, dst_atime, dst_is_biggest)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    request.src_path,
-                    request.src_mtime,
-                    request.format,
-                    width,
-                    height,
-                    dst_name,
-                    res.size_bytes,
-                    res.atime,
-                    int(is_biggest),
-                ),
-            )
-
-            return res
+            return self._create_cached_image_with_dimensions(request)
 
     def find_cached_image(
         self,
@@ -371,7 +310,12 @@ class ConversionCache:
 
         with self.conn, closing(self.conn.cursor()) as cursor:
             cursor.execute("BEGIN IMMEDIATE")
-            return self._find_cached_image(cursor, request)
+            return self._find_cached_image(
+                cursor,
+                request,
+                update_atime=update_atime,
+                remove_if_missing=remove_if_missing,
+            )
 
     def _find_cached_image(
         self,
@@ -394,15 +338,21 @@ class ConversionCache:
         if best_match is None:
             return None
 
-        if os.path.exists(best_match.path):
-            logger.debug("File exists: %s", best_match.path)
-            if update_atime:
-                self._update_access_time(cursor, best_match.name)
-            return best_match
+        if os.path.exists(best_match.dst_path):
+            if os.path.getsize(best_match.dst_path) == best_match.size_bytes:
+                logger.debug("File exists: %s", best_match.dst_path)
+                if update_atime:
+                    self._update_access_time(cursor, best_match.name)
+                return best_match
+            else:
+                logger.debug(
+                    "File exists but has the wrong size: %s", best_match.dst_path
+                )
+                os.remove(best_match.dst_path)
 
         if remove_if_missing:
             # Remove the stale database entry for the missing file
-            logger.debug("File doesn't exist, removing entry: %s", best_match.path)
+            logger.debug("File doesn't exist, removing entry: %s", best_match.dst_path)
             cursor.execute(
                 "DELETE FROM conversion_cache WHERE dst_name = ?", (best_match.name,)
             )
@@ -443,7 +393,7 @@ class ConversionCache:
         dst_name, dst_width, dst_height, dst_size, dst_atime, dst_is_biggest = row
         dst_path = os.path.join(self.cache_directory, dst_name)
         return CachedConvertedImage(
-            path=dst_path,
+            dst_path=dst_path,
             name=dst_name,
             width=dst_width,
             height=dst_height,
@@ -468,7 +418,7 @@ class ConversionCache:
             FROM conversion_cache
             WHERE src_path = ? AND src_mtime = ? AND dst_format = ? AND
                   dst_width = ? AND dst_height = ?
-            ORDER BY dst_size_bytes ASC
+            ORDER BY dst_atime DESC
             LIMIT 1
             """,
             (
@@ -487,7 +437,7 @@ class ConversionCache:
         dst_name, dst_width, dst_height, dst_size, dst_atime, dst_is_biggest = row
         dst_path = os.path.join(self.cache_directory, dst_name)
         return CachedConvertedImage(
-            path=dst_path,
+            dst_path=dst_path,
             name=dst_name,
             width=dst_width,
             height=dst_height,
@@ -504,39 +454,100 @@ class ConversionCache:
             (datetime.now(), dst_name),
         )
 
+    def _insert_or_find_the_same(
+        self,
+        request: _ImageConversionRequest,
+        dst_name: str,
+        is_biggest: bool,
+        source: Union[str, io.BytesIO],
+    ) -> CachedConvertedImage:
+        """Insert a cached image entry into the database or return a cache entry with
+        the same parameters. If a new entry is inserted, the image file is either copied
+        from `source` or written from a BytesIO object."""
+        assert request.width is not None and request.height is not None
+        request.max_size_bytes = None
+        atime = datetime.now()
+        dst_path = os.path.join(self.cache_directory, dst_name)
+
+        if isinstance(source, io.BytesIO):
+            size_bytes = source.getbuffer().nbytes
+        else:
+            size_bytes = os.path.getsize(source)
+
+        with self.conn, closing(self.conn.cursor()) as cursor:
+            cursor.execute("BEGIN IMMEDIATE")
+            # Try to find a cached image with the same parameters and exactly the same
+            # size.
+            cached_image = self._find_cached_image(cursor, request)
+            if cached_image is not None and cached_image.size_bytes == size_bytes:
+                # Someone else has already created this image, return it.
+                logger.debug("Found existing entry: %s", cached_image)
+                return cached_image
+
+            cursor.execute(
+                """
+                INSERT INTO conversion_cache
+                (src_path, src_mtime, dst_format, dst_width, dst_height, dst_name,
+                dst_size_bytes, dst_atime, dst_is_biggest)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    request.src_path,
+                    request.src_mtime,
+                    request.format,
+                    request.width,
+                    request.height,
+                    dst_name,
+                    size_bytes,
+                    atime,
+                    int(is_biggest),
+                ),
+            )
+
+            # Save the image to the cache directory.
+            os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+            if isinstance(source, io.BytesIO):
+                # If the source is a BytesIO object, write it directly.
+                with open(dst_path, "wb") as f:
+                    f.write(source.getvalue())
+            else:
+                shutil.copyfile(source, dst_path)
+
+        res = CachedConvertedImage(
+            dst_path=dst_path,
+            name=dst_name,
+            width=request.width,
+            height=request.height,
+            format=request.format,
+            size_bytes=size_bytes,
+            atime=atime,
+            is_biggest=is_biggest,
+        )
+        logger.debug("Inserted new cached image entry: %s", res)
+        return res
+
     def _create_cached_image_with_dimensions(
         self,
         request: _ImageConversionRequest,
-    ) -> Tuple[str, str, bool]:
-        """Create a new cached image with specific dimensions.
-
-        The image is created in the cache directory, but it's not inserted into the
-        database. The caller must insert it into the database after this call or delete
-        the file if it fails to insert.
-
-        Returns:
-            A tuple containing:
-                - dst_name: The name of the cached image file.
-                - dst_path: The full path to the cached image file.
-                - is_biggest: Whether the created image matches the original size
-                    and format (i.e. it's the biggest non-upscaled version).
-        """
+    ) -> CachedConvertedImage:
+        """Create a new cached image with specific dimensions and inserts it into the
+        database."""
         assert request.width is not None and request.height is not None
         image_object = request.get_src_image_object()
         orig_format = image_object.format or "UNKNOWN"
-
         dst_name = self._generate_cache_filename(request.format)
-        dst_path = os.path.join(self.cache_directory, dst_name)
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+        is_biggest = image_object.size == (request.width, request.height)
 
         # If the size and the format match the original image, we can just copy it (if
         # it exists, sometimes we only have an object, but the path is fake).
         if (
-            image_object.size == (request.width, request.height)
+            is_biggest
             and orig_format.upper() == request.format.upper()
             and os.path.exists(request.src_path)
         ):
-            shutil.copyfile(request.src_path, dst_path)
+            return self._insert_or_find_the_same(
+                request, dst_name, is_biggest, source=request.src_path
+            )
         else:
             converted_data, _ = convert_image(
                 image_object,
@@ -544,32 +555,19 @@ class ConversionCache:
                 height=request.height,
                 format=request.format,
             )
-            with open(dst_path, "wb") as f:
-                f.write(converted_data.getvalue())
-
-        return dst_name, dst_path, image_object.size == (request.width, request.height)
+            return self._insert_or_find_the_same(
+                request, dst_name, is_biggest, source=converted_data
+            )
 
     def _create_cached_image_with_max_size(
         self,
         request: _ImageConversionRequest,
-    ) -> Tuple[str, str, int, int, bool]:
-        """Create a new cached image that fits within max_size_bytes.
-
-        Returns:
-            A tuple containing:
-                - dst_name: The name of the cached image file.
-                - dst_path: The full path to the cached image file.
-                - width: The width of the created image.
-                - height: The height of the created image.
-                - is_biggest: Whether the created image is the biggest non-upscaled
-                    version of this image and format.
-        """
+    ) -> CachedConvertedImage:
+        """Create a new cached image that fits within max_size_bytes and inserts it into
+        the database."""
         assert request.max_size_bytes is not None
         image_object = request.get_src_image_object()
-
         dst_name = self._generate_cache_filename(request.format)
-        dst_path = os.path.join(self.cache_directory, dst_name)
-        os.makedirs(os.path.dirname(dst_path), exist_ok=True)
 
         # If the format of the original image matches the target format and the size is
         # smaller than the target, use it (as the biggest one) by copying the file if
@@ -579,8 +577,11 @@ class ConversionCache:
         ):
             orig_size = os.path.getsize(request.src_path)
             if orig_size <= request.max_size_bytes:
-                shutil.copyfile(request.src_path, dst_path)
-                return dst_name, dst_path, image_object.width, image_object.height, True
+                request.width = image_object.width
+                request.height = image_object.height
+                return self._insert_or_find_the_same(
+                    request, dst_name, is_biggest=True, source=request.src_path
+                )
 
         # Build a list of samples for size estimation.
         samples: List[Tuple[int, int, int]] = []  # (width, height, size_bytes)
@@ -626,14 +627,11 @@ class ConversionCache:
             samples=samples,
         )
         # Save it to a file and return.
-        with open(dst_path, "wb") as f:
-            f.write(converted_data.getvalue())
-        return (
-            dst_name,
-            dst_path,
-            converted_image_object.width,
-            converted_image_object.height,
-            converted_image_object.size == image_object.size,
+        request.width = converted_image_object.width
+        request.height = converted_image_object.height
+        is_biggest = converted_image_object.size == image_object.size
+        return self._insert_or_find_the_same(
+            request, dst_name, is_biggest, source=converted_data
         )
 
     def _generate_cache_filename(self, format: str) -> str:
@@ -711,7 +709,7 @@ class ConversionCache:
                 SELECT src_path, src_mtime, dst_name, dst_width, dst_height,
                        dst_format, dst_size_bytes, dst_atime, dst_is_biggest
                 FROM conversion_cache
-                ORDER BY src_path, src_mtime
+                ORDER BY src_path, src_mtime, dst_size_bytes
                 """
             )
 
@@ -735,19 +733,21 @@ class ConversionCache:
                 src_mtime_converted = datetime.fromisoformat(src_mtime)
 
                 if current_source is None or (src_path, src_mtime_converted) != (
-                    current_source.path,
-                    current_source.mtime,
+                    current_source.src_path,
+                    current_source.src_mtime,
                 ):
                     if current_source is not None:
                         result.append(current_source)
 
                     current_source = CachedSourceImage(
-                        path=src_path, mtime=src_mtime_converted, converted_images=[]
+                        src_path=src_path,
+                        src_mtime=src_mtime_converted,
+                        converted_images=[],
                     )
                     current_converted = current_source.converted_images
 
                 converted_image = CachedConvertedImage(
-                    path=os.path.join(self.cache_directory, dst_name),
+                    dst_path=os.path.join(self.cache_directory, dst_name),
                     name=dst_name,
                     width=dst_width,
                     height=dst_height,
