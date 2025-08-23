@@ -34,8 +34,8 @@ ikup cache list
 {{.*}}/earth.jpg (mtime: {{.*}})
   JPEG 100x80 {{\d*}} [[earth_cache_path]]
 {{.*}}/ruler.png (mtime: {{.*}})
-  JPEG 200x11 {{\d*}} [[ruler_cache_path]]
   JPEG 100x5 {{\d*}} [[ruler_cache_path_100]]
+  JPEG 200x11 {{\d*}} [[ruler_cache_path]]
 {{.*}}/tux.png (mtime: {{.*}})
   PNG 64x75 {{\d*}} [[tux_cache_path]]
 

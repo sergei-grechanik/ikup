@@ -822,7 +822,7 @@ def cache_convert(
         height=height,
         max_size_bytes=max_bytes,
     )
-    print(cached_image.path)
+    print(cached_image.dst_path)
 
 
 def cache_remove(
@@ -891,7 +891,7 @@ def cache_list(
         # Filter to only show specified images
         images_abs = [os.path.abspath(img) for img in images if os.path.exists(img)]
         cached_images = [
-            cached for cached in cached_images if cached.path in images_abs
+            cached for cached in cached_images if cached.src_path in images_abs
         ]
 
     if not cached_images:
@@ -902,13 +902,13 @@ def cache_list(
         return
 
     for source_image in cached_images:
-        mtime_str = source_image.mtime.isoformat()
-        print(f"{source_image.path} (mtime: {mtime_str})")
+        mtime_str = source_image.src_mtime.isoformat()
+        print(f"{source_image.src_path} (mtime: {mtime_str})")
         for converted in source_image.converted_images:
             size_str = f"{converted.width}x{converted.height}"
             bytes_str = f"{converted.size_bytes}"
             print(
-                f"  {converted.format.upper()} {size_str} {bytes_str} {converted.path}"
+                f"  {converted.format.upper()} {size_str} {bytes_str} {converted.dst_path}"
             )
 
 
@@ -949,7 +949,7 @@ def cache_check(
         print("Not cached", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Cached: {cached_image.path}")
+    print(f"Cached: {cached_image.dst_path}")
     print(f"Format: {cached_image.format}")
     print(f"Size: {cached_image.width}x{cached_image.height}")
     print(f"Bytes: {cached_image.size_bytes}")
@@ -972,16 +972,16 @@ def cache_check(
     actual_format = None
     actual_width = None
     actual_height = None
-    file_exists = os.path.exists(cached_image.path)
+    file_exists = os.path.exists(cached_image.dst_path)
 
     if not file_exists:
         errors = True
     else:
-        actual_size_bytes = os.path.getsize(cached_image.path)
+        actual_size_bytes = os.path.getsize(cached_image.dst_path)
         try:
             from PIL import Image
 
-            image_object = Image.open(cached_image.path)
+            image_object = Image.open(cached_image.dst_path)
             actual_width, actual_height = image_object.size
             actual_format = (image_object.format or "UNKNOWN").upper()
         except Exception as e:

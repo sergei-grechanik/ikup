@@ -28,9 +28,9 @@ ikup cache convert ./.cli-tests-data/earth.jpg --max-bytes 4500 --format png
 [[earth_4500_cache:.*]]
 ikup cache list ./.cli-tests-data/earth.jpg
 {{.*}}/earth.jpg (mtime: {{.*}})
-  JPEG 240x240 [[earth_large_size]] [[earth_large_cache]]
-  PNG [[earth_5k_dims:.*]] [[earth_5k_size:[0-9]+]] [[earth_5k_cache]]
   PNG [[earth_4500_dims:.*]] [[earth_4500_size:[0-9]+]] [[earth_4500_cache]]
+  PNG [[earth_5k_dims:.*]] [[earth_5k_size:[0-9]+]] [[earth_5k_cache]]
+  JPEG 240x240 [[earth_large_size]] [[earth_large_cache]]
 {{:ASSERT: 4750 <= int(earth_5k_size) <= 5000}}
 {{:ASSERT: 4250 <= int(earth_4500_size) <= 4500}}
 
@@ -49,8 +49,8 @@ ikup cache convert ./.cli-tests-data/transparency.png --max-bytes 94000
 [[transparency_94k_cache:.*]]
 ikup cache list ./.cli-tests-data/transparency.png
 {{.*}}/transparency.png (mtime: {{.*}})
-  PNG [[transparency_10k_dims:.*]] [[transparency_10k_size:[0-9]+]] [[transparency_100k_cache]]
   PNG [[transparency_94k_dims:.*]] [[transparency_94k_size:[0-9]+]] [[transparency_94k_cache]]
+  PNG [[transparency_10k_dims:.*]] [[transparency_10k_size:[0-9]+]] [[transparency_100k_cache]]
 {{:ASSERT: 95000 <= int(transparency_10k_size) <= 100000}}
 {{:ASSERT: 89000 <= int(transparency_94k_size) <= 94000}}
 
