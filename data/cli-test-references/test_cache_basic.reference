@@ -69,3 +69,10 @@ ikup cache list
   PNG 64x75 {{\d*}} [[tux_cache_path]]
   JPEG 265x314 {{\d*}} [[tux_jpeg_cache_path]]
 {{:SKIP_LINES:}}
+
+---------- SUBTEST Test cache purge functionality ----------
+
+ikup cache purge
+Cache purged. Removed 8 cached files and the database.
+ikup cache list
+No cached images found.
