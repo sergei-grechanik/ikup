@@ -1048,6 +1048,10 @@ test_cache_basic() {
     run_command cache convert $DATA_DIR/earth.jpg --format png
     run_command cache convert $DATA_DIR/tux.png --format jpeg
     run_command cache list
+
+    subtest "Test cache purge functionality"
+    run_command cache purge
+    run_command cache list
 }
 
 ################################################################################

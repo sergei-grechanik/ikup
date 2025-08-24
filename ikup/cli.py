@@ -774,6 +774,12 @@ def cache(command: str, cache_command: str, **kwargs):
     """Handle cache subcommands."""
     _ = command
     ikupterm = ikup.IkupTerminal()
+
+    # Handle purge command separately since it doesn't need conversion_cache
+    if cache_command == "purge":
+        cache_purge(ikupterm, **kwargs)
+        return
+
     conversion_cache = ikupterm.conversion_cache
 
     if cache_command == "convert":
@@ -1023,6 +1029,57 @@ def cache_check(
 
     if errors:
         sys.exit(1)
+
+
+def cache_purge(ikupterm: ikup.IkupTerminal):
+    """Purge the entire cache independently, without requiring conversion_cache initialization."""
+    cache_directory = ikupterm._config.cache_dir
+    database_file = os.path.join(cache_directory, "conversion_cache.db")
+
+    # Remove the database file if it exists
+    if os.path.exists(database_file):
+        try:
+            os.remove(database_file)
+        except OSError:
+            pass  # Ignore if we can't remove it
+
+    removed_count = 0
+
+    # Remove cached files from subdirectories named 00-ff
+    if os.path.exists(cache_directory):
+        for item in os.listdir(cache_directory):
+            item_path = os.path.join(cache_directory, item)
+
+            # Only process directories with two hex digits as names (00, 01, ..., ff)
+            if (
+                os.path.isdir(item_path)
+                and len(item) == 2
+                and all(c in "0123456789abcdef" for c in item.lower())
+            ):
+
+                # Remove all files in this subdirectory
+                try:
+                    for file in os.listdir(item_path):
+                        file_path = os.path.join(item_path, file)
+                        if os.path.isfile(file_path):
+                            try:
+                                os.remove(file_path)
+                                removed_count += 1
+                            except OSError:
+                                pass  # Ignore individual file removal errors
+
+                    # Remove the subdirectory if it's empty
+                    try:
+                        os.rmdir(item_path)
+                    except OSError:
+                        pass  # Directory not empty or can't remove, ignore
+                except OSError:
+                    pass  # Can't list directory, ignore
+
+    print(
+        f"Cache purged. Removed {removed_count} cached files and the database.",
+        file=sys.stderr,
+    )
 
 
 def main_unwrapped():
@@ -1489,6 +1546,13 @@ def main_unwrapped():
     )
     p_cache_check.add_argument(
         "-b", "--max-bytes", type=positive_int, help="Maximum size in bytes."
+    )
+
+    # cache purge subcommand
+    p_cache_purge = cache_subparsers.add_parser(
+        "purge",
+        help="Completely purge the cache, removing both database and all cached files.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
     # Handle the default command case.
