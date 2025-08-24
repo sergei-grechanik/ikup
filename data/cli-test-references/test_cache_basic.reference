@@ -70,9 +70,26 @@ ikup cache list
   JPEG 265x314 {{\d*}} [[tux_jpeg_cache_path]]
 {{:SKIP_LINES:}}
 
+---------- SUBTEST Test cache status functionality ----------
+
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 8
+Total size: {{\d*}} bytes ({{\d*\.\d*}} MB)
+
 ---------- SUBTEST Test cache purge functionality ----------
 
 ikup cache purge
 Cache purged. Removed 8 cached files and the database.
 ikup cache list
 No cached images found.
+
+---------- SUBTEST Test cache status after purge ----------
+
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 0
+Total size: 0 bytes (0.0 MB)
+

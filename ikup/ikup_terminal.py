@@ -35,15 +35,12 @@ import ikup.utils
 from ikup.terminal_detection import detect_terminal_info
 from ikup import (
     GraphicsCommand,
-    GraphicsResponse,
     GraphicsTerminal,
     IDSpace,
     IDManager,
     IDSubspace,
     ImagePlaceholder,
     ImagePlaceholderMode,
-    PlacementData,
-    PutCommand,
     TransmissionMedium,
     TransmitCommand,
 )
@@ -70,11 +67,13 @@ class IkupConfig:
 
     # Conversion and thumbnail cache manager options.
     cache_dir: str = platformdirs.user_cache_dir("ikup")
+    cache_max_images: int = 4096
+    cache_max_total_size_bytes: int = 300 * 1024 * 1024
     thumbnail_file_size_tolerance: float = 0.2
 
     # Image geometry options.
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
-    default_cell_size: Tuple[int, int] = (8, 16)
+    fallback_cell_size: Tuple[int, int] = (8, 16)
     scale: float = 1.0
     global_scale: float = 1.0
     max_rows: Union[int, Literal["auto"]] = "auto"
@@ -116,6 +115,7 @@ class IkupConfig:
     max_db_age_days: int = 7
     max_num_ids: int = 4 * 1024
     cleanup_probability: float = 0.01
+    cleanup_target: float = 0.85
 
     # Parallel upload options.
     upload_progress_update_interval: float = 0.2
@@ -152,9 +152,9 @@ class IkupConfig:
             dic["id_space"] = str(self.id_space)
         if isinstance(self.cell_size, tuple):
             dic["cell_size"] = f"{self.cell_size[0]}x{self.cell_size[1]}"
-        if isinstance(self.default_cell_size, tuple):
-            dic["default_cell_size"] = (
-                f"{self.default_cell_size[0]}x{self.default_cell_size[1]}"
+        if isinstance(self.fallback_cell_size, tuple):
+            dic["fallback_cell_size"] = (
+                f"{self.fallback_cell_size[0]}x{self.fallback_cell_size[1]}"
             )
         if isinstance(self.upload_method, TransmissionMedium):
             dic["upload_method"] = self.upload_method.value
@@ -250,7 +250,7 @@ class IkupConfig:
                     value = IDSubspace.from_string(value)
                 if IDSpace in types_in_union:
                     value = IDSpace.from_string(value)
-                if name == "cell_size" or name == "default_cell_size":
+                if name == "cell_size" or name == "fallback_cell_size":
                     value = ikup.utils.validate_size(value)
                 if name == "id_database_dir" and value == "":
                     value = platformdirs.user_state_dir("ikup")
@@ -435,7 +435,7 @@ class IkupTerminal:
                 else:
                     config = IkupConfig()
         if isinstance(config, str):
-            self._config_file: str = config
+            self._config_file = config
             if config == "DEFAULT" or config == "":
                 config = IkupConfig()
             else:
@@ -484,12 +484,9 @@ class IkupTerminal:
         if id_database is None:
             os.makedirs(os.path.dirname(config.id_database_dir), exist_ok=True)
             id_database = os.path.join(config.id_database_dir, f"{self._session_id}.db")
+        self._id_database: str = id_database
 
-        self.id_manager = IDManager(
-            database_file=id_database,
-            max_ids_per_subspace=config.max_ids_per_subspace,
-        )
-
+        self._id_manager: Optional[IDManager] = None
         self._conversion_cache: Optional[ConversionCache] = None
 
     max_cols = _config_property("max_cols")
@@ -550,6 +547,15 @@ class IkupTerminal:
             )
         return self._conversion_cache
 
+    @property
+    def id_manager(self) -> IDManager:
+        if self._id_manager is None:
+            self._id_manager = IDManager(
+                database_file=self._id_database,
+                max_ids_per_subspace=self._config.max_ids_per_subspace,
+            )
+        return self._id_manager
+
     def detect_terminal(self):
         # Use explicit config values if provided
         if (
@@ -573,7 +579,7 @@ class IkupTerminal:
         if self._config.cell_size == "auto":
             cell_size = self.term.get_cell_size()
             if cell_size is None:
-                return self._config.default_cell_size
+                return self._config.fallback_cell_size
             return cell_size
         return self._config.cell_size
 
@@ -634,12 +640,13 @@ class IkupTerminal:
             # using the cell size.
             cols = math.ceil(width / cell_width)
             rows = math.ceil(height / cell_height)
-        elif cols is None:
+        elif rows is not None:
             # If only one dimension is specified, compute the other one to match
             # the aspect ratio as close as possible.
             cols = math.ceil(rows * cell_height * width / (height * cell_width))
-        elif rows is None:
+        elif cols is not None:
             rows = math.ceil(cols * cell_width * height / (width * cell_height))
+        assert cols is not None and rows is not None
 
         # Make sure that automatically computed rows and columns are within the
         # limits.
@@ -1348,6 +1355,16 @@ class IkupTerminal:
         self.id_manager.cleanup(self.id_space, self.id_subspace, max_ids=max_num_ids)
         # Clean up the upload history too.
         self.id_manager.cleanup_uploads(max_uploads=max_num_ids)
+
+    def cleanup_cache(self) -> int:
+        """Clean up the conversion cache. Returns the number of images removed."""
+        return self.conversion_cache.cleanup(
+            max_images=self._config.cache_max_images,
+            max_total_size_bytes=self._config.cache_max_total_size_bytes,
+            target_images=self._config.cache_max_images * self._config.cleanup_target,
+            target_total_size_bytes=self._config.cache_max_total_size_bytes
+            * self._config.cleanup_target,
+        )
 
     def _move_cursor_to_final_position(
         self,
