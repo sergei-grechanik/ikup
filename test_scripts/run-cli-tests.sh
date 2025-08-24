@@ -1049,9 +1049,74 @@ test_cache_basic() {
     run_command cache convert $DATA_DIR/tux.png --format jpeg
     run_command cache list
 
+    subtest "Test cache status functionality"
+    run_command cache status
     subtest "Test cache purge functionality"
     run_command cache purge
     run_command cache list
+    subtest "Test cache status after purge"
+    run_command cache status
+}
+
+################################################################################
+
+test_cache_cleanup() {
+    start_test "Cache cleanup functionality"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache purge
+    run_command cache status
+
+    subtest "Test cleanup by image count limit"
+    # Set very small limits: max 2 images, cleanup to 1 image
+    export IKUP_CACHE_MAX_IMAGES=2
+    export IKUP_CACHE_MAX_TOTAL_SIZE_BYTES=100000
+    export IKUP_CLEANUP_TARGET=0.5  # 2 * 0.5 = 1 image
+
+    # Add 4 small images to trigger image count cleanup
+    run_command cache convert $DATA_DIR/tux.png --width 10 --height 10
+    run_command cache convert $DATA_DIR/earth.jpg --width 10 --height 10
+    run_command cache status
+    echo "No cleanup should be needed yet"
+    run_command cache cleanup
+    run_command cache convert $DATA_DIR/butterfly.jpg --width 10 --height 10
+    echo "At this point cleanup is done automatically"
+    run_command cache convert $DATA_DIR/sun.jpg --width 10 --height 10
+
+    echo "Verify we now have 2 images"
+    run_command cache status
+    echo "Check that we retain the newest images"
+    run_command cache list
+
+    subtest "Test cleanup by total size limit"
+    # Clear cache and set size-based limits
+    run_command cache purge
+    export IKUP_CACHE_MAX_IMAGES=5
+    export IKUP_CACHE_MAX_TOTAL_SIZE_BYTES=50000  # Small size limit ~50KB
+    export IKUP_CLEANUP_TARGET=0.4  # Cleanup to 40% of limit = ~20KB
+
+    # Add larger images that will exceed size limit
+    run_command cache convert $DATA_DIR/david.jpg -b 5000
+    run_command cache convert $DATA_DIR/flower.jpg -b 15000
+    run_command cache convert $DATA_DIR/transparency.png -b 10000
+    run_command cache convert $DATA_DIR/mars.jpg -b 10000
+    run_command cache convert $DATA_DIR/wikipedia.png -b 8000
+    run_command cache status
+    echo "No cleanup should be needed yet"
+    run_command cache cleanup
+    run_command cache convert $DATA_DIR/butterfly.jpg -b 12000
+
+    # Run cleanup - should remove oldest images to get under size limit
+    run_command cache cleanup
+    echo "Verify cache is now under size limit 20KB"
+    run_command cache status
+    echo "Check that we retain the newest images"
+    run_command cache list
+
+    unset IKUP_CACHE_MAX_IMAGES
+    unset IKUP_CACHE_MAX_TOTAL_SIZE_BYTES
+    unset IKUP_CLEANUP_TARGET
 }
 
 ################################################################################

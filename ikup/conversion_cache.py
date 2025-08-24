@@ -139,15 +139,11 @@ class ConversionCache:
         self,
         cache_directory: str,
         tolerance: float = 0.2,
-        max_images: int = 4096,
-        max_total_size_bytes: int = 300 * 1024 * 1024,
     ):
         os.makedirs(cache_directory, exist_ok=True)
         self.cache_directory = cache_directory
         self.database_file = os.path.join(cache_directory, "conversion_cache.db")
         self.tolerance = tolerance
-        self.max_images = max_images
-        self.max_total_size_bytes = max_total_size_bytes
         self.conn = sqlite3.connect(self.database_file, isolation_level=None)
         self._init_database()
 
@@ -645,30 +641,56 @@ class ConversionCache:
 
     def cleanup(
         self,
-        max_images: Optional[int] = None,
-        max_total_size_bytes: Optional[int] = None,
-    ):
-        """Clean up the cache by removing old images.
+        *,
+        max_images: float,
+        max_total_size_bytes: float,
+        target_images: Optional[float] = None,
+        target_total_size_bytes: Optional[float] = None,
+    ) -> int:
+        """Clean up the cache by removing old images if the cache exceeds the limits.
 
         Args:
-            max_images: The maximum number of images to keep in the cache.
-                If None, use the default from the conversion cache.
+            max_images: The maximum number of images in the cache.
             max_total_size_bytes: The maximum total size of the cache in bytes.
-                If None, use the default from the conversion cache.
+            target_images: If cleanup is triggered, reduce the number of images to this
+                value. Same as `max_images` if None.
+            target_total_size_bytes: If cleanup is triggered, reduce the total size of
+                the cache to this value. Same as `max_total_size_bytes` if None.
+
+        Returns:
+            The number of removed images.
         """
-        if max_images is None:
-            max_images = self.max_images
-        if max_total_size_bytes is None:
-            max_total_size_bytes = self.max_total_size_bytes
+        if target_images is None:
+            target_images = max_images
+        if target_total_size_bytes is None:
+            target_total_size_bytes = max_total_size_bytes
 
         with self.conn, closing(self.conn.cursor()) as cursor:
             cursor.execute("BEGIN IMMEDIATE")
             cursor.execute("SELECT COUNT(*), SUM(dst_size_bytes) FROM conversion_cache")
             current_count, current_size = cursor.fetchone()
             current_size = current_size or 0
+            logger.debug("images: %s total_size_bytes: %s", current_count, current_size)
+            logger.debug(
+                "max_images: %s max_total_size_bytes: %s",
+                max_images,
+                max_total_size_bytes,
+            )
 
             if current_count <= max_images and current_size <= max_total_size_bytes:
-                return
+                logger.debug("Cleanup not required")
+                return 0
+
+            logger.debug("Cleanup required")
+
+            # Limit only the metric that is exceeded.
+            if current_count <= max_images:
+                target_images = float("inf")
+            if current_size <= max_total_size_bytes:
+                target_total_size_bytes = float("inf")
+
+            logger.debug("target_images: %s", target_images)
+            logger.debug("target_total_size_bytes: %s", target_total_size_bytes)
 
             cursor.execute(
                 """
@@ -683,8 +705,8 @@ class ConversionCache:
 
             for dst_name, dst_size_bytes in cursor.fetchall():
                 if (
-                    remaining_count <= max_images
-                    and remaining_size <= max_total_size_bytes
+                    remaining_count <= target_images
+                    and remaining_size <= target_total_size_bytes
                 ):
                     break
 
@@ -693,6 +715,7 @@ class ConversionCache:
                 remaining_size -= dst_size_bytes
 
             for dst_name in to_remove:
+                logger.debug("Removing cached image: %s", dst_name)
                 dst_path = os.path.join(self.cache_directory, dst_name)
                 if os.path.exists(dst_path):
                     os.remove(dst_path)
@@ -700,6 +723,8 @@ class ConversionCache:
                 cursor.execute(
                     "DELETE FROM conversion_cache WHERE dst_name = ?", (dst_name,)
                 )
+
+            return len(to_remove)
 
     def get_cached_images(self) -> List[CachedSourceImage]:
         """Returns all cached images grouped by the source image."""
@@ -892,6 +917,19 @@ class ConversionCache:
             cursor.execute("DELETE FROM conversion_cache")
 
             return removed_count
+
+    def get_cache_stats(self) -> Tuple[int, int]:
+        """Get cache statistics.
+
+        Returns:
+            A tuple of (number_of_images, total_size_bytes)
+        """
+        with closing(self.conn.cursor()) as cursor:
+            cursor.execute(
+                "SELECT COUNT(*), COALESCE(SUM(dst_size_bytes), 0) FROM conversion_cache"
+            )
+            count, total_size = cursor.fetchone()
+            return count, total_size
 
     def close(self):
         """Close the database connection."""

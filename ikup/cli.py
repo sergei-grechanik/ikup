@@ -775,27 +775,33 @@ def cache(command: str, cache_command: str, **kwargs):
     _ = command
     ikupterm = ikup.IkupTerminal()
 
-    # Handle purge command separately since it doesn't need conversion_cache
+    # Handle purge and cleanup commands separately since they need ikupterm
     if cache_command == "purge":
         cache_purge(ikupterm, **kwargs)
+        return
+    if cache_command == "cleanup":
+        cache_cleanup(ikupterm, **kwargs)
         return
 
     conversion_cache = ikupterm.conversion_cache
 
     if cache_command == "convert":
-        cache_convert(conversion_cache, **kwargs)
+        cache_convert(ikupterm, conversion_cache, **kwargs)
     elif cache_command == "remove":
         cache_remove(conversion_cache, **kwargs)
     elif cache_command == "list":
         cache_list(conversion_cache, **kwargs)
     elif cache_command == "check":
         cache_check(conversion_cache, **kwargs)
+    elif cache_command == "status":
+        cache_status(conversion_cache, **kwargs)
     else:
         print(f"error: Unknown cache command: {cache_command}", file=sys.stderr)
         sys.exit(2)
 
 
 def cache_convert(
+    ikupterm: ikup.IkupTerminal,
     conversion_cache: ConversionCache,
     image: str,
     format: Optional[str],
@@ -805,6 +811,8 @@ def cache_convert(
     size: Optional[Tuple[int, int]],
 ):
     """Convert an image and print the cached path."""
+    ikupterm.cleanup_cache()
+
     if not os.path.exists(image):
         raise CLIArgumentsError(f"Image file not found: {image}")
 
@@ -1080,6 +1088,24 @@ def cache_purge(ikupterm: ikup.IkupTerminal):
         f"Cache purged. Removed {removed_count} cached files and the database.",
         file=sys.stderr,
     )
+
+
+def cache_cleanup(ikupterm: ikup.IkupTerminal):
+    removed = ikupterm.cleanup_cache()
+    print(f"Removed {removed} cached images.", file=sys.stderr)
+
+
+def cache_status(conversion_cache: ConversionCache):
+    """Print cache status information."""
+    print(f"Cache directory: {conversion_cache.cache_directory}")
+    print(f"Cache database: {conversion_cache.database_file}")
+
+    # Get cache statistics
+    count, total_size = conversion_cache.get_cache_stats()
+
+    print(f"Number of images: {count}")
+    size_mb = total_size / 1024 / 1024
+    print(f"Total size: {total_size} bytes ({size_mb:.1f} MB)")
 
 
 def main_unwrapped():
@@ -1552,6 +1578,20 @@ def main_unwrapped():
     p_cache_purge = cache_subparsers.add_parser(
         "purge",
         help="Completely purge the cache, removing both database and all cached files.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # cache cleanup subcommand
+    p_cache_cleanup = cache_subparsers.add_parser(
+        "cleanup",
+        help="Cleanup the cache, removing old cached files.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+
+    # cache status subcommand
+    p_cache_status = cache_subparsers.add_parser(
+        "status",
+        help="Show cache status information.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 

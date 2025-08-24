@@ -1,0 +1,86 @@
+========== TEST test_cache_cleanup - Cache cleanup functionality ==========
+
+
+---------- SUBTEST Clear cache ----------
+
+ikup cache purge
+Cache purged. Removed 0 cached files and the database.
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 0
+Total size: 0 bytes (0.0 MB)
+
+---------- SUBTEST Test cleanup by image count limit ----------
+
+ikup cache convert ./.cli-tests-data/tux.png --width 10 --height 10
+{{.*}}
+ikup cache convert ./.cli-tests-data/earth.jpg --width 10 --height 10
+{{.*}}
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 2
+Total size: {{.*}}
+No cleanup should be needed yet
+ikup cache cleanup
+Removed 0 cached images.
+ikup cache convert ./.cli-tests-data/butterfly.jpg --width 10 --height 10
+{{.*}}
+At this point cleanup is done automatically
+ikup cache convert ./.cli-tests-data/sun.jpg --width 10 --height 10
+{{.*}}
+Verify we now have 2 images
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 2
+Total size: {{.*}}
+Check that we retain the newest images
+ikup cache list
+{{.*}}/butterfly.jpg {{.*}}
+  JPEG 10x10 {{.*}}
+{{.*}}/sun.jpg {{.*}}
+  JPEG 10x10 {{.*}}
+
+---------- SUBTEST Test cleanup by total size limit ----------
+
+ikup cache purge
+Cache purged. Removed {{.*}} cached files and the database.
+ikup cache convert ./.cli-tests-data/david.jpg -b 5000
+{{.*}}
+ikup cache convert ./.cli-tests-data/flower.jpg -b 15000
+{{.*}}
+ikup cache convert ./.cli-tests-data/transparency.png -b 10000
+{{.*}}
+ikup cache convert ./.cli-tests-data/mars.jpg -b 10000
+{{.*}}
+ikup cache convert ./.cli-tests-data/wikipedia.png -b 8000
+{{.*}}
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 5
+Total size: [[size:.*]] bytes ({{.*}})
+{{:ASSERT: int(size) <= 48000}}
+No cleanup should be needed yet
+ikup cache cleanup
+Removed 0 cached images.
+ikup cache convert ./.cli-tests-data/butterfly.jpg -b 12000
+{{.*}}
+ikup cache cleanup
+Removed 4 cached images.
+Verify cache is now under size limit 20KB
+ikup cache status
+Cache directory: {{.*}}
+Cache database: {{.*}}
+Number of images: 2
+Total size: [[size:.*]] bytes ({{\d*\.\d*}} MB)
+{{:ASSERT: int(size) <= 20000}}
+Check that we retain the newest images
+ikup cache list
+{{.*}}/butterfly.jpg {{.*}}
+  JPEG {{.*}}
+{{.*}}/wikipedia.png {{.*}}
+  PNG {{.*}}
+

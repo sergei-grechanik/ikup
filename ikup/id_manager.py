@@ -1200,7 +1200,7 @@ class IDManager:
     ):
         with closing(self.conn.cursor()) as cursor:
             # Note that here we can delete rows, because if we delete a row, we delete
-            # all the older one too.
+            # all the older ones too.
             cursor.execute(
                 """DELETE FROM upload WHERE (id, terminal) NOT IN (
                         SELECT id, terminal FROM upload
