@@ -11,6 +11,21 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def transpose_image_maybe(image: "Image.Image") -> "Image.Image":
+    """Transpose image according to EXIF orientation if available. Returns the original
+    image if no transpose is needed."""
+    from PIL import ExifTags, ImageOps
+
+    try:
+        orientation = image.getexif().get(ExifTags.Base.Orientation, 1)
+        if orientation != 1:
+            logger.debug("Transposing image with orientation %s", orientation)
+            return ImageOps.exif_transpose(image)
+    except Exception:
+        pass
+    return image
+
+
 def convert_image(
     image: "Image.Image",
     *,
@@ -25,9 +40,11 @@ def convert_image(
         - PIL Image object of the resized image (may be the original image object)
     """
     format = format.upper()
+    image = transpose_image_maybe(image)
 
     # Resize if needed
     if width is not None and height is not None:
+        logger.debug("Resize %sx%s -> %sx%s", image.width, image.height, width, height)
         image = image.resize((width, height))
 
     # Handle JPEG transparency conversion
@@ -76,6 +93,7 @@ def optimize_image_to_size(
         - BytesIO containing the optimized image data
         - PIL Image object of the optimized image
     """
+    image = transpose_image_maybe(image)
     logger.debug(
         "optimize_image_to_size: max_size_bytes=%s, format=%s, tolerance=%s, samples=%s",
         max_size_bytes,
