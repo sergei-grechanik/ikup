@@ -1012,7 +1012,6 @@ class IkupTerminal:
             )
             path = cached_image.dst_path
             size = cached_image.size_bytes
-            image_object.close()
 
         # Upload the image.
         self._transmit_file_or_bytes(
