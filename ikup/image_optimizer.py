@@ -43,7 +43,7 @@ def convert_image(
     image = transpose_image_maybe(image)
 
     # Resize if needed
-    if width is not None and height is not None:
+    if width is not None and height is not None and (width, height) != image.size:
         logger.debug("Resize %sx%s -> %sx%s", image.width, image.height, width, height)
         image = image.resize((width, height))
 
@@ -229,8 +229,8 @@ def _get_coefficients(area_to_size: List[Tuple[int, int]]) -> Tuple[float, float
     `area = a * size_bytes + b`
     """
     if not area_to_size or area_to_size[0][1] == 0:
-        # Assume we need 2 bytes per pixel
-        return 0.5, 0.0
+        # Prefer larger images as the first guess.
+        return 2, 0.0
 
     # Find two points with different sizes.
     # Always use the most recent points.
