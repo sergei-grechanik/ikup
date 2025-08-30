@@ -1,4 +1,8 @@
 import argparse
+from typing import Tuple
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def validate_size(value: str):
@@ -33,3 +37,24 @@ def validate_place(value: str):
             f"Size must be positive, coordinates must be non-negative: {value}"
         )
     return ((width, height), (x, y))
+
+
+def get_real_image_size(image) -> Tuple[int, int]:
+    from PIL import ExifTags
+
+    width, height = image.size
+    try:
+        orientation = image.getexif().get(ExifTags.Base.Orientation, 1)
+        if orientation in (5, 6, 7, 8):
+            logger.debug(
+                "Image orientation is %s, swapping %sx%s -> %sx%s",
+                orientation,
+                width,
+                height,
+                height,
+                width,
+            )
+            width, height = height, width
+    except Exception:
+        pass
+    return width, height

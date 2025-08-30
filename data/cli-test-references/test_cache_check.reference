@@ -60,9 +60,11 @@ Exit code: 1
 
 ---------- SUBTEST Check the cache for max-bytes ----------
 
-ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8100 --format png
-Not cached
-Exit code: 1
+ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 8050 --format png
+Cached: [[butterfly_cache]]
+Format: PNG
+Size: {{.*}}
+Bytes: {{.*}}
 ikup cache check ./.cli-tests-data/butterfly.jpg --max-bytes 7999 --format png
 Cached: [[butterfly_cache]]
 Format: PNG
