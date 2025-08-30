@@ -108,6 +108,8 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
             if id_color_bits != 0:
                 ikupterm.term.write("\n")
         print(f" (jpeg->png, method={method})", end="", flush=True)
+        # This test seems to overwhelm the terminal, wait a little longer than usual.
+        time.sleep(1.0)
         ctx.take_screenshot(
             f"Jpeg castles using different ID settings, method={method}, jpegs"
             " are supposed to be converted"

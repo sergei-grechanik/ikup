@@ -293,6 +293,8 @@ class TestingContext:
         )
         filename = os.path.join(self.output_dir, rel_filename)
         if self.take_screenshots:
+            # TODO: Instead of sleeping it might be better to send some kind of redraw
+            # command with a confirmation response.
             time.sleep(sleep_time)
             take_screenshot(
                 filename,
