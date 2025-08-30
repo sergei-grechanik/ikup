@@ -3,7 +3,7 @@ import io
 import json
 import os
 import subprocess
-import termios
+import shutil
 import time
 import urllib.request
 import zlib
@@ -12,6 +12,7 @@ from typing import Callable, List, Optional, Tuple, Union
 from PIL import Image, ImageDraw, ImageFont
 
 from ikup import GraphicsTerminal
+import ikup
 
 
 def take_screenshot(
@@ -94,7 +95,15 @@ class TestingContext:
         def download() -> str:
             path = os.path.abspath(os.path.join(self.data_dir, name))
             if not os.path.exists(path):
-                urllib.request.urlretrieve(url, path)
+                req = urllib.request.Request(
+                    url,
+                    headers={
+                        "User-Agent": f"ikup/{ikup.__version__} (github.com/sergei-grechanik/ikup)",
+                        "Accept": "*/*",
+                    },
+                )
+                with urllib.request.urlopen(req) as resp, open(path, "wb") as f:
+                    shutil.copyfileobj(resp, f)
             return path
 
         return download
@@ -284,6 +293,8 @@ class TestingContext:
         )
         filename = os.path.join(self.output_dir, rel_filename)
         if self.take_screenshots:
+            # TODO: Instead of sleeping it might be better to send some kind of redraw
+            # command with a confirmation response.
             time.sleep(sleep_time)
             take_screenshot(
                 filename,

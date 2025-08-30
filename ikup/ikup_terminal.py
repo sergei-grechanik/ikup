@@ -7,7 +7,6 @@ import math
 import os
 import re
 import select
-import tempfile
 import typing
 import time
 import random
@@ -49,6 +48,8 @@ from ikup import (
 if TYPE_CHECKING:
     from PIL import Image
 
+logger = logging.getLogger(__name__)
+
 BackgroundLike = Union[ikup.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
 
@@ -70,6 +71,7 @@ class IkupConfig:
     cache_max_images: int = 4096
     cache_max_total_size_bytes: int = 300 * 1024 * 1024
     thumbnail_file_size_tolerance: float = 0.2
+    cache_always: bool = False
 
     # Image geometry options.
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
@@ -516,6 +518,7 @@ class IkupTerminal:
     allow_concurrent_uploads = _config_property("allow_concurrent_uploads")
     upload_command_delay = _config_property("upload_command_delay")
     mark_uploaded = _config_property("mark_uploaded")
+    cache_always = _config_property("cache_always")
 
     def _configure_logging(self, log_level: str):
         """Configure logging for ikup based on the provided log level."""
@@ -624,13 +627,22 @@ class IkupTerminal:
             max_cols=max_cols, max_rows=max_rows
         )
         cell_width, cell_height = self.get_cell_size()
+        logger.debug("cell size: %sx%s", cell_width, cell_height)
         # Combine global and local scale factors
         local_scale = scale or self._config.scale
         effective_scale = self._config.global_scale * (
             local_scale if local_scale is not None else 1.0
         )
+        logger.debug(
+            "local scale: %s, global scale: %s, effective scale: %s",
+            local_scale,
+            self._config.global_scale,
+            effective_scale,
+        )
+        logger.debug("image size: %sx%s", width, height)
         width *= effective_scale
         height *= effective_scale
+        logger.debug("will be scaled to: %s x %s", width, height)
 
         cols_auto_computed = cols is None
         rows_auto_computed = rows is None
@@ -647,6 +659,7 @@ class IkupTerminal:
         elif cols is not None:
             rows = math.ceil(cols * cell_width * height / (width * cell_height))
         assert cols is not None and rows is not None
+        logger.debug("CxR before limiting: %sx%s", cols, rows)
 
         # Make sure that automatically computed rows and columns are within the
         # limits.
@@ -660,6 +673,7 @@ class IkupTerminal:
         cols = max(1, min(cols, max_cols))
         rows = max(1, min(rows, max_rows))
 
+        logger.debug("CxR after limiting: %sx%s", cols, rows)
         return cols, rows
 
     def build_image_instance(
@@ -680,10 +694,10 @@ class IkupTerminal:
                 from PIL import Image
 
                 open_image = Image.open(image)
-                width, height = open_image.size
+                width, height = ikup.utils.get_real_image_size(open_image)
                 open_image.close()
             else:
-                width, height = image.size
+                width, height = ikup.utils.get_real_image_size(image)
             cols, rows = self.get_optimal_cols_and_rows(
                 width,
                 height,
@@ -762,6 +776,7 @@ class IkupTerminal:
         if random.random() < self._config.cleanup_probability:
             self.cleanup_old_databases()
             self.cleanup_current_database()
+            self.cleanup_cache()
         inst = self.build_image_instance(
             image,
             id=0,
@@ -887,6 +902,9 @@ class IkupTerminal:
     def _is_format_supported(self, format: Optional[str]) -> bool:
         return format is not None and format.lower() in self.get_supported_formats()
 
+    def _get_supported_format(self, format: Optional[str]) -> str:
+        return format if format and self._is_format_supported(format) else "PNG"
+
     def get_max_upload_size(self, upload_method: TransmissionMedium) -> int:
         if upload_method in [
             TransmissionMedium.FILE,
@@ -950,7 +968,9 @@ class IkupTerminal:
             raise NotImplementedError("Checking the response is not yet implemented")
 
         max_upload_size = self.get_max_upload_size(upload_method)
+        size = None
 
+        # If there is no image object, load it from the file.
         if inst.image is None:
             if not inst.is_file_available():
                 raise FileNotFoundError(
@@ -959,71 +979,49 @@ class IkupTerminal:
                 )
             from PIL import Image
 
+            # Load the object.
             image_object = Image.open(inst.path)
-            if self._is_format_supported(image_object.format):
-                size = os.path.getsize(inst.path)
-                if size <= max_upload_size:
-                    image_object.close()
-                    self._transmit_file_or_bytes(
-                        inst.path,
-                        inst,
-                        size,
-                        upload_method,
-                        force_upload=force_upload,
-                        mark_uploaded=mark_uploaded,
-                    )
-                    return
         else:
             image_object = inst.image
 
-        bits = 24 if image_object.mode == "RGB" else 32
-        width, height = image_object.size
-        image_bytes = width * height * (bits / 8)
-        if image_bytes > max_upload_size:
-            ratio = math.sqrt(max_upload_size / image_bytes)
-            width = max(1, math.floor(width * ratio))
-            height = max(1, math.floor(height * ratio))
-            image_object = image_object.resize((width, height))
+        # Get the supported format closest to the format of the original image.
+        format = self._get_supported_format(image_object.format)
 
-        if upload_method == TransmissionMedium.FILE:
-            with tempfile.NamedTemporaryFile(
-                "wb", delete=False, prefix="tty-graphics-protocol-"
-            ) as f:
-                image_object.save(
-                    f,
-                    format=(
-                        image_object.format
-                        if self._is_format_supported(image_object.format)
-                        else "PNG"
-                    ),
-                )
-                f.flush()
-                size = f.tell()
-                f.close()
-                self._transmit_file_or_bytes(
-                    f.name,
-                    inst,
-                    size,
-                    TransmissionMedium.TEMP_FILE,
-                    force_upload=force_upload,
-                    mark_uploaded=mark_uploaded,
-                )
-                return
-        elif upload_method == TransmissionMedium.DIRECT:
-            bytesio = io.BytesIO()
-            image_object.save(bytesio, format="PNG")
-            size = bytesio.tell()
-            self._transmit_file_or_bytes(
-                bytesio,
-                inst,
-                size,
-                upload_method,
-                pix_width=image_object.width,
-                pix_height=image_object.height,
-                force_upload=force_upload,
-                mark_uploaded=mark_uploaded,
+        # The path and the file size.
+        path = inst.path
+        size = None
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            pass
+
+        # Resize and convert if needed. Use the conversion cache.
+        if (
+            size is None
+            or size > max_upload_size
+            or format != image_object.format
+            or self._config.cache_always
+        ):
+            self.cleanup_cache()
+            cached_image = self.conversion_cache.convert(
+                image_path=inst.path,
+                image_object=image_object,
+                mtime=inst.mtime,
+                format=format,
+                max_size_bytes=max_upload_size,
             )
-            return
+            path = cached_image.dst_path
+            size = cached_image.size_bytes
+
+        # Upload the image.
+        self._transmit_file_or_bytes(
+            path,
+            inst,
+            size,
+            upload_method,
+            force_upload=force_upload,
+            mark_uploaded=mark_uploaded,
+        )
 
     def get_allow_concurrent_uploads(self) -> bool:
         if self._config.allow_concurrent_uploads == "auto":

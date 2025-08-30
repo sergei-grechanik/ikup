@@ -16,6 +16,7 @@ from typing import (
 )
 
 from ikup.image_optimizer import optimize_image_to_size, convert_image
+from ikup.utils import get_real_image_size
 
 # PIL is expensive to import, we import it only when needed or when type checking.
 if TYPE_CHECKING:
@@ -95,15 +96,17 @@ class _ImageConversionRequest:
             format = self.get_src_image_object().format or "PNG"
         # If no resize is requested, use the original size.
         if width is None and height is None and max_size_bytes is None:
-            width, height = self.get_src_image_object().size
+            width, height = get_real_image_size(self.get_src_image_object())
         # If only width or height is specified, calculate the other dimension assuming
         # we want to keep the aspect ratio of the original image.
         if width is not None and height is None:
             image_object = self.get_src_image_object()
-            height = max(1, int(image_object.height * width / image_object.width))
+            img_width, img_height = get_real_image_size(image_object)
+            height = max(1, int(img_height * width / img_width))
         if height is not None and width is None:
             image_object = self.get_src_image_object()
-            width = max(1, int(image_object.width * height / image_object.height))
+            img_width, img_height = get_real_image_size(image_object)
+            width = max(1, int(img_width * height / img_height))
 
         self.width: Optional[int] = width
         self.height: Optional[int] = height
@@ -532,7 +535,10 @@ class ConversionCache:
         image_object = request.get_src_image_object()
         orig_format = image_object.format or "UNKNOWN"
         dst_name = self._generate_cache_filename(request.format)
-        is_biggest = image_object.size == (request.width, request.height)
+        is_biggest = get_real_image_size(image_object) == (
+            request.width,
+            request.height,
+        )
 
         # If the size and the format match the original image, we can just copy it (if
         # it exists, sometimes we only have an object, but the path is fake).
@@ -573,8 +579,7 @@ class ConversionCache:
         ):
             orig_size = os.path.getsize(request.src_path)
             if orig_size <= request.max_size_bytes:
-                request.width = image_object.width
-                request.height = image_object.height
+                request.width, request.height = get_real_image_size(image_object)
                 return self._insert_or_find_the_same(
                     request, dst_name, is_biggest=True, source=request.src_path
                 )
@@ -612,7 +617,8 @@ class ConversionCache:
             and os.path.exists(request.src_path)
         ):
             orig_size = os.path.getsize(request.src_path)
-            samples.append((image_object.width, image_object.height, orig_size))
+            img_width, img_height = get_real_image_size(image_object)
+            samples.append((img_width, img_height, orig_size))
 
         # Call the function to minimize the image.
         converted_data, converted_image_object = optimize_image_to_size(
@@ -623,9 +629,10 @@ class ConversionCache:
             samples=samples,
         )
         # Save it to a file and return.
-        request.width = converted_image_object.width
-        request.height = converted_image_object.height
-        is_biggest = converted_image_object.size == image_object.size
+        request.width, request.height = get_real_image_size(converted_image_object)
+        is_biggest = get_real_image_size(converted_image_object) == get_real_image_size(
+            image_object
+        )
         return self._insert_or_find_the_same(
             request, dst_name, is_biggest, source=converted_data
         )

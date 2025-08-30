@@ -6,10 +6,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterable, Iterator, List, Optional, Tuple, Callable, Literal
 from contextlib import closing
-from enum import Enum
-import warnings
+import logging
 import time
 import random
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -458,13 +459,16 @@ class IDManager:
             )
             row = cursor.fetchone()
         if not row:
+            logger.debug("get_info: no info for %s")
             return None
         description, atime = row
-        return ImageInfo(
+        res = ImageInfo(
             id=id,
             description=description,
             atime=datetime.fromisoformat(atime),
         )
+        logger.debug("get_info: found %s", res)
+        return res
 
     def get_all(
         self,
@@ -747,6 +751,7 @@ class IDManager:
             )
             row = cursor.fetchone()
             if not row:
+                logger.debug("get_upload_info: none for %s in %s", id, terminal)
                 return None
             description, upload_time_str, size, status, upload_id = row
             if size is None:
@@ -759,7 +764,7 @@ class IDManager:
                 (terminal, upload_time_str),
             )
             uploads_ago, bytes_ago = cursor.fetchone()
-        return UploadInfo(
+        res = UploadInfo(
             id=id,
             description=description,
             upload_time=datetime.fromisoformat(upload_time_str),
@@ -770,6 +775,8 @@ class IDManager:
             status=status,
             upload_id=upload_id,
         )
+        logger.debug("get_upload_info: found %s", res)
+        return res
 
     def get_upload_infos(self, id: int) -> List[UploadInfo]:
         with closing(self.conn.cursor()) as cursor:
@@ -799,11 +806,13 @@ class IDManager:
     ) -> bool:
         info = self.get_info(id)
         if info is None:
+            logger.debug("needs_uploading: yes, no info for id %s", id)
             return False
         upload_info = self.get_upload_info(id, terminal)
         if upload_info is None:
+            logger.debug("needs_uploading: yes, no info for %s in %s", id, terminal)
             return True
-        return (
+        res = (
             upload_info.status != UPLOADING_STATUS_UPLOADED
             or upload_info.description != info.description
             or upload_info._needs_uploading(
@@ -812,6 +821,8 @@ class IDManager:
                 max_time_ago=max_time_ago,
             )
         )
+        logger.debug("needs_uploading: %s for %s to %s", res, id, terminal)
+        return res
 
     def _create_new_upload_entry(
         self,
@@ -901,6 +912,15 @@ class IDManager:
         existing_upload_time = None
 
         first_iteration = True
+
+        logger.debug(
+            "start_upload: id=%s, terminal=%s, description=%s, size=%s, upload_id=%s",
+            id,
+            terminal,
+            description,
+            size,
+            new_upload_id,
+        )
 
         # TODO: Maybe add a total timeout in case the other process is faking image
         #       upload.
@@ -1124,7 +1144,8 @@ class IDManager:
         set_status = (
             UPLOADING_STATUS_UPLOADED if mark_uploaded else UPLOADING_STATUS_DIRTY
         )
-        for _ in range(max_retries):
+        for i in range(max_retries):
+            logger.debug("retry_uploading_until_success: attempt %s", i)
             upload = self.start_upload(
                 id,
                 terminal,
@@ -1134,6 +1155,7 @@ class IDManager:
                 force_upload=force_upload,
                 allow_concurrent_uploads=allow_concurrent_uploads,
             )
+            logger.debug("start_upload returned: %s", upload)
             if upload.status == UPLOADING_STATUS_UPLOADED:
                 # The upload was done by another process, do nothing.
                 return

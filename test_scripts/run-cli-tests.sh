@@ -1200,7 +1200,7 @@ test_cache_check() {
     run_command cache check $DATA_DIR/tux.png --height 76
 
     subtest "Check the cache for max-bytes"
-    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8100 --format png
+    run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 8050 --format png
     run_command cache check $DATA_DIR/butterfly.jpg --max-bytes 7999 --format png
 
     subtest "These images should not be found"
