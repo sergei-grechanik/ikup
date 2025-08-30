@@ -420,6 +420,7 @@ class IkupTerminal:
         out_display: Union[BinaryIO, str, None] = None,
         out_status: Union[BinaryIO, str, None] = None,
         in_response: Union[BinaryIO, str, None] = None,
+        append_display: bool = False,
         id_database: Optional[str] = None,
         final_cursor_pos: FinalCursorPos = "bottom-left",
         config: Optional[Union[IkupConfig, str]] = None,
@@ -479,6 +480,7 @@ class IkupTerminal:
             out_display=out_display,
             in_response=in_response,
             in_userinput=None,
+            append_display=append_display,
             max_command_size=config.max_command_size,
             num_tmux_layers=config.num_tmux_layers,
         )

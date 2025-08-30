@@ -317,6 +317,12 @@ test_display() {
 
     subtest "Display with use-line-feeds"
     run_command $DATA_DIR/wikipedia.png -r 2 --use-line-feeds=true
+
+    subtest "Display through file with append"
+    run_command $DATA_DIR/wikipedia.png -r 2 -o $TMPDIR/append_test.txt
+    cat $TMPDIR/append_test.txt
+    run_command $DATA_DIR/wikipedia.png -r 1 -o $TMPDIR/append_test.txt --append
+    cat $TMPDIR/append_test.txt
 }
 
 ################################################################################

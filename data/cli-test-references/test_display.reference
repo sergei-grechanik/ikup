@@ -166,3 +166,13 @@ ikup list -v
 ikup ./.cli-tests-data/wikipedia.png -r 2 --use-line-feeds=true
 [0m[38;2;[[wr2id]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
 [0m[38;2;[[wr2id]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+
+---------- SUBTEST Display through file with append ----------
+
+ikup ./.cli-tests-data/wikipedia.png -r 2 -o {{.*}}/append_test.txt
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+ikup ./.cli-tests-data/wikipedia.png -r 1 -o {{.*}}/append_test.txt --append
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m
