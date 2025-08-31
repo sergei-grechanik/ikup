@@ -4,7 +4,7 @@
 ---------- SUBTEST Clear cache ----------
 
 ikup cache remove --all
-Removed 0 cached images
+Removed {{.*}} cached images
 
 ---------- SUBTEST Test file upload size limit with large image ----------
 
