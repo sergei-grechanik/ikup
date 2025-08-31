@@ -129,6 +129,9 @@ class IkupConfig:
         self._provenance = {}
         self._current_provenance = None
 
+    def clone_with(self, **kwargs) -> "IkupConfig":
+        return dataclasses.replace(self, **kwargs)
+
     def get_provenance(self, name: str) -> str:
         provenance = self._provenance.get(name)
         if provenance is not None:
@@ -196,10 +199,12 @@ class IkupConfig:
         unknown_keys = set()
         for key, value in config.items():
             if key not in IkupConfig.__annotations__:
+                logger.warning("Unknown config key: %s", key)
                 unknown_keys.add(key)
                 continue
             normalized = IkupConfig.validate_and_normalize(key, value, provenance)
             setattr(self, key, normalized)
+            logger.debug("Setting config %s = %s (%s)", key, normalized, provenance)
         self._current_provenance = None
         if unknown_keys and not self.ignore_unknown_attributes:
             raise KeyError(f"Unknown config keys: {', '.join(unknown_keys)}")
@@ -214,18 +219,21 @@ class IkupConfig:
             if value is not None:
                 normalized = IkupConfig.validate_and_normalize(key, value, provenance)
                 setattr(self, key, normalized)
+                logger.debug("Setting config %s = %s (%s)", key, normalized, provenance)
         self._current_provenance = None
 
     def override_from_env(self):
-        for name in IkupConfig.__annotations__:
-            env_var_name = f"IKUP_{name.upper()}"
+        for key in IkupConfig.__annotations__:
+            env_var_name = f"IKUP_{key.upper()}"
             env_value = os.environ.get(env_var_name)
             if env_value is not None:
-                self._current_provenance = f"set via {env_var_name}"
+                provenance = f"set via {env_var_name}"
+                self._current_provenance = provenance
                 normalized = IkupConfig.validate_and_normalize(
-                    name, env_value, self._current_provenance
+                    key, env_value, self._current_provenance
                 )
-                setattr(self, name, normalized)
+                setattr(self, key, normalized)
+                logger.debug("Setting config %s = %s (%s)", key, normalized, provenance)
         self._current_provenance = None
 
     def override(self, provenance: Optional[str] = None, **kwargs):
@@ -427,7 +435,19 @@ class IkupTerminal:
         config_overrides: dict = {},
         **kwargs,
     ):
+        # Configure logging as early as possible
+        if config_overrides.get("log_level"):
+            self._configure_logging(config_overrides["log_level"], "config_overrides")
+        elif kwargs.get("log_level"):
+            self._configure_logging(kwargs["log_level"], "kwargs")
+        elif os.environ.get("IKUP_LOG_LEVEL") is not None:
+            self._configure_logging(os.environ["IKUP_LOG_LEVEL"], "env")
+        elif isinstance(config, IkupConfig) and config.log_level:
+            self._configure_logging(config.log_level, "config object")
+
         self._config_file: str = "DEFAULT"
+        if isinstance(config, IkupConfig):
+            config = config.clone_with()
         if config is None:
             if os.environ.get("IKUP_CONFIG") is not None:
                 config = os.environ["IKUP_CONFIG"]
@@ -449,10 +469,13 @@ class IkupTerminal:
         config.override_from_dict(kwargs)
         config.override_from_dict(config_overrides)
 
-        self.final_cursor_pos: FinalCursorPos = final_cursor_pos
-
+        # Configure one more time in case we get the information from the config file.
         if config.log_level:
-            self._configure_logging(config.log_level)
+            self._configure_logging(
+                config.log_level, config.get_provenance("log_level")
+            )
+
+        self.final_cursor_pos: FinalCursorPos = final_cursor_pos
 
         if config.num_tmux_layers == "auto":
             config._current_provenance = (
@@ -522,7 +545,7 @@ class IkupTerminal:
     mark_uploaded = _config_property("mark_uploaded")
     cache_always = _config_property("cache_always")
 
-    def _configure_logging(self, log_level: str):
+    def _configure_logging(self, log_level: str, provenance: str):
         """Configure logging for ikup based on the provided log level."""
         try:
             level = int(log_level)
@@ -542,6 +565,7 @@ class IkupTerminal:
             ikup_logger.addHandler(h)
             ikup_logger.propagate = False
         ikup_logger.setLevel(level)
+        logger.debug("Configured logging with level %s (%s)", log_level, provenance)
 
     @property
     def conversion_cache(self) -> ConversionCache:
@@ -810,6 +834,8 @@ class IkupTerminal:
     def needs_uploading(
         self,
         id: int,
+        *,
+        min_quality: float,
         terminal_id: Optional[str] = None,
     ) -> bool:
         max_uploads_ago = self._config.reupload_max_uploads_ago
@@ -819,12 +845,18 @@ class IkupTerminal:
             terminal_id = self._terminal_id
         if terminal_id is None:
             return True
-        return self.id_manager.needs_uploading(
-            id,
-            terminal_id,
+        info = self.id_manager.get_info(id)
+        if info is None:
+            return True
+        upload = self.id_manager.get_upload_info(id, terminal_id)
+        if upload is None:
+            return True
+        return upload.needs_uploading(
+            info,
             max_uploads_ago=max_uploads_ago,
             max_bytes_ago=max_bytes_ago,
             max_time_ago=max_time_ago,
+            min_quality=min_quality,
         )
 
     def upload(
@@ -845,7 +877,15 @@ class IkupTerminal:
         update_atime: bool = True,
         mark_uploaded: Optional[bool] = None,
         num_attempts: int = 10,
-    ) -> ImageInstance:
+    ) -> Tuple[ImageInstance, UploadInfo]:
+        """Upload an image to the terminal, assigning it an ID if necessary.
+
+        Returns:
+            A tuple of:
+            - The ImageInstance representing the uploaded image.
+            - An UploadInfo object describing the upload that was performed or the
+              existing upload.
+        """
         inst = None
         for _ in range(num_attempts):
             if isinstance(image, ImageInstance):
@@ -877,19 +917,20 @@ class IkupTerminal:
                 force_upload = self._config.force_upload
             if self._config.redetect_terminal:
                 self.detect_terminal()
-            if force_upload or self.needs_uploading(inst.id):
-                try:
-                    self._upload(
-                        inst,
-                        check_response=check_response,
-                        upload_method=upload_method,
-                        force_upload=force_upload,
-                        mark_uploaded=mark_uploaded,
-                    )
-                except RetryAssignIdError:
-                    # Retry if the ID was reassigned to another image
-                    continue
-            return inst
+            try:
+                upload, image_object = self._upload(
+                    inst,
+                    check_response=check_response,
+                    upload_method=upload_method,
+                    force_upload=force_upload,
+                    mark_uploaded=mark_uploaded,
+                )
+                if inst.image is None and image_object is not None:
+                    inst.image = image_object
+            except RetryAssignIdError:
+                # Retry if the ID was reassigned to another image
+                continue
+            return inst, upload
         raise RuntimeError(f"Failed to upload image {inst}")
 
     def get_supported_formats(self) -> List[str]:
@@ -948,7 +989,7 @@ class IkupTerminal:
         upload_method: Union[TransmissionMedium, str, None] = None,
         force_upload: bool = False,
         mark_uploaded: Optional[bool] = None,
-    ):
+    ) -> Tuple[UploadInfo, Optional["Image.Image"]]:
         if check_response is None:
             check_response = self._config.check_response
         if upload_method is None:
@@ -968,6 +1009,35 @@ class IkupTerminal:
 
         if check_response:
             raise NotImplementedError("Checking the response is not yet implemented")
+
+        max_uploads_ago = self._config.reupload_max_uploads_ago
+        max_bytes_ago = self._config.reupload_max_bytes_ago
+        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
+        info = None
+
+        # Check if we can skip uploading and converting the image.
+        needs_uploading_pred = lambda _: True
+        if not force_upload:
+            terminal_id = self._terminal_id
+            info = self.id_manager.get_info(inst.id)
+            if info is None:
+                raise RetryAssignIdError(
+                    f"ID {inst.id} was deleted from the database, retrying"
+                )
+            ex_upload = self.id_manager.get_upload_info(inst.id, terminal_id)
+            if ex_upload is not None:
+                if not ex_upload.needs_uploading(
+                    info,
+                    max_uploads_ago=max_uploads_ago,
+                    max_bytes_ago=max_bytes_ago,
+                    max_time_ago=max_time_ago,
+                    min_quality=1.0,
+                ):
+                    # Not too old and already uploaded at full quality, don't reupload.
+                    logger.debug("Image ID %d already at full quality", inst.id)
+                    return ex_upload, None
+                    # Otherwise we may need to reupload, and we need to convert the
+                    # image first to decide.
 
         max_upload_size = self.get_max_upload_size(upload_method)
         size = None
@@ -992,6 +1062,7 @@ class IkupTerminal:
         # The path and the file size.
         path = inst.path
         size = None
+        quality = 1.0
         try:
             size = os.path.getsize(path)
         except OSError:
@@ -1014,16 +1085,28 @@ class IkupTerminal:
             )
             path = cached_image.dst_path
             size = cached_image.size_bytes
+            quality = cached_image.quality
+
+        if not force_upload:
+            needs_uploading_pred = lambda upload: upload.needs_uploading(
+                info,
+                max_uploads_ago=max_uploads_ago,
+                max_bytes_ago=max_bytes_ago,
+                max_time_ago=max_time_ago,
+                min_quality=quality,
+            )
 
         # Upload the image.
-        self._transmit_file_or_bytes(
+        upload = self._transmit_file_or_bytes(
             path,
-            inst,
-            size,
-            upload_method,
-            force_upload=force_upload,
+            inst=inst,
+            size=size,
+            quality=quality,
+            needs_uploading_pred=needs_uploading_pred,
+            upload_method=upload_method,
             mark_uploaded=mark_uploaded,
         )
+        return upload, image_object
 
     def get_allow_concurrent_uploads(self) -> bool:
         if self._config.allow_concurrent_uploads == "auto":
@@ -1036,14 +1119,16 @@ class IkupTerminal:
     def _transmit_file_or_bytes(
         self,
         filename_or_object: Union[str, io.BytesIO],
+        *,
         inst: ImageInstance,
         size: int,
+        quality: float,
+        needs_uploading_pred: Callable[[UploadInfo], bool],
         upload_method: TransmissionMedium,
-        force_upload: bool,
         mark_uploaded: Optional[bool],
         pix_width: Optional[int] = None,
         pix_height: Optional[int] = None,
-    ):
+    ) -> UploadInfo:
         if mark_uploaded is None:
             mark_uploaded = self._config.mark_uploaded
 
@@ -1097,14 +1182,15 @@ class IkupTerminal:
 
         # Now call the uploading function wrapped in a retry loop that will make sure we
         # don't interfere with uploads that are already in progress.
-        self.id_manager.retry_uploading_until_success(
+        return self.id_manager.retry_uploading_until_success(
             inst.id,
             self._terminal_id,
             fn=upload_fn,
             size=size,
+            quality=quality,
+            needs_uploading_pred=needs_uploading_pred,
             description=inst.get_description(),
             stall_timeout=self._config.upload_stall_timeout,
-            force_upload=force_upload,
             allow_concurrent_uploads=self.get_allow_concurrent_uploads(),
             mark_uploaded=mark_uploaded,
         )
@@ -1143,7 +1229,7 @@ class IkupTerminal:
         use_line_feeds: bool = False,
         mark_uploaded: Optional[bool] = None,
     ) -> ImagePlaceholder:
-        inst = self.upload(
+        inst, _ = self.upload(
             image,
             cols=cols,
             rows=rows,

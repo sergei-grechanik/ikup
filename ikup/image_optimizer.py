@@ -32,15 +32,17 @@ def convert_image(
     format: str,
     width: Optional[int] = None,
     height: Optional[int] = None,
-) -> Tuple[io.BytesIO, "Image.Image"]:
+) -> Tuple[io.BytesIO, "Image.Image", float]:
     """Convert PIL Image to specified format and dims, handling transparency correctly.
 
     Returns:
         - BytesIO containing the converted image data
         - PIL Image object of the resized image (may be the original image object)
+        - float: the quality of the converted image from `[0.0; 1.0]` (1.0 if lossless)
     """
     format = format.upper()
     image = transpose_image_maybe(image)
+    src_area = image.width * image.height
 
     # Resize if needed
     if width is not None and height is not None and (width, height) != image.size:
@@ -63,11 +65,14 @@ def convert_image(
             )
             image = background
 
+    # Currently compute quality as the ration between the number of pixels.
+    quality = image.width * image.height / src_area
+
     # Convert and return
     output = io.BytesIO()
     image.save(output, format=format)
     output.seek(0)
-    return output, image
+    return output, image, quality
 
 
 def optimize_image_to_size(
@@ -76,7 +81,7 @@ def optimize_image_to_size(
     max_size_bytes: int,
     tolerance: float,
     samples: List[Tuple[int, int, int]] = [],
-) -> Tuple[io.BytesIO, "Image.Image"]:
+) -> Tuple[io.BytesIO, "Image.Image", float]:
     """
     Optimize an image to fit within a size constraint.
 
@@ -92,6 +97,7 @@ def optimize_image_to_size(
     Returns:
         - BytesIO containing the optimized image data
         - PIL Image object of the optimized image
+        - float: the quality of the converted image from `[0.0; 1.0]` (1.0 if lossless)
     """
     image = transpose_image_maybe(image)
     logger.debug(
@@ -123,6 +129,7 @@ def optimize_image_to_size(
     # The best image that is smaller than `max_size_bytes` so far.
     best_data: Optional[io.BytesIO] = None
     best_image: Optional["Image.Image"] = None
+    best_quality: float = 0.0
     best_size: int = -1
     best_dims = (0, 0)
 
@@ -169,7 +176,7 @@ def optimize_image_to_size(
         )
 
         # Resize the image.
-        cur_data, cur_image = convert_image(
+        cur_data, cur_image, cur_quality = convert_image(
             image, format=format, width=new_width, height=new_height
         )
         cur_size = cur_data.getbuffer().nbytes
@@ -185,7 +192,7 @@ def optimize_image_to_size(
         if cur_size > max_size_bytes and cur_image.size == (1, 1):
             # This is the smallest possible image, and it's still too large. Stop here.
             logger.debug("Returning 1x1 image as the smallest possible")
-            return cur_data, cur_image
+            return cur_data, cur_image, cur_quality
 
         if cur_size <= max_size_bytes:
             logger.debug("cur_size %s < max_size_bytes %s", cur_size, max_size_bytes)
@@ -193,16 +200,17 @@ def optimize_image_to_size(
             # original, and the size is smaller than the maximum size, we are done.
             if cur_image.size == image.size:
                 logger.debug("Returning, it's the max size without upscaling")
-                return cur_data, cur_image
+                return cur_data, cur_image, cur_quality
             logger.debug("tolerance threshold: %s", max_size_bytes * (1 - tolerance))
             # If the current image is within the tolerance, we can stop.
             if cur_size >= max_size_bytes * (1 - tolerance):
                 logger.debug("Returning, it's within tolerance")
-                return cur_data, cur_image
+                return cur_data, cur_image, cur_quality
             # It's still too small, check if it's the best so far.
             if cur_size > best_size:
                 best_data = cur_data
                 best_image = cur_image
+                best_quality = cur_quality
                 best_size = cur_size
                 best_dims = cur_image.size
         else:
@@ -216,12 +224,14 @@ def optimize_image_to_size(
         return convert_image(image, format=format, width=1, height=1)
     # Return the best image found. Here it will not satisfy the tolerance.
     logger.debug(
-        "Could not find an image within the tolerance, returning %s x %s with size %s bytes",
+        "Could not find an image within the tolerance, "
+        "returning %s x %s with size %s bytes and quality %s",
         best_image.width,
         best_image.height,
         best_size,
+        best_quality,
     )
-    return best_data, best_image
+    return best_data, best_image, best_quality
 
 
 def _get_coefficients(area_to_size: List[Tuple[int, int]]) -> Tuple[float, float]:

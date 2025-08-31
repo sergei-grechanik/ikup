@@ -2,6 +2,7 @@ import heapq
 import os
 import secrets
 import sqlite3
+import dataclasses
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Iterable, Iterator, List, Optional, Tuple, Callable, Literal
@@ -360,24 +361,35 @@ class UploadInfo:
     upload_time: datetime
     terminal: str
     size: int
+    quality: float
     bytes_ago: int
     uploads_ago: int
     status: UploadingStatus
     upload_id: int
+    just_uploaded: bool = False  # Whether it's a new upload entry
 
-    def _needs_uploading(
+    def needs_uploading(
         self,
+        info: ImageInfo,
         *,
-        max_uploads_ago: int = 1024,
-        max_bytes_ago: int = 20 * (2**20),
-        max_time_ago: timedelta = timedelta(hours=1),
+        max_uploads_ago: int,
+        max_bytes_ago: int,
+        max_time_ago: timedelta,
+        min_quality: float,
     ) -> bool:
+        """Returns true if this upload is too old or doesn't match the given info or
+        quality requirements, and needs to be re-uploaded."""
         return (
-            self.status == UPLOADING_STATUS_DIRTY
+            self.description != info.description
+            or self.status == UPLOADING_STATUS_DIRTY
+            or self.quality < min_quality
             or self.bytes_ago > max_bytes_ago
             or self.uploads_ago > max_uploads_ago
             or datetime.now() - self.upload_time > max_time_ago
         )
+
+    def clone_with(self, **kwargs) -> "UploadInfo":
+        return dataclasses.replace(self, **kwargs)
 
 
 class RetryUploadError(Exception):
@@ -430,6 +442,7 @@ class IDManager:
                         id INTEGER NOT NULL,
                         description TEXT NOT NULL,
                         size INTEGER NOT NULL,
+                        quality REAL NOT NULL,
                         terminal TEXT NOT NULL,
                         upload_time TIMESTAMP NOT NULL,
                         status TEXT NOT NULL,
@@ -537,6 +550,7 @@ class IDManager:
             atime = datetime.now()
         with closing(self.conn.cursor()) as cursor:
             # Upsert the row.
+            logger.debug("set_id: %s to %s", id, description)
             cursor.execute(
                 f"""INSERT INTO {namespace} (id, description, atime)
                     VALUES (?, ?, ?)
@@ -742,34 +756,41 @@ class IDManager:
 
     def get_upload_info(self, id: int, terminal: str) -> Optional[UploadInfo]:
         with closing(self.conn.cursor()) as cursor:
-            cursor.execute(
-                """
-                SELECT description, upload_time, size, status, upload_id FROM upload
-                WHERE id=? AND terminal=?
-                """,
-                (id, terminal),
-            )
-            row = cursor.fetchone()
-            if not row:
-                logger.debug("get_upload_info: none for %s in %s", id, terminal)
-                return None
-            description, upload_time_str, size, status, upload_id = row
-            if size is None:
-                size = 0
-            cursor.execute(
-                """
-                SELECT COUNT(*), SUM(size) FROM upload
-                WHERE terminal = ? AND upload_time > ?
-                """,
-                (terminal, upload_time_str),
-            )
-            uploads_ago, bytes_ago = cursor.fetchone()
+            return self._get_upload_info(cursor, id, terminal)
+
+    def _get_upload_info(
+        self, cursor: sqlite3.Cursor, id: int, terminal: str
+    ) -> Optional[UploadInfo]:
+        cursor.execute(
+            """
+            SELECT description, upload_time, size, quality, status, upload_id
+            FROM upload
+            WHERE id=? AND terminal=?
+            """,
+            (id, terminal),
+        )
+        row = cursor.fetchone()
+        if not row:
+            logger.debug("get_upload_info: none for %s in %s", id, terminal)
+            return None
+        description, upload_time_str, size, quality, status, upload_id = row
+        if size is None:
+            size = 0
+        cursor.execute(
+            """
+            SELECT COUNT(*), SUM(size) FROM upload
+            WHERE terminal = ? AND upload_time > ?
+            """,
+            (terminal, upload_time_str),
+        )
+        uploads_ago, bytes_ago = cursor.fetchone()
         res = UploadInfo(
             id=id,
             description=description,
             upload_time=datetime.fromisoformat(upload_time_str),
             terminal=terminal,
             size=size,
+            quality=quality,
             bytes_ago=size + (bytes_ago if bytes_ago else 0),
             uploads_ago=1 + (uploads_ago if uploads_ago else 0),
             status=status,
@@ -795,7 +816,7 @@ class IDManager:
                     res.append(upload_info)
             return res
 
-    def needs_uploading(
+    def needs_uploading_for_testing(
         self,
         id: int,
         terminal: str,
@@ -803,26 +824,24 @@ class IDManager:
         max_uploads_ago: int = 1024,
         max_bytes_ago: int = 20 * (2**20),
         max_time_ago: timedelta = timedelta(hours=1),
+        min_quality: float = 1.0,
     ) -> bool:
+        """Returns true if the image with the given ID needs to be uploaded to the given
+        terminal. This functions must be used only for testing, it's better to call
+        UploadInfo.needs_uploading directly instead."""
         info = self.get_info(id)
         if info is None:
-            logger.debug("needs_uploading: yes, no info for id %s", id)
             return False
         upload_info = self.get_upload_info(id, terminal)
         if upload_info is None:
-            logger.debug("needs_uploading: yes, no info for %s in %s", id, terminal)
             return True
-        res = (
-            upload_info.status != UPLOADING_STATUS_UPLOADED
-            or upload_info.description != info.description
-            or upload_info._needs_uploading(
-                max_uploads_ago=max_uploads_ago,
-                max_bytes_ago=max_bytes_ago,
-                max_time_ago=max_time_ago,
-            )
+        return upload_info.needs_uploading(
+            info,
+            max_uploads_ago=max_uploads_ago,
+            max_bytes_ago=max_bytes_ago,
+            max_time_ago=max_time_ago,
+            min_quality=min_quality,
         )
-        logger.debug("needs_uploading: %s for %s to %s", res, id, terminal)
-        return res
 
     def _create_new_upload_entry(
         self,
@@ -832,6 +851,7 @@ class IDManager:
         *,
         description: str,
         size: int,
+        quality: float,
         upload_time: datetime,
         upload_id: int,
     ) -> UploadInfo:
@@ -839,11 +859,12 @@ class IDManager:
         cursor.execute(
             """
             INSERT INTO upload
-            (id, description, size, terminal, upload_time, status, upload_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (id, description, size, quality, terminal, upload_time, status, upload_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id, terminal) DO UPDATE SET
                 description=excluded.description,
                 size=excluded.size,
+                quality=excluded.quality,
                 upload_time=excluded.upload_time,
                 status=excluded.status,
                 upload_id=excluded.upload_id
@@ -852,6 +873,7 @@ class IDManager:
                 id,
                 description,
                 size,
+                quality,
                 terminal,
                 upload_time.isoformat(),
                 UPLOADING_STATUS_IN_PROGRESS,
@@ -864,6 +886,7 @@ class IDManager:
             upload_time=upload_time,
             terminal=terminal,
             size=size,
+            quality=quality,
             bytes_ago=0,
             uploads_ago=0,
             status=UPLOADING_STATUS_IN_PROGRESS,
@@ -877,9 +900,10 @@ class IDManager:
         *,
         description: str,
         size: int,
+        quality: float,
+        needs_uploading_pred: Callable[[UploadInfo], bool],
         upload_time: Optional[datetime] = None,
         stall_timeout: float = 1.0,
-        force_upload: bool = False,
         allow_concurrent_uploads: bool = False,
     ) -> UploadInfo:
         """Marks an upload as 'in_progress' and sets its size and time. Returns the
@@ -895,8 +919,10 @@ class IDManager:
           new upload info.
 
         Args:
-            force_upload: If `True`, start a new upload even if another one is
-            successful.
+            needs_uploading_pred: A predicate that is called with the existing upload
+            info (if any) to check whether we need to upload the image again. This
+            predicate is supposed to check whether the existing upload info is too old,
+            probably by calling UploadInfo.needs_uploading with the right parameters.
 
             allow_concurrent_uploads: If `True`, active uploads with a different ID
             don't interfere with the current upload. If `False`, wait for the active
@@ -909,17 +935,20 @@ class IDManager:
         new_upload_id = random.randint(1, 2**31 - 1)
 
         # The upload time seen in the previous iteration.
-        existing_upload_time = None
+        prev_upload_time = None
 
         first_iteration = True
 
         logger.debug(
-            "start_upload: id=%s, terminal=%s, description=%s, size=%s, upload_id=%s",
+            "start_upload: id=%s, terminal=%s, description=%s, size=%s, quality = %s, "
+            "upload_id=%s, allow_concurrent_uploads=%s",
             id,
             terminal,
             description,
             size,
+            quality,
             new_upload_id,
+            allow_concurrent_uploads,
         )
 
         # TODO: Maybe add a total timeout in case the other process is faking image
@@ -945,11 +974,15 @@ class IDManager:
                     row = cursor.fetchone()
 
                     if row:
+                        logger.debug("start_upload: found active upload %s", row)
                         # There's an active upload.
                         active_id = row[0]
                         active_upload_time = datetime.fromisoformat(row[1])
                         # Check if the upload is stalled
-                        if existing_upload_time == active_upload_time:
+                        if prev_upload_time == active_upload_time:
+                            logger.debug(
+                                "start_upload: existing upload is stalled, marking dirty"
+                            )
                             # The upload appears stalled, mark it as dirty
                             cursor.execute(
                                 """UPDATE upload SET status=?
@@ -958,46 +991,49 @@ class IDManager:
                             )
                         else:
                             # Try again.
-                            existing_upload_time = active_upload_time
+                            prev_upload_time = active_upload_time
                             continue
 
                 # Check if there's an existing upload entry for this specific ID
-                cursor.execute(
-                    """SELECT description, upload_time, size, status, upload_id
-                       FROM upload WHERE id=? AND terminal=?""",
-                    (id, terminal),
-                )
-                row = cursor.fetchone()
-                active_upload_time = datetime.fromisoformat(row[1]) if row else None
+                ex = self._get_upload_info(cursor, id, terminal)
+                needs_reuploading = False
+                if ex:
+                    logger.debug("start_upload: found existing upload entry %s", ex)
+                    needs_reuploading = needs_uploading_pred(ex)
+                    if needs_reuploading:
+                        logger.debug("start_upload: existing upload needs reuploading")
 
                 # Create a new upload entry if:
                 # - there is no existing entry, or
                 # - the entry is marked as DIRTY, or
                 # - it's successfully finished, but the description is wrong, or
+                # - it's successfully finished, but the quality is worse, or
                 # - we are checking whether the upload is stalled and we don't see
                 #   any change in upload time, meaning it's actually stalled.
-                # - we are forced to upload and the upload is not in progress.
+                # - the entry needs reuploading and the upload is not in progress.
                 if (
-                    row is None
-                    or row[3] == UPLOADING_STATUS_DIRTY
-                    or (row[3] == UPLOADING_STATUS_UPLOADED and row[0] != description)
-                    or existing_upload_time == active_upload_time
-                    or (force_upload and row[3] != UPLOADING_STATUS_IN_PROGRESS)
+                    ex is None
+                    or ex.status == UPLOADING_STATUS_DIRTY
+                    or (
+                        ex.status == UPLOADING_STATUS_UPLOADED
+                        and ex.description != description
+                    )
+                    or (ex.status == UPLOADING_STATUS_UPLOADED and ex.quality < quality)
+                    or prev_upload_time == ex.upload_time
+                    or (needs_reuploading and ex.status != UPLOADING_STATUS_IN_PROGRESS)
                 ):
-                    return self._create_new_upload_entry(
+                    new_entry = self._create_new_upload_entry(
                         cursor,
                         id,
                         terminal,
                         description=description,
                         size=size,
+                        quality=quality,
                         upload_time=upload_time,
                         upload_id=new_upload_id,
                     )
-
-                # Parse existing row data
-                existing_description, _, existing_size, status, upload_id = row
-                assert active_upload_time is not None
-                existing_upload_time = active_upload_time
+                    logger.debug("start_upload: created new upload entry %s", new_entry)
+                    return new_entry
 
                 # If already uploaded, return that info, unless we are forced to
                 # upload. If we are forced to upload, we must wait for the other
@@ -1006,21 +1042,15 @@ class IDManager:
                 #       it will try reuploading before us. It's probably not the
                 #       most important case anyway.
                 if (
-                    not force_upload
-                    and status == UPLOADING_STATUS_UPLOADED
-                    and existing_description == description
+                    not needs_reuploading
+                    and ex.status == UPLOADING_STATUS_UPLOADED
+                    and ex.description == description
+                    and ex.quality >= quality
                 ):
-                    return UploadInfo(
-                        id=id,
-                        description=existing_description,
-                        upload_time=existing_upload_time,
-                        terminal=terminal,
-                        size=existing_size,
-                        bytes_ago=0,
-                        uploads_ago=0,
-                        status=UPLOADING_STATUS_UPLOADED,
-                        upload_id=upload_id,
-                    )
+                    logger.debug("start_upload: already uploaded %s", ex)
+                    return ex
+
+                prev_upload_time = ex.upload_time
 
             # Otherwise the upload is in progress. Exit the transaction and try again
             # after a short delay.
@@ -1030,12 +1060,15 @@ class IDManager:
         upload: UploadInfo,
         set_status: UploadingStatus = UPLOADING_STATUS_IN_PROGRESS,
         upload_time: Optional[datetime] = None,
-    ):
+    ) -> UploadInfo:
         """Report that an upload is alive by updating the upload time in the database.
 
         Args:
             set_status: The status to set for the upload. If the uploading is done,
             `UPLOADING_STATUS_UPLOADED` is recommended.
+
+        Returns:
+            A copy of `upload` with updated `upload_time` and `status`.
 
         Raises:
             RetryUploadError: If the entry for the upload is missing or has the wrong
@@ -1047,8 +1080,11 @@ class IDManager:
 
         with self.conn, closing(self.conn.cursor()) as cursor:
             cursor.execute("BEGIN IMMEDIATE")
+            logger.debug(
+                "report_upload: set %s and %s to %s", set_status, upload_time, upload
+            )
 
-            # Check the description of the ID. of the description for the ID is
+            # Check the description of the ID. If the description for the ID is
             # different from what we expect, someone has probably hijacked the ID.
             # We cannot just retry the upload, we need to reassign the ID.
             id_space = IDSpace.from_id(upload.id)
@@ -1059,27 +1095,35 @@ class IDManager:
             )
             row = cursor.fetchone()
             if not row or row[0] != upload.description:
+                other_descr = row[0] if row else "<none>"
+                logger.debug(
+                    "report_upload: ID %s was reassigned to %s instead of %s",
+                    upload.id,
+                    other_descr,
+                    upload.description,
+                )
                 raise RetryAssignIdError(
-                    f"ID {upload.id} was reassigned to {row[0]} instead of"
+                    f"ID {upload.id} was reassigned to {other_descr} instead of"
                     f" {upload.description} during uploading"
                 )
 
             # Check if the upload entry still exists with the correct upload_id
             cursor.execute(
                 """
-                SELECT status, upload_id, description FROM upload
+                SELECT status, upload_id, description, quality FROM upload
                 WHERE id=? AND terminal=?
                 """,
                 (upload.id, upload.terminal),
             )
             row = cursor.fetchone()
 
-            # If the entry doesn't exist or has a different upload_id or
-            # description, we need to retry.
+            # If the entry doesn't exist or has a different upload_id, description or
+            # quality, we need to retry.
             if (
                 not row
                 or row[1] != upload.upload_id
                 or row[2] != upload.description
+                or row[3] != upload.quality
                 or row[0] != UPLOADING_STATUS_IN_PROGRESS
             ):
                 # Mark as dirty to ensure it gets reuploaded
@@ -1087,13 +1131,17 @@ class IDManager:
                     "UPDATE upload SET status = ? WHERE id = ? and terminal = ?",
                     (UPLOADING_STATUS_DIRTY, upload.id, upload.terminal),
                 )
-                # Otherwise we should try to reupload with the same ID.
+                logger.debug(
+                    "report_upload: The entry is modified or deleted, new row: %s", row
+                )
+                logger.debug("report_upload: Marked it dirty")
                 raise RetryUploadError(
                     f"Upload entry for ID {upload.id} on terminal {upload.terminal} "
                     f"has been modified or deleted"
                 )
 
             # Update the upload time and status.
+            logger.debug("report_upload: Setting status to %s", set_status)
             cursor.execute(
                 """
                 UPDATE upload SET
@@ -1110,6 +1158,8 @@ class IDManager:
                 ),
             )
 
+            return upload.clone_with(upload_time=upload_time, status=set_status)
+
     def retry_uploading_until_success(
         self,
         id: int,
@@ -1118,12 +1168,13 @@ class IDManager:
         *,
         description: str,
         size: int,
+        quality: float,
+        needs_uploading_pred: Callable[[UploadInfo], bool],
         stall_timeout: float = 1.0,
         max_retries: int = 100,
-        force_upload: bool = False,
         allow_concurrent_uploads: bool = False,
         mark_uploaded: bool = True,
-    ):
+    ) -> UploadInfo:
         """Retries uploading the given id by calling `fn` until it succeeds or the
         maximum number of retries is reached or the error is unrecoverable.
 
@@ -1134,8 +1185,10 @@ class IDManager:
             `report_upload` to report the upload progress if it takes too long. It must
             raise `RetryUploadError` if the upload fails and it should be retried.
 
-            force_upload: If `True`, the upload is performed even if there is an
-            existing upload info that is marked as successfully uploaded.
+            needs_uploading_pred: A predicate that is called with the existing upload
+            info (if any) to check whether we need to upload the image again. This
+            predicate is supposed to check whether the existing upload info is too old,
+            probably by calling UploadInfo.needs_uploading with the right parameters.
 
             allow_concurrent_uploads: If `True`, active uploads with a different ID
             don't interfere with the current upload. If `False`, wait for the active
@@ -1151,14 +1204,15 @@ class IDManager:
                 terminal,
                 description=description,
                 size=size,
+                quality=quality,
+                needs_uploading_pred=needs_uploading_pred,
                 stall_timeout=stall_timeout,
-                force_upload=force_upload,
                 allow_concurrent_uploads=allow_concurrent_uploads,
             )
             logger.debug("start_upload returned: %s", upload)
             if upload.status == UPLOADING_STATUS_UPLOADED:
                 # The upload was done by another process, do nothing.
-                return
+                return upload
             if upload.status == UPLOADING_STATUS_DIRTY:
                 # Something went wrong, retry.
                 self._wait_random_time()
@@ -1166,8 +1220,9 @@ class IDManager:
             # Try to run the upload function.
             try:
                 fn(upload)
-                self.report_upload(upload, set_status=set_status)
-                return
+                upload = self.report_upload(upload, set_status=set_status)
+                upload.just_uploaded = True
+                return upload
             except RetryUploadError:
                 pass
             # If the upload failed, wait a bit and retry.
@@ -1184,6 +1239,7 @@ class IDManager:
         terminal: str,
         *,
         size: int,
+        quality: float = 1.0,
         upload_time: Optional[datetime] = None,
     ):
         info = self.get_info(id)
@@ -1195,14 +1251,16 @@ class IDManager:
             terminal,
             description=description,
             size=size,
+            quality=quality,
             upload_time=upload_time,
-            force_upload=True,
+            needs_uploading_pred=lambda _: True,
         )
         self.report_upload(upload, set_status=UPLOADING_STATUS_UPLOADED)
 
     def mark_dirty(self, id: int, terminal: Optional[str] = None):
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
         with closing(self.conn.cursor()) as cursor:
+            logger.debug("mark_dirty: %s in %s", id, terminal if terminal else "<all>")
             # Note that we don't delete rows, because we need them to figure out whether
             # earlier uploads are too old.
             if terminal is None:

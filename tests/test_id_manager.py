@@ -354,11 +354,11 @@ def test_id_manager_uploads():
             id_space=IDSpace(),
         )
         for term in terminals:
-            assert idman.needs_uploading(id, term)
+            assert idman.needs_uploading_for_testing(id, term)
             assert idman.get_upload_info(id, term) is None
             if random.random() < 0.5:
                 idman.mark_uploaded_for_testing(id, term, size=size)
-                assert not idman.needs_uploading(id, term)
+                assert not idman.needs_uploading_for_testing(id, term)
                 info = idman.get_upload_info(id, term)
                 assert info
                 term_to_infos[term].append(info)
@@ -410,12 +410,12 @@ def test_id_manager_uploads_example():
     # Manually set id1 to be a different image.
     idman.set_id(id1, "1-re")
     # Now id1 needs uploading.
-    assert idman.needs_uploading(id1, "term1")
+    assert idman.needs_uploading_for_testing(id1, "term1")
     # Mark it as uploaded again to term1, but not to term2.
     idman.mark_uploaded_for_testing(id1, "term1", size=100)
     # Now it doesn't need uploading to term1 but still needs uploading to term2.
-    assert not idman.needs_uploading(id1, "term1")
-    assert idman.needs_uploading(id1, "term2")
+    assert not idman.needs_uploading_for_testing(id1, "term1")
+    assert idman.needs_uploading_for_testing(id1, "term2")
     # Check the new info.
     assert idman.get_upload_info(id1, "term1").bytes_ago == 100
     assert idman.get_upload_info(id1, "term1").uploads_ago == 1
