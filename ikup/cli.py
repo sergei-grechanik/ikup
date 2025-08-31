@@ -271,10 +271,15 @@ def handle_command(
     upload_method: Optional[str],
     allow_concurrent_uploads: Optional[str],
     mark_uploaded: Optional[str],
+    append: bool = False,
 ):
+    if append and not out_display:
+        raise CLIArgumentsError("--append can only be used with --out-display")
+
     ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         out_command=out_command if out_command else None,
+        append_display=append,
         config_overrides={
             "force_upload": force_upload,
             "max_cols": max_cols,
@@ -379,6 +384,7 @@ def display(
     upload_method: Optional[str],
     allow_concurrent_uploads: Optional[str],
     mark_uploaded: Optional[str],
+    append: bool = False,
 ):
     handle_command(
         command=command,
@@ -400,6 +406,7 @@ def display(
         upload_method=upload_method,
         allow_concurrent_uploads=allow_concurrent_uploads,
         mark_uploaded=mark_uploaded,
+        append=append,
     )
 
 
@@ -488,10 +495,15 @@ def placeholder(
     out_display: str,
     dump_config: bool,
     use_line_feeds: str,
+    append: bool = False,
 ):
     _ = command
+    if append and not out_display:
+        raise CLIArgumentsError("--append can only be used with --out-display")
+
     ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
+        append_display=append,
         config_overrides={
             "provenance": "set via command line",
         },
@@ -535,6 +547,7 @@ def foreach(
     upload_method: Optional[str] = None,
     allow_concurrent_uploads: Optional[str] = None,
     mark_uploaded: Optional[str] = None,
+    append: bool = False,
 ):
     query_specified = older or newer or last or except_last
     if (images or query_specified) and all:
@@ -559,9 +572,13 @@ def foreach(
     older_dt = datetime.fromisoformat(older) if older else None
     newer_dt = datetime.fromisoformat(newer) if newer else None
 
+    if append and not out_display:
+        raise CLIArgumentsError("--append can only be used with --out-display")
+
     ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         out_command=out_command if out_command else None,
+        append_display=append,
         config_overrides={
             "max_cols": max_cols,
             "max_rows": max_rows,
@@ -1389,6 +1406,11 @@ def main_unwrapped():
             type=str,
             default="",
             help="The tty/file/pipe to print the image placeholder to. If not specified, stdout will be used.",
+        )
+        p.add_argument(
+            "--append",
+            action="store_true",
+            help="Open output file in append mode. Only valid when --out-display is specified.",
         )
         p.add_argument(
             "--use-line-feeds",

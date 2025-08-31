@@ -166,6 +166,7 @@ class GraphicsTerminal:
         out_display: Union[BinaryIO, str, None] = None,
         in_response: Union[BinaryIO, str, None] = None,
         in_userinput: Union[BinaryIO, str, None] = None,
+        append_display: bool = False,
         max_command_size: Optional[int] = None,
         force_placeholders: bool = False,
         force_direct_transmission: bool = False,
@@ -203,7 +204,9 @@ class GraphicsTerminal:
 
         # Open the files if they are not already open.
         self.out_command: BinaryIO = self._open(out_command, write=True)
-        self.out_display: BinaryIO = self._open(out_display, write=True)
+        self.out_display: BinaryIO = self._open(
+            out_display, write=True, append=append_display
+        )
         self.in_response: BinaryIO = self._open(in_response, write=False)
         self.in_userinput: BinaryIO = self._open(in_userinput, write=False)
 
@@ -216,11 +219,16 @@ class GraphicsTerminal:
         self.tracked_cursor_position: Optional[Tuple[int, int]] = None
 
     @staticmethod
-    def _open(filename: Union[str, BinaryIO, None], write: bool) -> BinaryIO:
+    def _open(
+        filename: Union[str, BinaryIO, None], write: bool, append: bool = False
+    ) -> BinaryIO:
         if isinstance(filename, str):
             flags = os.O_NOCTTY | os.O_CREAT
             if write:
-                flags |= os.O_WRONLY | os.O_TRUNC
+                if append:
+                    flags |= os.O_WRONLY | os.O_APPEND
+                else:
+                    flags |= os.O_WRONLY | os.O_TRUNC
             else:
                 flags |= os.O_RDONLY
             fd = os.open(
