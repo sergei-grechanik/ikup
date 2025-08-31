@@ -1314,6 +1314,43 @@ test_cache_concurrent() {
 
 ################################################################################
 
+test_upload_size_limits() {
+    start_test "Upload size limits validation"
+
+    # Clear cache before starting
+    subtest "Clear cache"
+    run_command cache remove --all
+
+    subtest "Test file upload size limit with large image"
+    # Set a low file upload limit (15KB) and upload a large image
+    export IKUP_FILE_MAX_SIZE=15360
+    export IKUP_UPLOAD_METHOD=file
+    run_command display $DATA_DIR/wikipedia.png
+    run_command cache list $DATA_DIR/wikipedia.png
+    unset IKUP_FILE_MAX_SIZE
+    unset IKUP_UPLOAD_METHOD
+
+    subtest "Test stream upload size limit with large image"
+    # Set a low stream upload limit (10KB) and upload a large image
+    export IKUP_STREAM_MAX_SIZE=10240
+    export IKUP_UPLOAD_METHOD=direct
+    run_command display $DATA_DIR/butterfly.jpg
+    run_command cache list $DATA_DIR/butterfly.jpg
+    unset IKUP_STREAM_MAX_SIZE
+    unset IKUP_UPLOAD_METHOD
+
+    subtest "Test tiny upload limit forces heavy optimization"
+    # Set very tiny limit that forces aggressive optimization
+    export IKUP_FILE_MAX_SIZE=1024
+    export IKUP_UPLOAD_METHOD=file
+    run_command display $DATA_DIR/earth.jpg
+    run_command cache list $DATA_DIR/earth.jpg
+    unset IKUP_FILE_MAX_SIZE
+    unset IKUP_UPLOAD_METHOD
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     CURRENT_TEST_NAME="$test"
