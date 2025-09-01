@@ -1,7 +1,7 @@
 import base64
 import copy
 import fcntl
-import io
+import logging
 import os
 import random
 import select
@@ -24,6 +24,8 @@ from ikup.placeholder import (
     ImagePlaceholder,
     ImagePlaceholderMode,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class TtySettingsGuard:
@@ -458,6 +460,7 @@ class GraphicsTerminal:
 
         template = self.get_graphics_command_template()
         # Send the command.
+        logger.debug("Sending command: %s", command)
         command.send(
             self.out_command,
             template=template,

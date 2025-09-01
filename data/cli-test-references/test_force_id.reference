@@ -49,7 +49,7 @@ ikup display [[id]]
 ikup list -v
 [1mID: [[id]][0m = 0x00123456 {{.*}}
   {"path": "{{.*}}/tux.png", {{.*}}}
-  Uploaded {{.*}} (0 seconds ago)  size: 11913 bytes bytes_ago: 11913 uploads_ago: 1
+  Uploaded {{.*}} size: 11913 bytes quality: 1.000 bytes_ago: 11913 uploads_ago: 1
 [s[0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐[0m[uD
 [0m[38;2;[[rgb(id)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐[0m[4DD
 --------------------------------------------------------------------------------

@@ -35,6 +35,7 @@ class CachedConvertedImage:
     height: int  # The converted height
     format: str  # The format of the converted image
     size_bytes: int  # The size of the converted image file in bytes
+    quality: float  # The quality from (0.0 to 1.0), usually the ratio of areas
     atime: datetime  # The last access time of the converted image
     is_biggest: bool = False  # Whether it is the biggest image for the src and format
 
@@ -169,6 +170,7 @@ class ConversionCache:
                         dst_is_biggest INTEGER NOT NULL,
                         dst_name TEXT NOT NULL PRIMARY KEY,
                         dst_size_bytes INTEGER NOT NULL,
+                        dst_quality REAL NOT NULL,
                         dst_atime TIMESTAMP NOT NULL
                     )
                 """
@@ -368,7 +370,7 @@ class ConversionCache:
             """
             SELECT
                 dst_name, dst_width, dst_height, dst_size_bytes, dst_atime,
-                dst_is_biggest
+                dst_quality, dst_is_biggest
             FROM conversion_cache
             WHERE src_path = ? AND src_mtime = ? AND dst_format = ?
               AND (dst_size_bytes <= ? OR (dst_width = 1 AND dst_height = 1))
@@ -389,7 +391,15 @@ class ConversionCache:
         if not row:
             return None
 
-        dst_name, dst_width, dst_height, dst_size, dst_atime, dst_is_biggest = row
+        (
+            dst_name,
+            dst_width,
+            dst_height,
+            dst_size,
+            dst_atime,
+            dst_quality,
+            dst_is_biggest,
+        ) = row
         dst_path = os.path.join(self.cache_directory, dst_name)
         return CachedConvertedImage(
             dst_path=dst_path,
@@ -398,6 +408,7 @@ class ConversionCache:
             height=dst_height,
             format=request.format,
             size_bytes=dst_size,
+            quality=dst_quality,
             atime=datetime.fromisoformat(dst_atime),
             is_biggest=bool(dst_is_biggest),
         )
@@ -413,7 +424,7 @@ class ConversionCache:
             """
             SELECT
                 dst_name, dst_width, dst_height, dst_size_bytes, dst_atime,
-                dst_is_biggest
+                dst_quality, dst_is_biggest
             FROM conversion_cache
             WHERE src_path = ? AND src_mtime = ? AND dst_format = ? AND
                   dst_width = ? AND dst_height = ?
@@ -433,7 +444,15 @@ class ConversionCache:
         if not row:
             return None
 
-        dst_name, dst_width, dst_height, dst_size, dst_atime, dst_is_biggest = row
+        (
+            dst_name,
+            dst_width,
+            dst_height,
+            dst_size,
+            dst_atime,
+            dst_quality,
+            dst_is_biggest,
+        ) = row
         dst_path = os.path.join(self.cache_directory, dst_name)
         return CachedConvertedImage(
             dst_path=dst_path,
@@ -442,6 +461,7 @@ class ConversionCache:
             height=dst_height,
             format=request.format,
             size_bytes=dst_size,
+            quality=dst_quality,
             atime=datetime.fromisoformat(dst_atime),
             is_biggest=bool(dst_is_biggest),
         )
@@ -457,6 +477,7 @@ class ConversionCache:
         self,
         request: _ImageConversionRequest,
         dst_name: str,
+        quality: float,
         is_biggest: bool,
         source: Union[str, io.BytesIO],
     ) -> CachedConvertedImage:
@@ -487,8 +508,8 @@ class ConversionCache:
                 """
                 INSERT INTO conversion_cache
                 (src_path, src_mtime, dst_format, dst_width, dst_height, dst_name,
-                dst_size_bytes, dst_atime, dst_is_biggest)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                dst_size_bytes, dst_atime, dst_quality, dst_is_biggest)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     request.src_path,
@@ -499,6 +520,7 @@ class ConversionCache:
                     dst_name,
                     size_bytes,
                     atime,
+                    quality,
                     int(is_biggest),
                 ),
             )
@@ -519,6 +541,7 @@ class ConversionCache:
             height=request.height,
             format=request.format,
             size_bytes=size_bytes,
+            quality=quality,
             atime=atime,
             is_biggest=is_biggest,
         )
@@ -547,18 +570,19 @@ class ConversionCache:
             and orig_format.upper() == request.format.upper()
             and os.path.exists(request.src_path)
         ):
+            quality = 1.0
             return self._insert_or_find_the_same(
-                request, dst_name, is_biggest, source=request.src_path
+                request, dst_name, quality, is_biggest, source=request.src_path
             )
         else:
-            converted_data, _ = convert_image(
+            converted_data, _, quality = convert_image(
                 image_object,
                 width=request.width,
                 height=request.height,
                 format=request.format,
             )
             return self._insert_or_find_the_same(
-                request, dst_name, is_biggest, source=converted_data
+                request, dst_name, quality, is_biggest, source=converted_data
             )
 
     def _create_cached_image_with_max_size(
@@ -580,8 +604,9 @@ class ConversionCache:
             orig_size = os.path.getsize(request.src_path)
             if orig_size <= request.max_size_bytes:
                 request.width, request.height = get_real_image_size(image_object)
+                quality = 1.0
                 return self._insert_or_find_the_same(
-                    request, dst_name, is_biggest=True, source=request.src_path
+                    request, dst_name, quality, is_biggest=True, source=request.src_path
                 )
 
         # Build a list of samples for size estimation.
@@ -621,7 +646,7 @@ class ConversionCache:
             samples.append((img_width, img_height, orig_size))
 
         # Call the function to minimize the image.
-        converted_data, converted_image_object = optimize_image_to_size(
+        converted_data, converted_image_object, quality = optimize_image_to_size(
             image_object,
             format=request.format,
             max_size_bytes=request.max_size_bytes,
@@ -634,7 +659,7 @@ class ConversionCache:
             image_object
         )
         return self._insert_or_find_the_same(
-            request, dst_name, is_biggest, source=converted_data
+            request, dst_name, quality, is_biggest, source=converted_data
         )
 
     def _generate_cache_filename(self, format: str) -> str:
@@ -738,8 +763,8 @@ class ConversionCache:
         with closing(self.conn.cursor()) as cursor:
             cursor.execute(
                 """
-                SELECT src_path, src_mtime, dst_name, dst_width, dst_height,
-                       dst_format, dst_size_bytes, dst_atime, dst_is_biggest
+                SELECT src_path, src_mtime, dst_name, dst_width, dst_height, dst_format,
+                       dst_size_bytes, dst_atime, dst_quality, dst_is_biggest
                 FROM conversion_cache
                 ORDER BY src_path, src_mtime, dst_size_bytes
                 """
@@ -759,6 +784,7 @@ class ConversionCache:
                     dst_format,
                     dst_size_bytes,
                     dst_atime,
+                    dst_quality,
                     dst_is_biggest,
                 ) = row
 
@@ -786,6 +812,7 @@ class ConversionCache:
                     format=dst_format,
                     size_bytes=dst_size_bytes,
                     atime=datetime.fromisoformat(dst_atime),
+                    quality=dst_quality,
                     is_biggest=bool(dst_is_biggest),
                 )
                 current_converted.append(converted_image)

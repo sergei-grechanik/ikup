@@ -1351,6 +1351,95 @@ test_upload_size_limits() {
 
 ################################################################################
 
+test_upload_quality() {
+    start_test "Quality optimization with different file size limits"
+
+    subtest "Clear conversion cache"
+    run_command cache remove --all
+
+    subtest "Upload with small file size limit"
+    echo "Setting IKUP_FILE_MAX_SIZE=8192 and uploading image"
+    export IKUP_FILE_MAX_SIZE=8192
+    export IKUP_UPLOAD_METHOD=file
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check list -v that it's uploaded with quality < 1.0"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    subtest "Upload with even smaller file size limit"
+    echo "Setting IKUP_FILE_MAX_SIZE=4096 and uploading same image"
+    export IKUP_FILE_MAX_SIZE=4096
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check that list -v shows that the quality is the same"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    subtest "Upload with slightly larger file size limit"
+    echo "Setting IKUP_FILE_MAX_SIZE=9000 and uploading same image"
+    export IKUP_FILE_MAX_SIZE=9000
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check that list -v shows that the quality is the same again"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    subtest "Upload with larger file size limit"
+    echo "Setting IKUP_FILE_MAX_SIZE=16384 and uploading same image"
+    export IKUP_FILE_MAX_SIZE=16384
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check that list -v shows that the quality is now larger"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    subtest "Upload without file size limit"
+    echo "Unsetting IKUP_FILE_MAX_SIZE and uploading same image"
+    unset IKUP_FILE_MAX_SIZE
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check that list -v shows that the quality is now 1.0"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    subtest "Upload with small file size limit again"
+    echo "Setting IKUP_FILE_MAX_SIZE=8192 again and uploading same image"
+    export IKUP_FILE_MAX_SIZE=8192
+    run_command display $DATA_DIR/butterfly.jpg
+    echo "Check that list -v shows that the quality is still 1.0"
+    run_command list -v $DATA_DIR/butterfly.jpg
+
+    unset IKUP_FILE_MAX_SIZE
+    unset IKUP_UPLOAD_METHOD
+}
+
+################################################################################
+
+test_concurrent_quality_uploads() {
+    start_test "Concurrent uploads with different quality settings"
+
+    subtest "Clear conversion cache"
+    run_command cache remove --all
+
+    subtest "Running many concurrent upload processes"
+    echo "Starting many concurrent uploads with different size limits"
+
+    # Run many processes in concurrent with different size limits
+    LIMITS1="2000 4000 8000 16000 32000"
+    LIMITS2="2200 4400 8800 17600 35200"
+    LIMITS3="2420 4840 9680 19360 38720"
+    LIMITS4="2662 99000000 5324 10648 21296 42592"
+    for size in $LIMITS1 $LIMITS2 $LIMITS3 $LIMITS4; do
+        for i in $(seq 1 2); do
+            # Upload with file method
+            IKUP_FILE_MAX_SIZE=$size IKUP_UPLOAD_METHOD=file $IKUP upload $DATA_DIR/butterfly.jpg -r 1 -c 1 &
+            # Upload with direct method
+            IKUP_STREAM_MAX_SIZE=$size IKUP_UPLOAD_METHOD=direct $IKUP upload $DATA_DIR/butterfly.jpg -r 1 -c 1 &
+        done
+    done
+
+    echo "Waiting for all processes to complete"
+    wait
+    echo "All processes completed"
+
+    subtest "Check final quality result"
+    echo "All uploads completed, checking final quality"
+    run_command list -v $DATA_DIR/butterfly.jpg
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     CURRENT_TEST_NAME="$test"

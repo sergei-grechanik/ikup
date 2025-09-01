@@ -1,0 +1,76 @@
+========== TEST test_upload_quality - Quality optimization with different file size limits ==========
+
+
+---------- SUBTEST Clear conversion cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+
+---------- SUBTEST Upload with small file size limit ----------
+
+Setting IKUP_FILE_MAX_SIZE=8192 and uploading image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check list -v that it's uploaded with quality < 1.0
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: [[quality1:0\.[0-9]+]] bytes_ago: {{.*}} uploads_ago: 1
+{{:ASSERT: 0.001 <= float(quality1) <= 0.01}}
+{{:SKIP_LINES:}}
+---------- SUBTEST Upload with even smaller file size limit ----------
+
+Setting IKUP_FILE_MAX_SIZE=4096 and uploading same image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check that list -v shows that the quality is the same
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: [[quality1]] bytes_ago: {{.*}} uploads_ago: 1
+{{:SKIP_LINES:}}
+---------- SUBTEST Upload with slightly larger file size limit ----------
+
+Setting IKUP_FILE_MAX_SIZE=9000 and uploading same image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check that list -v shows that the quality is the same again
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: [[quality1]] bytes_ago: {{.*}} uploads_ago: 1
+{{:SKIP_LINES:}}
+---------- SUBTEST Upload with larger file size limit ----------
+
+Setting IKUP_FILE_MAX_SIZE=16384 and uploading same image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check that list -v shows that the quality is now larger
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: [[quality2:0\.[0-9]+]] bytes_ago: {{.*}} uploads_ago: 1
+{{:ASSERT: 1.0 > float(quality2) > float(quality1)}}
+{{:SKIP_LINES:}}
+---------- SUBTEST Upload without file size limit ----------
+
+Unsetting IKUP_FILE_MAX_SIZE and uploading same image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check that list -v shows that the quality is now 1.0
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: 1.000 bytes_ago: {{.*}} uploads_ago: 1
+{{:SKIP_LINES:}}
+---------- SUBTEST Upload with small file size limit again ----------
+
+Setting IKUP_FILE_MAX_SIZE=8192 again and uploading same image
+ikup display ./.cli-tests-data/butterfly.jpg
+{{:SKIP_LINES:}}
+Check that list -v shows that the quality is still 1.0
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}}  size: {{.*}} bytes quality: 1.000 bytes_ago: {{.*}} uploads_ago: 1
+{{:SKIP_LINES:}}

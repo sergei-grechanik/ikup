@@ -1,0 +1,20 @@
+========== TEST test_concurrent_quality_uploads - Concurrent uploads with different quality settings ==========
+
+
+---------- SUBTEST Clear conversion cache ----------
+
+ikup cache remove --all
+Removed {{.*}} cached images
+
+---------- SUBTEST Running many concurrent upload processes ----------
+
+Starting many concurrent uploads with different size limits
+Waiting for all processes to complete
+{{:SKIP_LINES:}}
+---------- SUBTEST Check final quality result ----------
+
+All uploads completed, checking final quality
+ikup list -v ./.cli-tests-data/butterfly.jpg
+{{.*}}
+{{.*}}
+  Uploaded to {{.*}} at {{.*}} ({{.*}} seconds ago)  size: {{.*}} bytes quality: 1.000 bytes_ago: {{.*}} uploads_ago: 1

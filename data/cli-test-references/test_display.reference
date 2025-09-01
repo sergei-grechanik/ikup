@@ -152,7 +152,7 @@ ikup ./.cli-tests-data/wikipedia.png -r 2
 ikup list -v
 [1mID: [[id:.*]][0m = 0x{{.*}} id_space: 24bit subspace_byte: {{.*}} = {{.*}} atime: {{.*}} ({{.*}} seconds ago)
   {"path": "{{.*}}", "mtime": {{.*}}, "cols": 5, "rows": 2}
-  Uploaded to st-256color-{{.*}} at {{.*}} ({{.*}} seconds ago)  size: {{.*}} bytes bytes_ago: {{.*}} uploads_ago: {{.*}}
+  Uploaded to st-256color-{{.*}} at {{.*}} ({{.*}} seconds ago)  size: {{.*}} bytes quality: {{.*}} bytes_ago: {{.*}} uploads_ago: {{.*}}
 [0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m
 [0m[38;2;[[wr2id]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m
 --------------------------------------------------------------------------------

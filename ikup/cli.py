@@ -687,11 +687,15 @@ def foreach(
                 errors = True
                 continue
             # 'fix' is like 'reupload', but avoids unnecessary uploads.
-            if command == "fix" and not ikupterm.needs_uploading(id):
-                continue
+            force_upload = command == "reupload"
             # Don't fail other uploads if one fails, but print the error message
             try:
-                ikupterm.upload(inst, force_upload=True, update_atime=False)
+                _, upload_info = ikupterm.upload(
+                    inst, force_upload=force_upload, update_atime=False
+                )
+                # For the "fix" command don't print information if nothing was done.
+                if command == "fix" and not upload_info.just_uploaded:
+                    continue
             except (FileNotFoundError, OSError) as e:
                 printerr(ikupterm, f"error: Failed to upload {id} {inst.path}: {e}")
                 errors = True
@@ -724,12 +728,14 @@ def foreach(
             f"\033[1mID: {id}\033[0m = 0x{id:08x} id_space: {space} subspace_byte: {subspace_byte} = 0x{subspace_byte:02x} atime: {iminfo.atime} ({ago})\n"
         )
         write(f"  {iminfo.description}\n")
-        if ikupterm.needs_uploading(id):
+        if ikupterm.needs_uploading(id, min_quality=0.0):
             write(f"  \033[1mNEEDS UPLOADING\033[0m to {ikupterm._terminal_id}\n")
         uploads = ikupterm.id_manager.get_upload_infos(id)
         for upload in uploads:
             write("  ")
-            if ikupterm.needs_uploading(upload.id, upload.terminal):
+            if ikupterm.needs_uploading(
+                upload.id, terminal_id=upload.terminal, min_quality=0.0
+            ):
                 write("(Needs reuploading) ")
             status = f"Uploaded (status = {upload.status}) to"
             if upload.status == ikup.id_manager.UPLOADING_STATUS_UPLOADED:
@@ -741,7 +747,7 @@ def foreach(
             write(
                 f"{status} {upload.terminal}"
                 f" at {upload.upload_time} ({time_ago(upload.upload_time)})"
-                f"  size: {upload.size} bytes"
+                f"  size: {upload.size} bytes quality: {upload.quality:.3f}"
                 f" bytes_ago: {upload.bytes_ago} uploads_ago: {upload.uploads_ago}\n"
             )
             if upload.id != id:
