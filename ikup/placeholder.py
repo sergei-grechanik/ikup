@@ -1,9 +1,15 @@
 import dataclasses
 from dataclasses import dataclass
 from enum import Enum
-from typing import BinaryIO, Callable, List, Optional, Tuple, Union
+from typing import BinaryIO, Callable, List, Optional, Tuple, Union, Protocol
 
 PLACEHOLDER_CHAR = "\U0010eeee"
+
+
+class WritableBytes(Protocol):
+    """Protocol for objects that can write bytes."""
+    def write(self, data: bytes) -> int:
+        ...
 
 ROWCOLUMN_DIACRITICS = [
     "\U00000305",
@@ -553,7 +559,7 @@ class ImagePlaceholder:
 
     def to_stream_with_linefeeds(
         self,
-        stream: BinaryIO,
+        stream: WritableBytes,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         no_escape: bool = False,
@@ -565,7 +571,7 @@ class ImagePlaceholder:
 
     def to_stream_abs_position(
         self,
-        stream: BinaryIO,
+        stream: WritableBytes,
         pos: Tuple[int, int],
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
@@ -577,7 +583,7 @@ class ImagePlaceholder:
 
     def to_stream_at_cursor(
         self,
-        stream: BinaryIO,
+        stream: WritableBytes,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,
         use_save_cursor: bool = True,
@@ -606,7 +612,7 @@ class ImagePlaceholder:
 
     def to_stream(
         self,
-        stream: BinaryIO,
+        stream: WritableBytes,
         pos: Optional[Tuple[int, int]] = None,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
         formatting: AdditionalFormatting = None,

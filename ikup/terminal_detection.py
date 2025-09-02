@@ -58,7 +58,7 @@ def get_terminal_and_shell_pid() -> Optional[Tuple[int, str, int]]:
     """
     try:
         terminals = get_terminal_executable_names()
-        process = psutil.Process()
+        process: Optional[psutil.Process] = psutil.Process()
         while process is not None:
             child_process = process
             process = process.parent()

@@ -4,7 +4,7 @@ from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def text_printing(ctx: TestingContext):
+def text_printing(ctx: TestingContext) -> None:
     for i in range(24):
         ctx.write(str(i) + "\n")
     ctx.write(
@@ -21,7 +21,7 @@ def text_printing(ctx: TestingContext):
 
 
 @screenshot_test
-def text_colors(ctx: TestingContext):
+def text_colors(ctx: TestingContext) -> None:
     for i in range(16):
         for j in range(16):
             ctx.write(f"\033[48;5;{i}m\033[38;5;{j}m Aa ")
@@ -30,7 +30,7 @@ def text_colors(ctx: TestingContext):
 
 
 @screenshot_test
-def text_underline(ctx: TestingContext):
+def text_underline(ctx: TestingContext) -> None:
     # Default underline color
     ctx.write(f"\033[4:1mSingle_ ")
     ctx.write(f"\033[4:2mDouble_ ")
@@ -68,8 +68,8 @@ def text_underline(ctx: TestingContext):
         ctx.write(f"\033[0m({c})\n")
 
     # 24-bit underline color
-    for c in ["0:0:0", "255:0:0", "255:255:255"]:
-        ctx.write(f"\033[58:2:{c}m")
+    for color in ["0:0:0", "255:0:0", "255:255:255"]:
+        ctx.write(f"\033[58:2:{color}m")
         ctx.write(f"\033[4:1mSingle_ ")
         ctx.write(f"\033[4:2mDouble_ ")
         ctx.write(f"\033[4:3mCurly_ ")
@@ -78,7 +78,7 @@ def text_underline(ctx: TestingContext):
         ctx.write(f"\033[4:0mNone gy_ ")
         ctx.write(f"\033[4mSingle_ ")
         ctx.write(f"\033[9mStrike_ ")
-        ctx.write(f"\033[0m({c})\n")
+        ctx.write(f"\033[0m({color})\n")
 
     # Change fg color while maintaining underline color.
     for s in [1, 2, 3, 4, 5]:

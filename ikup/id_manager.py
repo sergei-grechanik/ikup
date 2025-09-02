@@ -50,9 +50,9 @@ class IDSubspace:
         if not s:
             return IDSubspace()
         try:
-            begin, end = s.split(":")
-            begin = int(begin)
-            end = int(end)
+            begin_str, end_str = s.split(":")
+            begin = int(begin_str)
+            end = int(end_str)
         except ValueError:
             raise ValueError(
                 f"Invalid format for IDSubspace: '{s}'. Expected format 'begin:end' with integers."
@@ -249,9 +249,9 @@ class IDSpace:
     def all_ids(self, subspace: IDSubspace = IDSubspace()) -> Iterator[int]:
         """Generates all ids in this space that also belong to the given
         subspace."""
-        byte_0 = lambda: [0]  # blue or the color index
-        byte_1_2 = lambda: [0]  # red and green
-        byte_3 = lambda: [0]  # 3rd diacritic
+        byte_0: Callable[[], Iterable[int]] = lambda: [0]  # blue or the color index
+        byte_1_2: Callable[[], Iterable[int]] = lambda: [0]  # red and green
+        byte_3: Callable[[], Iterable[int]] = lambda: [0]  # 3rd diacritic
         if self.use_3rd_diacritic:
             byte_3 = lambda: subspace.all_nonzero_byte_values()
             if self.color_bits == 8:
@@ -349,9 +349,9 @@ class ImageInfo:
 
 
 UploadingStatus = Literal["dirty", "in_progress", "uploaded"]
-UPLOADING_STATUS_DIRTY = "dirty"
-UPLOADING_STATUS_IN_PROGRESS = "in_progress"
-UPLOADING_STATUS_UPLOADED = "uploaded"
+UPLOADING_STATUS_DIRTY: UploadingStatus = "dirty"
+UPLOADING_STATUS_IN_PROGRESS: UploadingStatus = "in_progress"
+UPLOADING_STATUS_UPLOADED: UploadingStatus = "uploaded"
 
 
 @dataclass
@@ -561,14 +561,14 @@ class IDManager:
                 (id, description, atime.isoformat()),
             )
 
-    def del_id(self, id: int):
+    def del_id(self, id: int) -> None:
         id_space = IDSpace.from_id(id)
         namespace = id_space.namespace_name()
         with self.conn, closing(self.conn.cursor()) as cursor:
             self.conn.execute("BEGIN IMMEDIATE")
             cursor.execute(f"DELETE FROM {namespace} WHERE id=?", (id,))
 
-    def touch_id(self, id: int, atime: Optional[datetime] = None):
+    def touch_id(self, id: int, atime: Optional[datetime] = None) -> None:
         """Update the `atime` of the given ID if it exists."""
         if atime is None:
             atime = datetime.now()
@@ -1194,7 +1194,7 @@ class IDManager:
             don't interfere with the current upload. If `False`, wait for the active
             upload to finish before starting the new one.
         """
-        set_status = (
+        set_status: UploadingStatus = (
             UPLOADING_STATUS_UPLOADED if mark_uploaded else UPLOADING_STATUS_DIRTY
         )
         for i in range(max_retries):
@@ -1257,7 +1257,7 @@ class IDManager:
         )
         self.report_upload(upload, set_status=UPLOADING_STATUS_UPLOADED)
 
-    def mark_dirty(self, id: int, terminal: Optional[str] = None):
+    def mark_dirty(self, id: int, terminal: Optional[str] = None) -> None:
         """Marks id dirty (not uploaded) in the given terminal or all terminals."""
         with closing(self.conn.cursor()) as cursor:
             logger.debug("mark_dirty: %s in %s", id, terminal if terminal else "<all>")

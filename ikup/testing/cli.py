@@ -1,5 +1,5 @@
 import argparse
-import datetime
+from datetime import datetime
 import os
 from sys import stdout
 import warnings
@@ -85,7 +85,7 @@ def run(args):
             )
 
     if args.output_dir is None:
-        now = datetime.datetime.now()
+        now = datetime.now()
         date_time_string = now.strftime("%Y%m%d%H%M%S")
         os.makedirs(".ikup-testing", exist_ok=True)
         output_dir_name = (

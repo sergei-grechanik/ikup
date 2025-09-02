@@ -1,13 +1,13 @@
 import math
 
 import ikup
-from ikup import GraphicsTerminal, PutCommand, TransmitCommand
+from ikup import PutCommand, TransmitCommand, Quietness
 from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def movecursor(ctx: TestingContext, placeholder: bool = False):
+def movecursor(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -28,17 +28,17 @@ def movecursor(ctx: TestingContext, placeholder: bool = False):
         .set_placement(rows=10, cols=5)
     )
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=10, cols=20, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=10, cols=20, quiet=Quietness.QUIET_UNLESS_ERROR))
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR))
     term.move_cursor(left=10, down=1)
-    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=1))
+    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR))
     ctx.take_screenshot("Wikipedia logo and some columns.")
 
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def nomovecursor(ctx: TestingContext, placeholder: bool = False):
+def nomovecursor(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -63,15 +63,15 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False):
     )
     term.move_cursor(right=5)
     term.send_command(
-        PutCommand(image_id=1, rows=10, cols=20, quiet=1, do_not_move_cursor=True)
+        PutCommand(image_id=1, rows=10, cols=20, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
     )
     term.move_cursor(right=20)
     term.send_command(
-        PutCommand(image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True)
+        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
     )
     term.move_cursor(down=5)
     term.send_command(
-        PutCommand(image_id=1, rows=5, cols=10, quiet=1, do_not_move_cursor=True)
+        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
     )
     ctx.take_screenshot(
         "Wikipedia logo and some columns. The cursor should be at the top left"
@@ -81,7 +81,7 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def multisize(ctx: TestingContext, placeholder: bool = False):
+def multisize(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -98,7 +98,7 @@ def multisize(ctx: TestingContext, placeholder: bool = False):
                     image_id=1,
                     rows=r,
                     cols=c,
-                    quiet=1,
+                    quiet=Quietness.QUIET_UNLESS_ERROR,
                     do_not_move_cursor=True,
                 )
             )
@@ -112,7 +112,7 @@ def multisize(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def oob(ctx: TestingContext, placeholder: bool = False):
+def oob(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -123,7 +123,7 @@ def oob(ctx: TestingContext, placeholder: bool = False):
     for r in range(24):
         term.move_cursor_abs(row=r, col=80 - (24 - r))
         term.send_command(
-            PutCommand(image_id=1, rows=1, cols=24, quiet=1, do_not_move_cursor=True)
+            PutCommand(image_id=1, rows=1, cols=24, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
         )
     term.move_cursor_abs(row=0, col=0)
     ctx.take_screenshot("A ruler that goes off the screen. Not to scale.")
@@ -131,7 +131,7 @@ def oob(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def oob_down(ctx: TestingContext, placeholder: bool = False):
+def oob_down(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -145,7 +145,7 @@ def oob_down(ctx: TestingContext, placeholder: bool = False):
                 image_id=1,
                 rows=10,
                 cols=20,
-                quiet=1,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
                 do_not_move_cursor=False,
             )
         )
@@ -154,7 +154,7 @@ def oob_down(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
+def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -168,7 +168,7 @@ def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
                 image_id=1,
                 rows=10,
                 cols=20,
-                quiet=1,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
                 do_not_move_cursor=True,
             )
         )
@@ -181,7 +181,7 @@ def oob_down_nomovecursor(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def scrolling(ctx: TestingContext, placeholder: bool = False):
+def scrolling(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -201,7 +201,7 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
                         image_id=i % 3,
                         rows=1,
                         cols=1,
-                        quiet=1,
+                        quiet=Quietness.QUIET_UNLESS_ERROR,
                     )
                 )
     for y in range(11, 20):
@@ -213,7 +213,7 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
             image_id=1,
             rows=7,
             cols=14,
-            quiet=1,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
         )
     )
     term.move_cursor_abs(row=12, col=15)
@@ -222,7 +222,7 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
             image_id=2,
             rows=7,
             cols=14,
-            quiet=1,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
         )
     )
     ctx.take_screenshot(
@@ -242,7 +242,7 @@ def scrolling(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def numbers(ctx: TestingContext, placeholder: bool = False):
+def numbers(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -277,7 +277,7 @@ def numbers(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def image_ids(ctx: TestingContext, placeholder: bool = False):
+def image_ids(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -319,7 +319,7 @@ def image_ids(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def placement_ids(ctx: TestingContext, placeholder: bool = False):
+def placement_ids(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -363,7 +363,7 @@ def placement_ids(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False):
+def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -396,7 +396,7 @@ def overwrite_with_spaces(ctx: TestingContext, placeholder: bool = False):
 
 
 @screenshot_test
-def no_id_no_number(ctx: TestingContext):
+def no_id_no_number(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -413,7 +413,7 @@ def no_id_no_number(ctx: TestingContext):
 
 
 @screenshot_test
-def no_columns(ctx: TestingContext):
+def no_columns(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -432,7 +432,7 @@ def no_columns(ctx: TestingContext):
 
 
 @screenshot_test
-def no_rows(ctx: TestingContext):
+def no_rows(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -453,7 +453,7 @@ def no_rows(ctx: TestingContext):
 
 
 @screenshot_test
-def no_size(ctx: TestingContext):
+def no_size(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.DIRECT,
@@ -482,7 +482,7 @@ def no_size(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage(ctx: TestingContext):
+def subimage(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -511,7 +511,7 @@ def subimage(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_no_size(ctx: TestingContext):
+def subimage_no_size(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -538,7 +538,7 @@ def subimage_no_size(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_slice_horizontally(ctx: TestingContext):
+def subimage_slice_horizontally(ctx: TestingContext) -> None:
     term = ctx.term
     for file in [
         ctx.get_wikipedia_png(),
@@ -566,7 +566,7 @@ def subimage_slice_horizontally(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_slice_vertically(ctx: TestingContext):
+def subimage_slice_vertically(ctx: TestingContext) -> None:
     term = ctx.term
     for file in [
         ctx.get_ruler_png(),
@@ -594,7 +594,7 @@ def subimage_slice_vertically(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_oob(ctx: TestingContext):
+def subimage_oob(ctx: TestingContext) -> None:
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
@@ -628,7 +628,7 @@ def subimage_oob(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_thin(ctx: TestingContext):
+def subimage_thin(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -717,7 +717,7 @@ def subimage_thin(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_oob_xy(ctx: TestingContext):
+def subimage_oob_xy(ctx: TestingContext) -> None:
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
@@ -743,7 +743,7 @@ def subimage_oob_xy(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_negative_xy(ctx: TestingContext):
+def subimage_negative_xy(ctx: TestingContext) -> None:
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
@@ -770,7 +770,7 @@ def subimage_negative_xy(ctx: TestingContext):
 
 
 @screenshot_test
-def subimage_negative_wh(ctx: TestingContext):
+def subimage_negative_wh(ctx: TestingContext) -> None:
     term = ctx.term
     trcmd = TransmitCommand(
         image_id=1,
@@ -797,7 +797,7 @@ def subimage_negative_wh(ctx: TestingContext):
 
 
 @screenshot_test
-def alpha(ctx: TestingContext):
+def alpha(ctx: TestingContext) -> None:
     term = ctx.term
     for color in [
         (0, 0, 0),

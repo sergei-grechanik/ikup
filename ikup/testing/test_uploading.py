@@ -14,7 +14,7 @@ SPLIT_PAYLOAD_SIZE = 2816
 
 
 @screenshot_test
-def tempfile_png(ctx: TestingContext):
+def tempfile_png(ctx: TestingContext) -> None:
     term = ctx.term
     f, filename = tempfile.mkstemp(prefix="tty-graphics-protocol")
     shutil.copyfile(ctx.get_wikipedia_png(), filename)
@@ -38,7 +38,7 @@ def tempfile_png(ctx: TestingContext):
 
 
 @screenshot_test
-def direct_png(ctx: TestingContext):
+def direct_png(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -76,7 +76,7 @@ def direct_png(ctx: TestingContext):
 
 
 @screenshot_test
-def direct_jpeg(ctx: TestingContext):
+def direct_jpeg(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         image_id=1,
@@ -101,7 +101,7 @@ def direct_jpeg(ctx: TestingContext):
 
 
 @screenshot_test
-def direct_random_png(ctx: TestingContext):
+def direct_random_png(ctx: TestingContext) -> None:
     term = ctx.term
     np.random.seed(42)
     cmd = TransmitCommand(
@@ -139,7 +139,7 @@ def direct_random_png(ctx: TestingContext):
 
 
 @screenshot_test
-def direct_rgb(ctx: TestingContext):
+def direct_rgb(ctx: TestingContext) -> None:
     term = ctx.term
     for compress in [False, True]:
         for bits in [24, 32]:
@@ -186,7 +186,7 @@ def direct_rgb(ctx: TestingContext):
 
 
 @screenshot_test
-def shm_png(ctx: TestingContext):
+def shm_png(ctx: TestingContext) -> None:
     term = ctx.term
     # Test with an offset, and make it divisible by the page size.
     page_size = os.sysconf("SC_PAGE_SIZE")
@@ -221,7 +221,7 @@ def shm_png(ctx: TestingContext):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def direct_default(ctx: TestingContext, placeholder: bool = False):
+def direct_default(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     term.reset()
     # No action, no transmission type, no format - this is a direct transmission of
@@ -292,7 +292,7 @@ def shm_rgb(ctx: TestingContext):
 
 
 @screenshot_test
-def shm_rgb(ctx: TestingContext):
+def shm_rgb_offset(ctx: TestingContext):
     term = ctx.term
     # Test with an offset, and make it divisible by the page size.
     page_size = os.sysconf("SC_PAGE_SIZE")
@@ -336,7 +336,7 @@ def shm_rgb(ctx: TestingContext):
 
 
 @screenshot_test
-def image_number(ctx: TestingContext):
+def image_number(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -366,7 +366,7 @@ def image_number(ctx: TestingContext):
 
 
 @screenshot_test
-def image_number_multiple(ctx: TestingContext):
+def image_number_multiple(ctx: TestingContext) -> None:
     term = ctx.term
     transmit_cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -414,7 +414,7 @@ def image_number_multiple(ctx: TestingContext):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
+def stress_many_small_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     cmd = TransmitCommand(
         image_id=1,
@@ -450,7 +450,7 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def stress_large_images(ctx: TestingContext, placeholder: bool = False):
+def stress_large_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     with tempfile.NamedTemporaryFile("wb") as f:
         # Generate an image of ~20MB (when represented as RGBA).
@@ -514,7 +514,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False):
 
 @screenshot_test(suffix="placeholder", params={"placeholder": True})
 @screenshot_test
-def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
+def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
     # Create and upload lots of 1-pixel images.
     total_count = 10000
@@ -548,7 +548,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
                     do_not_move_cursor=True,
                 )
             )
-            image_id += step
+            image_id = int(image_id + step)
     # The threshold is high because there is a grid issue in st.
     ctx.take_screenshot(
         "Displayed some one-pixel images, some will be missing.", diff_threshold=0.05
@@ -556,7 +556,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False):
 
 
 @screenshot_test
-def stress_too_many_placements(ctx: TestingContext):
+def stress_too_many_placements(ctx: TestingContext) -> None:
     term = ctx.term.clone_with(force_placeholders=True)
     # Create and upload 1-pixel images and create placements for them.
     total_image_count = 1000
@@ -613,7 +613,7 @@ def stress_too_many_placements(ctx: TestingContext):
 
 @screenshot_test(suffix="nomore", params={"nomore": True})
 @screenshot_test
-def direct_interrupted(ctx: TestingContext, nomore: bool = False):
+def direct_interrupted(ctx: TestingContext, nomore: bool = False) -> None:
     term = ctx.term
 
     image_id = 125 if nomore else 126

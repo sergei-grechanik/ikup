@@ -4,7 +4,7 @@ from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def image_with_data(ctx: TestingContext):
+def image_with_data(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -51,7 +51,7 @@ def image_with_data(ctx: TestingContext):
 
 
 @screenshot_test
-def image_preserve_data(ctx: TestingContext):
+def image_preserve_data(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -93,7 +93,7 @@ def image_preserve_data(ctx: TestingContext):
 
 
 @screenshot_test
-def image_with_data_two_placements(ctx: TestingContext):
+def image_with_data_two_placements(ctx: TestingContext) -> None:
     term = ctx.term
     term.send_command(
         TransmitCommand(
@@ -184,7 +184,7 @@ def image_with_data_two_placements(ctx: TestingContext):
 
 @screenshot_test(suffix="direct_transmission", params={"direct": True})
 @screenshot_test
-def image_by_number(ctx: TestingContext, direct: bool = False):
+def image_by_number(ctx: TestingContext, direct: bool = False) -> None:
     term = ctx.term
     if direct:
         term = term.clone_with(force_direct_transmission=True)
@@ -284,7 +284,7 @@ def image_by_number(ctx: TestingContext, direct: bool = False):
 
 
 @screenshot_test
-def everything(ctx: TestingContext):
+def everything(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -347,7 +347,7 @@ def everything(ctx: TestingContext):
 
 
 @screenshot_test
-def underneath_text_restoration(ctx: TestingContext):
+def underneath_text_restoration(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,

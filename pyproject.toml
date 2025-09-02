@@ -26,3 +26,13 @@ path = "ikup/__init__.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "numpy",
+    "types-psutil",
+    "types-toml",
+    "mypy",
+    "black",
+]

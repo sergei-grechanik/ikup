@@ -33,8 +33,9 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install python dependencies
+        # Run cli output tests without dev dependencies
+        run: uv sync --no-dev
 
       - name: Run cli output tests
         uses: coactions/setup-xvfb@v1.0.1
@@ -50,6 +51,10 @@ jobs:
         with:
           name: cli-test-outputs
           path: cli-test-outputs/
+
+      - name: Install python test dependencies
+        # For screenshot tests we need additional dependencies
+        run: uv sync --no-dev --group test
 
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1.0.1

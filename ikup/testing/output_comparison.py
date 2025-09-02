@@ -292,7 +292,7 @@ def process_test_chunk(
         # Continue processing remaining lines after skip
 
         error = None
-        captures = {}
+        pattern_captures: dict[str, str] = {}
         try:
             pattern, captures = process_ref_line(ref_lines[j], variables)
             match = re.fullmatch(pattern, inp_lines[i])

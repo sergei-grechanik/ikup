@@ -4,10 +4,10 @@ import os
 import sys
 import time
 from datetime import datetime
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 import ikup
-from ikup.id_manager import IDSpace, IDSubspace
+from ikup.id_manager import IDSpace
 from ikup.ikup_terminal import ImageInfo, ImageInstance, ValidationError
 from ikup.conversion_cache import ConversionCache
 from ikup.utils import *
@@ -34,7 +34,7 @@ It may also use escape sequences: \\\\, \\n, \\t, \\r, \\e
 additional_help_topics = {"print": HELP_PRINT}
 
 
-def help(command: str, topic: Optional[str]):
+def help(command: str, topic: Optional[str]) -> None:
     _ = command
     if not topic:
         print("Use 'ikup help <topic>' to get more information about a topic.")
@@ -179,7 +179,7 @@ def format_info_string(
     return "".join(parts)
 
 
-def dump_config(command: str, provenance: bool, skip_default: bool):
+def dump_config(command: str, provenance: bool, skip_default: bool) -> None:
     _ = command
     ikupterm = ikup.IkupTerminal()
     toml_str = ikupterm._config.to_toml_string(
@@ -188,7 +188,7 @@ def dump_config(command: str, provenance: bool, skip_default: bool):
     print(toml_str, end="")
 
 
-def status(command: str):
+def status(command: str) -> None:
     _ = command
     ikupterm = ikup.IkupTerminal()
     print(f"Config file: {ikupterm._config_file}")
@@ -230,7 +230,7 @@ def status(command: str):
         print(f"  {db_name}  (atime: {time.ctime(atime)}, size: {size_kib} KiB)")
 
 
-def printerr(ikupterm: ikup.IkupTerminal, msg):
+def printerr(ikupterm: ikup.IkupTerminal, msg) -> None:
     ikupterm.term.out_display.flush()
     print(msg, file=sys.stderr, flush=True)
 
@@ -305,24 +305,26 @@ def handle_command(
             "Cannot use --force-id and specify multiple images at the same time."
         )
 
-    for image in images:
-        # Handle the case where image is an id, not a filename.
-        if not os.path.exists(image):
-            id = parse_as_id(image)
+    for image_path in images:
+        # Handle the case where image_path is an id, not a filename.
+        image: Union[str, ImageInstance] = image_path
+        if not os.path.exists(image_path):
+            id = parse_as_id(image_path)
             if id is not None:
                 if force_id is not None:
                     raise CLIArgumentsError(
                         "Cannot use --force-id and specify an ID at the same time."
                     )
-                # image is ImageInstance from now on (containing id, rows and cols).
-                image = ikupterm.get_image_instance(id)
-                if image is None:
+                image_inst = ikupterm.get_image_instance(id)
+                if image_inst is None:
                     printerr(
                         ikupterm,
                         f"error: ID is not assigned or assignment is broken: {id}",
                     )
                     errors = True
                     continue
+                # image is ImageInstance from now on (containing id, rows and cols).
+                image = image_inst
         # Handle the command itself. Don't stop on errors.
         try:
             if command == "display" and not no_upload:
@@ -596,7 +598,7 @@ def foreach(
         use_line_feeds = "true"
 
     # A set of IDs and filenames we haven't encountered yet.
-    not_encountered = []
+    not_encountered: list[int | str] = []
     # Split `images` into a list of image filenames and a list of IDs.
     image_filenames = []
     image_ids = []
@@ -782,7 +784,7 @@ def foreach(
         exit(1)
 
 
-def cleanup(command: str):
+def cleanup(command: str) -> None:
     _ = command
     ikupterm = ikup.IkupTerminal()
     dbs = ikupterm.cleanup_old_databases()
@@ -793,7 +795,7 @@ def cleanup(command: str):
     ikupterm.cleanup_current_database()
 
 
-def cache(command: str, cache_command: str, **kwargs):
+def cache(command: str, cache_command: str, **kwargs) -> None:
     """Handle cache subcommands."""
     _ = command
     ikupterm = ikup.IkupTerminal()
@@ -1062,7 +1064,7 @@ def cache_check(
         sys.exit(1)
 
 
-def cache_purge(ikupterm: ikup.IkupTerminal):
+def cache_purge(ikupterm: ikup.IkupTerminal) -> None:
     """Purge the entire cache independently, without requiring conversion_cache initialization."""
     cache_directory = ikupterm._config.cache_dir
     database_file = os.path.join(cache_directory, "conversion_cache.db")
@@ -1113,12 +1115,12 @@ def cache_purge(ikupterm: ikup.IkupTerminal):
     )
 
 
-def cache_cleanup(ikupterm: ikup.IkupTerminal):
+def cache_cleanup(ikupterm: ikup.IkupTerminal) -> None:
     removed = ikupterm.cleanup_cache()
     print(f"Removed {removed} cached images.", file=sys.stderr)
 
 
-def cache_status(conversion_cache: ConversionCache):
+def cache_status(conversion_cache: ConversionCache) -> None:
     """Print cache status information."""
     print(f"Cache directory: {conversion_cache.cache_directory}")
     print(f"Cache database: {conversion_cache.database_file}")
