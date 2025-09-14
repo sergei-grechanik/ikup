@@ -141,13 +141,13 @@ class TestingContext:
             "Neuschwanstein_Castle_from_Marienbr%C3%BCcke_Bridge.jpg"
         )
 
-    def write(self, string: Union[str, bytes]):
+    def write(self, string: Union[str, bytes]) -> None:
         self.term.write(string)
 
     def test(self, name: str) -> TestManager:
         return TestManager(self, name)
 
-    def _start_test(self, name: str):
+    def _start_test(self, name: str) -> None:
         self.test_name = name
         os.makedirs(os.path.join(self.output_dir, self.test_name), exist_ok=True)
         self.current_test_data = {"name": name, "screenshots": [], "errors": []}
@@ -201,20 +201,23 @@ class TestingContext:
     def text_to_image(
         self, text: str, pad: int = 2, colorize_by_id: Optional[int] = None
     ) -> Image.Image:
-        bg_color = "black"
+        bg_color: Union[str, Tuple[int, int, int]] = "black"
         if colorize_by_id is not None:
             byte4 = (colorize_by_id & 0xFF000000) >> 24
             r = (colorize_by_id & 0xFF0000) >> 16
             g = (colorize_by_id & 0x00FF00) >> 8
             b = colorize_by_id & 0x0000FF
             h, _, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            bg_color = colorsys.hsv_to_rgb(h, 0.3 + byte4 / 255 * 0.7, 0.5)
-            bg_color = tuple(int(c * 255) for c in bg_color)
+            bg_color_float = colorsys.hsv_to_rgb(h, 0.3 + byte4 / 255 * 0.7, 0.5)
+            rf, gf, bf = bg_color_float
+            bg_color = (int(rf * 255), int(gf * 255), int(bf * 255))
         img = Image.new("RGB", (1, 1))
         d = ImageDraw.Draw(img)
         font = ImageFont.truetype("DejaVuSansMono.ttf", 16)
         _, _, width, height = d.textbbox((0, 0), text, font=font)
-        img = Image.new("RGB", (width + pad * 2, height + pad * 2), color=bg_color)
+        img = Image.new(
+            "RGB", (int(width + pad * 2), int(height + pad * 2)), color=bg_color
+        )
         d = ImageDraw.Draw(img)
         d.text((pad, pad), text, fill="white", font=font)
         d.rectangle(
@@ -313,7 +316,7 @@ class TestingContext:
         if self.pause_after_screenshot:
             self.wait_for_keypress()
 
-    def take_screenshot_verbose(self, description: str = None):
+    def take_screenshot_verbose(self, description: Optional[str] = None) -> None:
         if description is not None:
             self.term.write(description)
         self.take_screenshot(description)
@@ -324,7 +327,7 @@ class TestingContext:
             self.current_test_data["errors"].append(message)
             self.term.write(message + "\n")
 
-    def assert_true(self, value: bool, description: Optional[str] = None):
+    def assert_true(self, value: bool, description: Optional[str] = None) -> None:
         if not value:
             message = "Assertion failed" + (": " + description if description else "")
             self.current_test_data["errors"].append(message)

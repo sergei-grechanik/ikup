@@ -8,7 +8,7 @@ from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def upload_and_display_from_file(ctx: TestingContext):
+def upload_and_display_from_file(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=True)
     for method in ["file", "direct"]:
         ikupterm.term.reset()
@@ -34,7 +34,7 @@ def upload_and_display_from_file(ctx: TestingContext):
 
 
 @screenshot_test
-def upload_and_display_from_image(ctx: TestingContext):
+def upload_and_display_from_image(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=True)
     img1 = ImageOps.flip(Image.open(ctx.get_wikipedia_png()))
     img2 = ImageOps.flip(Image.open(ctx.get_tux_png()))
@@ -63,7 +63,7 @@ def upload_and_display_from_image(ctx: TestingContext):
 
 
 @screenshot_test
-def upload_and_display_jpeg(ctx: TestingContext):
+def upload_and_display_jpeg(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=True)
     img1 = ctx.get_castle_jpg()
     img2 = ImageOps.flip(Image.open(ctx.get_castle_jpg()))
@@ -90,7 +90,7 @@ def upload_and_display_jpeg(ctx: TestingContext):
 
 
 @screenshot_test
-def upload_and_display_unsupported_jpeg(ctx: TestingContext):
+def upload_and_display_unsupported_jpeg(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=True)
     ikupterm.supported_formats = ["png"]
     img1 = ctx.get_castle_jpg()
@@ -119,7 +119,7 @@ def upload_and_display_unsupported_jpeg(ctx: TestingContext):
 
 
 @screenshot_test
-def id_reclaiming(ctx: TestingContext):
+def id_reclaiming(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=False)
     for i in range(300):
         img = ctx.text_to_image(str(i), colorize_by_id=i * 100)
@@ -140,7 +140,7 @@ def id_reclaiming(ctx: TestingContext):
 
 
 @screenshot_test
-def id_reclaiming_subspace(ctx: TestingContext):
+def id_reclaiming_subspace(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT", force_upload=False)
     ikupterm.id_subspace = IDSubspace(100, 104)
     assert IDSpace(8, True).subspace_size(ikupterm._config.id_subspace) == 1020
@@ -167,7 +167,7 @@ def id_reclaiming_subspace(ctx: TestingContext):
 
 
 @screenshot_test
-def specify_num_columns(ctx: TestingContext):
+def specify_num_columns(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT")
     ikupterm.final_cursor_pos = "bottom-left"
     for cols in range(1, 12):
@@ -181,7 +181,7 @@ def specify_num_columns(ctx: TestingContext):
 
 
 @screenshot_test
-def specify_num_rows(ctx: TestingContext):
+def specify_num_rows(ctx: TestingContext) -> None:
     ikupterm = IkupTerminal(config="DEFAULT")
     ikupterm.final_cursor_pos = "top-right"
     # The column is a big file, but it's faster to upload it than to resize it.

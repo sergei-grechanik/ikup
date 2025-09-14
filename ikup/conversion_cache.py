@@ -466,7 +466,7 @@ class ConversionCache:
             is_biggest=bool(dst_is_biggest),
         )
 
-    def _update_access_time(self, cursor: sqlite3.Cursor, dst_name: str):
+    def _update_access_time(self, cursor: sqlite3.Cursor, dst_name: str) -> None:
         """Update the access time for a cached image."""
         cursor.execute(
             "UPDATE conversion_cache SET dst_atime = ? WHERE dst_name = ?",

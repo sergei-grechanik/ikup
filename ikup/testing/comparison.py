@@ -168,8 +168,8 @@ def compare_images(
     size = refimg.size
     img = img.resize(size)
 
-    img = np.array(img).astype(np.float32) / 255.0
-    refimg = np.array(refimg).astype(np.float32) / 255.0
+    img_array = np.array(img).astype(np.float32) / 255.0
+    refimg_array = np.array(refimg).astype(np.float32) / 255.0
 
     W = 80
     cw = size[0] / W
@@ -182,21 +182,21 @@ def compare_images(
     while x < size[0]:
         y = 0
         while y < size[1]:
-            cell1 = img[int(y) : int(y + ch), int(x) : int(x + cw)]
-            cell2 = refimg[int(y) : int(y + ch), int(x) : int(x + cw)]
+            cell1 = img_array[int(y) : int(y + ch), int(x) : int(x + cw)]
+            cell2 = refimg_array[int(y) : int(y + ch), int(x) : int(x + cw)]
             if np.max(cell1) < 0.001 and np.max(cell2) < 0.001:
-                y += ch
+                y = int(y + ch)
                 continue
-            meaningful_pixels += ch * cw
+            meaningful_pixels += int(ch * cw)
             diff = np.abs(cell1 - cell2)
             diff = np.where(diff < abs_diff_threshold, 0, diff)
             sum_of_squares += np.sum(diff**2)
-            y += ch
-        x += cw
+            y = int(y + ch)
+        x = int(x + cw)
     diffscore = math.sqrt(sum_of_squares / meaningful_pixels)
 
     # Build the diff image.
-    diffmap = np.clip(np.abs(img - refimg), 0.0, 1.0)
+    diffmap = np.clip(np.abs(img_array - refimg_array), 0.0, 1.0)
     if diffmap_filename:
         diffmap = (diffmap * 255).astype(np.uint8)
         Image.fromarray(diffmap).save(diffmap_filename)

@@ -1,6 +1,7 @@
 import random
 from datetime import datetime, timedelta
 from itertools import islice
+from typing import Iterator
 
 import pytest
 
@@ -38,7 +39,7 @@ def several_interesting_subspaces() -> Iterator[IDSubspace]:
 
 
 @pytest.mark.parametrize("begin", range(256))
-def test_id_subspace_init_correct(begin: int):
+def test_id_subspace_init_correct(begin: int) -> None:
     """Test that IDSubspace is initialized correctly."""
     for last in range(begin, 256):
         if last == 0:
@@ -81,7 +82,7 @@ def test_id_subspace_incorrect(pair):
 
 
 @pytest.mark.parametrize("subsp", interesting_subspaces())
-def test_id_subspace_all_bytes(subsp: IDSubspace):
+def test_id_subspace_all_bytes(subsp: IDSubspace) -> None:
     all_bytes = list(subsp.all_byte_values())
     # Check length, sortedness, uniqueness.
     assert len(all_bytes) == subsp.num_byte_values()
@@ -99,13 +100,13 @@ def test_id_subspace_all_bytes(subsp: IDSubspace):
         # Otherwise, non-zero bytes are the same as all bytes.
         assert all_nz_bytes == all_bytes
     # Check `contains_byte`.
-    all_bytes = set(all_bytes)
+    all_bytes_set = set(all_bytes)
     for b in range(256):
-        assert (b in all_bytes) == subsp.contains_byte(b)
+        assert (b in all_bytes_set) == subsp.contains_byte(b)
 
 
 @pytest.mark.parametrize("subsp", several_interesting_subspaces())
-def test_id_subspace_rand_nonzero_byte(subsp: IDSubspace):
+def test_id_subspace_rand_nonzero_byte(subsp: IDSubspace) -> None:
     """Test that IDSubspace.rand_nonzero_byte() generates a non-zero byte from the
     range."""
     # The set of all non-zero bytes.
@@ -121,7 +122,7 @@ def test_id_subspace_rand_nonzero_byte(subsp: IDSubspace):
 
 
 @pytest.mark.parametrize("subsp", interesting_subspaces())
-def test_subspace_split(subsp: IDSubspace):
+def test_subspace_split(subsp: IDSubspace) -> None:
     for i in range(1, subsp.num_nonzero_byte_values()):
         subs = subsp.split(i)
         assert len(subs) == i
@@ -154,7 +155,7 @@ def test_id_space_init():
     "subspace",
     several_interesting_subspaces(),
 )
-def test_id_space_all_ids(id_space: IDSpace, subspace: IDSubspace):
+def test_id_space_all_ids(id_space: IDSpace, subspace: IDSubspace) -> None:
     """Partially test the correctness of IDSpace.all_ids()."""
     ids = []
     # We check only some prefix of all_ids.
@@ -198,7 +199,7 @@ def test_id_space_all_ids(id_space: IDSpace, subspace: IDSubspace):
     "subspace",
     several_interesting_subspaces(),
 )
-def test_id_space_gen_random_id(id_space: IDSpace, subspace: IDSubspace):
+def test_id_space_gen_random_id(id_space: IDSpace, subspace: IDSubspace) -> None:
     """Test random generation of ids in a subspace."""
     ids = set()
     for i in range(10000):
@@ -296,7 +297,7 @@ def test_id_manager_disjoint_subspaces(
     # repeated 2 or 3 times.
     num_distinct_descriptions = 1100
     idman = IDManager(":memory:")
-    subspace_to_descriptions = {}
+    subspace_to_descriptions: dict[IDSubspace, list[str]] = {}
     for i in range(128):
         for subspace in subspaces:
             descriptions = subspace_to_descriptions.setdefault(subspace, [])

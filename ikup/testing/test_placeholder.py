@@ -11,7 +11,7 @@ from ikup.testing import TestingContext, screenshot_test
 
 
 @screenshot_test
-def image_ids(ctx: TestingContext):
+def image_ids(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.DIRECT,
@@ -78,7 +78,7 @@ def image_ids(ctx: TestingContext):
 
 
 @screenshot_test
-def full_width(ctx: TestingContext):
+def full_width(ctx: TestingContext) -> None:
     term = ctx.term
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
@@ -106,7 +106,7 @@ def full_width(ctx: TestingContext):
 
 
 @screenshot_test
-def vertical_stripes(ctx: TestingContext):
+def vertical_stripes(ctx: TestingContext) -> None:
     term = ctx.term
     for image_id in [0x123456, 0x12345678]:
         term.write(f"Image id: 0x{image_id:08x}\n")
@@ -161,7 +161,7 @@ def vertical_stripes(ctx: TestingContext):
 
 
 @screenshot_test
-def max_columns(ctx: TestingContext):
+def max_columns(ctx: TestingContext) -> None:
     term = ctx.term
     columns = len(ikup.ROWCOLUMN_DIACRITICS) + 3
     for image_id in [0x123456, 0x12345678]:
@@ -218,7 +218,7 @@ def max_columns(ctx: TestingContext):
 
 
 @screenshot_test
-def max_rows(ctx: TestingContext):
+def max_rows(ctx: TestingContext) -> None:
     term = ctx.term
     rows = len(ikup.ROWCOLUMN_DIACRITICS)
     columns = 7

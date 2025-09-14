@@ -9,7 +9,7 @@
 #   ./test_scripts/run-cli-tests.sh [OPTIONS] [TEST_NAMES...]
 #
 # Options:
-#   -c, --command CMD  Command to test (default: "uv run ikup")
+#   -c, --command CMD  Command to test (default: "uv run --no-sync ikup")
 #   -l, --list         List all available tests
 #   --no-script        Disable script recording (for internal use)
 #
@@ -150,7 +150,7 @@ fi
 
 # Set default command if not provided
 if [ -z "$IKUP" ]; then
-    IKUP="uv run ikup"
+    IKUP="uv run --no-sync ikup"
 fi
 
 DATA_DIR="./.cli-tests-data"

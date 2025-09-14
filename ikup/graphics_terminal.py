@@ -14,7 +14,6 @@ from typing import BinaryIO, List, Optional, TextIO, Tuple, Union, Callable
 from ikup import (
     GraphicsCommand,
     GraphicsResponse,
-    PlacementData,
     PutCommand,
     TransmitCommand,
 )
@@ -29,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class TtySettingsGuard:
-    def __init__(self, tty: BinaryIO):
+    def __init__(self, tty: BinaryIO) -> None:
         self.tty = tty
 
     def __enter__(self):
@@ -43,8 +42,8 @@ class TtySettingsGuard:
         )
 
 
-class ShellScriptBinaryIOHelper(BinaryIO):
-    def __init__(self, shellscript_out: TextIO):
+class ShellScriptBinaryIOHelper:
+    def __init__(self, shellscript_out: TextIO) -> None:
         self.shellscript_out: TextIO = shellscript_out
 
     @staticmethod
@@ -120,7 +119,9 @@ class ShellScriptBinaryIOHelper(BinaryIO):
             return None
 
     @staticmethod
-    def write_to_shellscript(shellscript_out: TextIO, data: bytes, comment: str = ""):
+    def write_to_shellscript(
+        shellscript_out: TextIO, data: bytes, comment: str = ""
+    ) -> None:
         # First split `data` into chunks such that each chunk is either a potential
         # base64-encoded string or definitely not.
         chunks = ShellScriptBinaryIOHelper._split_data_into_chunks(data)
@@ -257,25 +258,25 @@ class GraphicsTerminal:
             res.num_tmux_layers = num_tmux_layers
         return res
 
-    def _write_to_shellscript(self, data: bytes, comment: str = ""):
+    def _write_to_shellscript(self, data: bytes, comment: str = "") -> None:
         if self.shellscript_out is not None:
             ShellScriptBinaryIOHelper.write_to_shellscript(
                 self.shellscript_out, data, comment
             )
 
-    def _write(self, data: bytes, comment: str = "", flush: bool = False):
+    def _write(self, data: bytes, comment: str = "", flush: bool = False) -> None:
         self.out_display.write(data)
         self._write_to_shellscript(data, comment)
         if flush:
             self.out_display.flush()
 
-    def write(self, string: Union[str, bytes], flush: bool = False):
+    def write(self, string: Union[str, bytes], flush: bool = False) -> None:
         if isinstance(string, str):
             string = string.encode("utf-8")
         self._write(string, flush=flush)
         self.tracked_cursor_position = None
 
-    def writecmd(self, string: Union[str, bytes]):
+    def writecmd(self, string: Union[str, bytes]) -> None:
         self.out_display.flush()
         self.out_command.flush()
         if isinstance(string, str):
@@ -477,7 +478,7 @@ class GraphicsTerminal:
             if isinstance(command, PutCommand):
                 self.print_placeholder_for_put(command)
 
-    def set_immediate_input_noecho(self, tty: BinaryIO):
+    def set_immediate_input_noecho(self, tty: BinaryIO) -> None:
         if tty is None:
             raise ValueError("Cannot set immediate input on a write-only terminal")
         settings = list(termios.tcgetattr(tty.fileno()))
@@ -765,7 +766,7 @@ class GraphicsTerminal:
                 row,
             )
 
-    def set_margins(self, top: int, bottom: int):
+    def set_margins(self, top: int, bottom: int) -> None:
         self._write(
             b"\033[%d;%dr" % (top + 1, bottom + 1),
             comment=f"Set margins to {top}-{bottom}",
@@ -773,12 +774,12 @@ class GraphicsTerminal:
         self.out_display.flush()
         self.tracked_cursor_position = None
 
-    def scroll_down(self, lines: int = 1):
+    def scroll_down(self, lines: int = 1) -> None:
         self._write(b"\033[%dT" % lines, comment=f"Scroll down by {lines}")
         self.out_display.flush()
         self.tracked_cursor_position = None
 
-    def scroll_up(self, lines: int = 1):
+    def scroll_up(self, lines: int = 1) -> None:
         self._write(b"\033[%dS" % lines, comment=f"Scroll up by {lines}")
         self.out_display.flush()
         self.tracked_cursor_position = None

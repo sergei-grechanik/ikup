@@ -1,5 +1,5 @@
 import dataclasses
-import datetime
+from datetime import datetime, timedelta
 import hashlib
 import io
 import json
@@ -141,7 +141,7 @@ class IkupConfig:
             return "default"
         return "set in code"
 
-    def __setattr__(self, name: str, value: Any):
+    def __setattr__(self, name: str, value: Any) -> None:
         super().__setattr__(name, value)
         if name[0] != "_":
             if hasattr(self, "_current_provenance"):
@@ -185,13 +185,17 @@ class IkupConfig:
 
         return "\n".join(lines) + "\n"
 
-    def override_from_toml_file(self, filename: str, provenance: Optional[str] = None):
+    def override_from_toml_file(
+        self, filename: str, provenance: Optional[str] = None
+    ) -> None:
         if provenance is None:
             provenance = f"set from file {os.path.abspath(filename)}"
         with open(filename, "r") as f:
             self.override_from_toml_string(f.read(), provenance=provenance)
 
-    def override_from_toml_string(self, string: str, provenance: Optional[str] = None):
+    def override_from_toml_string(
+        self, string: str, provenance: Optional[str] = None
+    ) -> None:
         if provenance is None:
             provenance = "set from toml string"
         self._current_provenance = provenance
@@ -209,7 +213,9 @@ class IkupConfig:
         if unknown_keys and not self.ignore_unknown_attributes:
             raise KeyError(f"Unknown config keys: {', '.join(unknown_keys)}")
 
-    def override_from_dict(self, config: dict, provenance: Optional[str] = None):
+    def override_from_dict(
+        self, config: dict, provenance: Optional[str] = None
+    ) -> None:
         if provenance is None:
             provenance = config.get("provenance", "set from dict")
         self._current_provenance = provenance
@@ -236,7 +242,7 @@ class IkupConfig:
                 logger.debug("Setting config %s = %s (%s)", key, normalized, provenance)
         self._current_provenance = None
 
-    def override(self, provenance: Optional[str] = None, **kwargs):
+    def override(self, provenance: Optional[str] = None, **kwargs) -> None:
         self.override_from_dict(kwargs, provenance=provenance)
 
     @staticmethod
@@ -249,7 +255,7 @@ class IkupConfig:
         if typing.get_origin(field_type) is Union:
             types_in_union = typing.get_args(field_type)
         else:
-            types_in_union = [field_type]  # Not a Union, just a single type
+            types_in_union = (field_type,)  # Not a Union, just a single type
 
         provenance = f"({provenance})" if provenance else "(set in code)"
 
@@ -352,8 +358,8 @@ class IkupConfig:
 @dataclass
 class ImageInstance:
     path: str
-    mtime: datetime.datetime
-    id_atime: datetime.datetime
+    mtime: datetime
+    id_atime: datetime
     cols: int
     rows: int
     id: int
@@ -368,7 +374,7 @@ class ImageInstance:
             params = json.loads(info.description)
             return ImageInstance(
                 path=params.get("path"),
-                mtime=datetime.datetime.fromtimestamp(float(params.get("mtime"))),
+                mtime=datetime.fromtimestamp(float(params.get("mtime"))),
                 cols=int(params.get("cols")),
                 rows=int(params.get("rows")),
                 id=info.id,
@@ -378,9 +384,7 @@ class ImageInstance:
             return None
 
     @staticmethod
-    def build_descr_string(
-        path: str, mtime: datetime.datetime, cols: int, rows: int
-    ) -> str:
+    def build_descr_string(path: str, mtime: datetime, cols: int, rows: int) -> str:
         return json.dumps(
             {"path": path, "mtime": mtime.timestamp(), "cols": cols, "rows": rows}
         )
@@ -393,8 +397,7 @@ class ImageInstance:
     def is_file_available(self) -> bool:
         return (
             os.path.exists(self.path)
-            and datetime.datetime.fromtimestamp(os.path.getmtime(self.path))
-            == self.mtime
+            and datetime.fromtimestamp(os.path.getmtime(self.path)) == self.mtime
         )
 
     def get_placeholder(self) -> ImagePlaceholder:
@@ -414,7 +417,7 @@ def _config_property(name: str):
     def getter(obj: "IkupTerminal"):
         return getattr(obj._config, name)
 
-    def setter(obj: "IkupTerminal", new_value):
+    def setter(obj: "IkupTerminal", new_value) -> None:
         obj._config.override_from_dict({name: new_value})
 
     return property(getter, setter)
@@ -545,7 +548,7 @@ class IkupTerminal:
     mark_uploaded = _config_property("mark_uploaded")
     cache_always = _config_property("cache_always")
 
-    def _configure_logging(self, log_level: str, provenance: str):
+    def _configure_logging(self, log_level: str, provenance: str) -> None:
         """Configure logging for ikup based on the provided log level."""
         try:
             level = int(log_level)
@@ -712,7 +715,7 @@ class IkupTerminal:
         max_cols: Optional[int] = None,
         max_rows: Optional[int] = None,
         scale: Optional[float] = None,
-        id_atime: Optional[datetime.datetime] = None,
+        id_atime: Optional[datetime] = None,
     ) -> ImageInstance:
         path, mtime = self._get_image_path_and_mtime(image)
         if cols is None or rows is None:
@@ -734,7 +737,7 @@ class IkupTerminal:
                 scale=scale,
             )
         if id_atime is None:
-            id_atime = datetime.datetime.now()
+            id_atime = datetime.now()
         # Attach the image object if it is not a path.
         image_obj = None
         if not isinstance(image, str) and not isinstance(image, bytes):
@@ -749,22 +752,20 @@ class IkupTerminal:
             image=image_obj,
         )
 
-    def _get_image_path_and_mtime(
-        self, image: ImageOrFilename
-    ) -> Tuple[str, datetime.datetime]:
+    def _get_image_path_and_mtime(self, image: ImageOrFilename) -> Tuple[str, datetime]:
         if isinstance(image, str):
             if image.startswith(":"):
-                return image, datetime.datetime.fromtimestamp(0)
+                return image, datetime.fromtimestamp(0)
             if image.startswith("~"):
                 image = os.path.expanduser(image)
             if os.path.exists(image):
-                return os.path.abspath(image), datetime.datetime.fromtimestamp(
+                return os.path.abspath(image), datetime.fromtimestamp(
                     os.path.getmtime(image)
                 )
-            return image, datetime.datetime.fromtimestamp(0)
+            return image, datetime.fromtimestamp(0)
         else:
             md5sum = hashlib.md5(image.tobytes()).hexdigest()
-            return f":ikup:{md5sum}", datetime.datetime.fromtimestamp(0)
+            return f":ikup:{md5sum}", datetime.fromtimestamp(0)
 
     def get_id_space(
         self,
@@ -840,7 +841,7 @@ class IkupTerminal:
     ) -> bool:
         max_uploads_ago = self._config.reupload_max_uploads_ago
         max_bytes_ago = self._config.reupload_max_bytes_ago
-        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
+        max_time_ago = timedelta(seconds=self._config.reupload_max_seconds_ago)
         if terminal_id is None:
             terminal_id = self._terminal_id
         if terminal_id is None:
@@ -970,7 +971,7 @@ class IkupTerminal:
             upload_method = TransmissionMedium.from_string(upload_method)
         return upload_method
 
-    def _abort_transmission(self, id: int):
+    def _abort_transmission(self, id: int) -> None:
         """Send a final direct transmission command (`m=0`) to abort any existing
         transmission for this ID."""
         self.term.send_command(
@@ -1012,7 +1013,7 @@ class IkupTerminal:
 
         max_uploads_ago = self._config.reupload_max_uploads_ago
         max_bytes_ago = self._config.reupload_max_bytes_ago
-        max_time_ago = datetime.timedelta(seconds=self._config.reupload_max_seconds_ago)
+        max_time_ago = timedelta(seconds=self._config.reupload_max_seconds_ago)
         info = None
 
         # Check if we can skip uploading and converting the image.
@@ -1043,6 +1044,7 @@ class IkupTerminal:
         size = None
 
         # If there is no image object, load it from the file.
+        image_object: Optional["Image.Image"]
         if inst.image is None:
             if not inst.is_file_available():
                 raise FileNotFoundError(
@@ -1195,13 +1197,13 @@ class IkupTerminal:
             mark_uploaded=mark_uploaded,
         )
 
-    def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo):
+    def _report_progress(self, cmd: GraphicsCommand, info: UploadInfo) -> None:
         # Apply delay after each chunk if configured
         if self._config.upload_command_delay > 0:
             time.sleep(self._config.upload_command_delay)
 
-        now = datetime.datetime.now()
-        if now - info.upload_time > datetime.timedelta(
+        now = datetime.now()
+        if now - info.upload_time > timedelta(
             seconds=self._config.upload_progress_update_interval
         ):
             info.upload_time = now
@@ -1223,7 +1225,7 @@ class IkupTerminal:
         check_response: Optional[bool] = None,
         upload_method: Union[TransmissionMedium, str, None] = None,
         fewer_diacritics: Optional[bool] = None,
-        background: Optional[Callable[[int, int], bytes]] = None,
+        background: Optional[BackgroundLike] = None,
         abs_pos: Optional[Tuple[int, int]] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
         use_line_feeds: bool = False,
@@ -1290,7 +1292,7 @@ class IkupTerminal:
                 from PIL import ImageColor
 
                 rgb = ImageColor.getrgb(background)
-                return b"\033[48;2;%d;%d;%dm" % rgb
+                return b"\033[48;2;%d;%d;%dm" % (rgb[0], rgb[1], rgb[2])
         if isinstance(background, int):
             return b"\033[48;5;%dm" % background
         return background
@@ -1395,9 +1397,7 @@ class IkupTerminal:
             end_row=end_row,
         )
 
-    def cleanup_old_databases(
-        self, max_age: Optional[datetime.timedelta] = None
-    ) -> List[str]:
+    def cleanup_old_databases(self, max_age: Optional[timedelta] = None) -> List[str]:
         """Remove database files older than the specified age.
 
         Args:
@@ -1408,14 +1408,14 @@ class IkupTerminal:
             list: Paths of removed database files.
         """
         if max_age is None:
-            max_age = datetime.timedelta(days=self._config.max_db_age_days)
+            max_age = timedelta(days=self._config.max_db_age_days)
         removed: List[str] = []
         db_dir = self._config.id_database_dir
         try:
             files = sorted(os.listdir(db_dir))
         except FileNotFoundError:
             return removed
-        now = datetime.datetime.now()
+        now = datetime.now()
         for fname in files:
             if not fname.endswith(".db"):
                 continue
@@ -1425,7 +1425,7 @@ class IkupTerminal:
             # Skip current database
             if os.path.abspath(path) == os.path.abspath(self.id_manager.database_file):
                 continue
-            atime = datetime.datetime.fromtimestamp(os.path.getatime(path))
+            atime = datetime.fromtimestamp(os.path.getatime(path))
             if now - atime > max_age:
                 try:
                     os.remove(path)

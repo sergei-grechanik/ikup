@@ -8,7 +8,7 @@ SPLIT_PAYLOAD_SIZE = 2816
 
 
 @screenshot_test
-def ok_transmit(ctx: TestingContext):
+def ok_transmit(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -34,7 +34,7 @@ def ok_transmit(ctx: TestingContext):
 
 
 @screenshot_test
-def ok_direct_transmit(ctx: TestingContext):
+def ok_direct_transmit(ctx: TestingContext) -> None:
     term = ctx.term
     # Direct uploading.
     cmd = TransmitCommand(
@@ -93,7 +93,7 @@ def ok_direct_transmit(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def ok_put(ctx: TestingContext, placement_id=None):
+def ok_put(ctx: TestingContext, placement_id=None) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -172,7 +172,7 @@ def ok_put(ctx: TestingContext, placement_id=None):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
+def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None) -> None:
     term = ctx.term
     # Direct uploading + put.
     cmd = TransmitCommand(
@@ -242,7 +242,7 @@ def ok_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
 
 
 @screenshot_test
-def ok_two_responses(ctx: TestingContext):
+def ok_two_responses(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -260,7 +260,7 @@ def ok_two_responses(ctx: TestingContext):
 
 
 @screenshot_test
-def error_transmit(ctx: TestingContext):
+def error_transmit(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -304,7 +304,7 @@ def error_transmit(ctx: TestingContext):
 
 
 @screenshot_test
-def error_transmit_urandom(ctx: TestingContext):
+def error_transmit_urandom(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -324,7 +324,7 @@ def error_transmit_urandom(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def error_transmit_and_put(ctx: TestingContext, placement_id=None):
+def error_transmit_and_put(ctx: TestingContext, placement_id=None) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.FILE,
@@ -361,7 +361,7 @@ def error_transmit_and_put(ctx: TestingContext, placement_id=None):
 
 
 @screenshot_test
-def error_direct_transmit(ctx: TestingContext):
+def error_direct_transmit(ctx: TestingContext) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.DIRECT,
@@ -392,7 +392,7 @@ def error_direct_transmit(ctx: TestingContext):
 
 @screenshot_test(suffix="fixed_placement_id", params={"placement_id": 123})
 @screenshot_test
-def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
+def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None) -> None:
     term = ctx.term
     cmd = TransmitCommand(
         medium=ikup.TransmissionMedium.DIRECT,
@@ -431,7 +431,7 @@ def error_direct_transmit_and_put(ctx: TestingContext, placement_id=None):
 
 
 @screenshot_test
-def error_syntax_no_response(ctx: TestingContext):
+def error_syntax_no_response(ctx: TestingContext) -> None:
     term = ctx.term
 
     ctx.write("Empty command. No response is expected.\n")
@@ -479,7 +479,7 @@ def error_syntax_no_response(ctx: TestingContext):
 
 
 @screenshot_test
-def error_syntax_image_id(ctx: TestingContext):
+def error_syntax_image_id(ctx: TestingContext) -> None:
     term = ctx.term
 
     # This is probably an empty-data direct transmission, so the error will not be
@@ -524,7 +524,7 @@ def error_syntax_image_id(ctx: TestingContext):
 
 
 @screenshot_test
-def stress_too_many_responses(ctx: TestingContext):
+def stress_too_many_responses(ctx: TestingContext) -> None:
     term = ctx.term.clone_with()
     for i in range(0, 10000):
         term.write(f"{i}\r")
