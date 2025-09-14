@@ -54,6 +54,8 @@ jobs:
 
       - name: Install python test dependencies
         # For screenshot tests we need additional dependencies
+        # Note that we run them with --extra test anyway, so this step is
+        # probably redundant.
         run: uv sync --no-dev --group test
 
       - name: Run screenshot tests
