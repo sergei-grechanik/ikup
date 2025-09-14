@@ -384,9 +384,7 @@ class ImageInstance:
             return None
 
     @staticmethod
-    def build_descr_string(
-        path: str, mtime: datetime, cols: int, rows: int
-    ) -> str:
+    def build_descr_string(path: str, mtime: datetime, cols: int, rows: int) -> str:
         return json.dumps(
             {"path": path, "mtime": mtime.timestamp(), "cols": cols, "rows": rows}
         )
@@ -399,8 +397,7 @@ class ImageInstance:
     def is_file_available(self) -> bool:
         return (
             os.path.exists(self.path)
-            and datetime.fromtimestamp(os.path.getmtime(self.path))
-            == self.mtime
+            and datetime.fromtimestamp(os.path.getmtime(self.path)) == self.mtime
         )
 
     def get_placeholder(self) -> ImagePlaceholder:
@@ -755,9 +752,7 @@ class IkupTerminal:
             image=image_obj,
         )
 
-    def _get_image_path_and_mtime(
-        self, image: ImageOrFilename
-    ) -> Tuple[str, datetime]:
+    def _get_image_path_and_mtime(self, image: ImageOrFilename) -> Tuple[str, datetime]:
         if isinstance(image, str):
             if image.startswith(":"):
                 return image, datetime.fromtimestamp(0)
@@ -1402,9 +1397,7 @@ class IkupTerminal:
             end_row=end_row,
         )
 
-    def cleanup_old_databases(
-        self, max_age: Optional[timedelta] = None
-    ) -> List[str]:
+    def cleanup_old_databases(self, max_age: Optional[timedelta] = None) -> List[str]:
         """Remove database files older than the specified age.
 
         Args:

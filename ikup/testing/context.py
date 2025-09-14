@@ -215,7 +215,9 @@ class TestingContext:
         d = ImageDraw.Draw(img)
         font = ImageFont.truetype("DejaVuSansMono.ttf", 16)
         _, _, width, height = d.textbbox((0, 0), text, font=font)
-        img = Image.new("RGB", (int(width + pad * 2), int(height + pad * 2)), color=bg_color)
+        img = Image.new(
+            "RGB", (int(width + pad * 2), int(height + pad * 2)), color=bg_color
+        )
         d = ImageDraw.Draw(img)
         d.text((pad, pad), text, fill="white", font=font)
         d.rectangle(

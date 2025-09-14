@@ -8,8 +8,9 @@ PLACEHOLDER_CHAR = "\U0010eeee"
 
 class WritableBytes(Protocol):
     """Protocol for objects that can write bytes."""
-    def write(self, data: bytes) -> int:
-        ...
+
+    def write(self, data: bytes) -> int: ...
+
 
 ROWCOLUMN_DIACRITICS = [
     "\U00000305",

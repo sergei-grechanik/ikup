@@ -28,11 +28,17 @@ def movecursor(ctx: TestingContext, placeholder: bool = False) -> None:
         .set_placement(rows=10, cols=5)
     )
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=10, cols=20, quiet=Quietness.QUIET_UNLESS_ERROR))
+    term.send_command(
+        PutCommand(image_id=1, rows=10, cols=20, quiet=Quietness.QUIET_UNLESS_ERROR)
+    )
     term.move_cursor(up=9)
-    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR))
+    term.send_command(
+        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR)
+    )
     term.move_cursor(left=10, down=1)
-    term.send_command(PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR))
+    term.send_command(
+        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR)
+    )
     ctx.take_screenshot("Wikipedia logo and some columns.")
 
 
@@ -63,15 +69,33 @@ def nomovecursor(ctx: TestingContext, placeholder: bool = False) -> None:
     )
     term.move_cursor(right=5)
     term.send_command(
-        PutCommand(image_id=1, rows=10, cols=20, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
+        PutCommand(
+            image_id=1,
+            rows=10,
+            cols=20,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
     )
     term.move_cursor(right=20)
     term.send_command(
-        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
+        PutCommand(
+            image_id=1,
+            rows=5,
+            cols=10,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
     )
     term.move_cursor(down=5)
     term.send_command(
-        PutCommand(image_id=1, rows=5, cols=10, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
+        PutCommand(
+            image_id=1,
+            rows=5,
+            cols=10,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
     )
     ctx.take_screenshot(
         "Wikipedia logo and some columns. The cursor should be at the top left"
@@ -123,7 +147,13 @@ def oob(ctx: TestingContext, placeholder: bool = False) -> None:
     for r in range(24):
         term.move_cursor_abs(row=r, col=80 - (24 - r))
         term.send_command(
-            PutCommand(image_id=1, rows=1, cols=24, quiet=Quietness.QUIET_UNLESS_ERROR, do_not_move_cursor=True)
+            PutCommand(
+                image_id=1,
+                rows=1,
+                cols=24,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
+                do_not_move_cursor=True,
+            )
         )
     term.move_cursor_abs(row=0, col=0)
     ctx.take_screenshot("A ruler that goes off the screen. Not to scale.")
