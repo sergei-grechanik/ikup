@@ -408,6 +408,7 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False) -> 
 @screenshot_test
 def stress_large_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
+    np.random.seed(42)
     with tempfile.NamedTemporaryFile("wb") as f:
         # Generate an image of ~20MB (when represented as RGBA).
         data = ctx.to_rgb(ctx.generate_image(10 * 500, 2 * 500), bits=32)
@@ -515,6 +516,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> No
 @screenshot_test
 def stress_too_many_placements(ctx: TestingContext) -> None:
     term = ctx.term.clone_with(force_placeholders=True)
+    np.random.seed(42)
     # Create and upload 1-pixel images and create placements for them.
     total_image_count = 1000
     placements_per_image = 20
