@@ -56,7 +56,7 @@ jobs:
         # For screenshot tests we need additional dependencies
         # Note that we run them with --extra test anyway, so this step is
         # probably redundant.
-        run: uv sync --no-dev --group test
+        run: uv sync --no-dev --extra test
 
       - name: Run screenshot tests
         uses: coactions/setup-xvfb@v1.0.1
