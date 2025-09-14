@@ -472,6 +472,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False) -> None:
 @screenshot_test
 def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
+    np.random.seed(42)
     # Create and upload lots of 1-pixel images.
     total_count = 10000
     for i in range(total_count):
