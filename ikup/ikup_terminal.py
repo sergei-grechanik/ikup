@@ -21,6 +21,7 @@ from typing import (
     Optional,
     Tuple,
     Union,
+    Dict,
     TYPE_CHECKING,
 )
 
@@ -31,6 +32,8 @@ import ikup
 from ikup.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
 from ikup.conversion_cache import ConversionCache
 import ikup.utils
+from ikup.utils import ffloor
+from ikup.formula import FormulaEvaluationError, evaluate_formula
 from ikup.terminal_detection import detect_terminal_info
 from ikup import (
     GraphicsCommand,
@@ -52,6 +55,8 @@ logger = logging.getLogger(__name__)
 
 BackgroundLike = Union[ikup.AdditionalFormatting, str, int, None]
 FinalCursorPos = Literal["top-left", "top-right", "bottom-left", "bottom-right"]
+FormulaOrInt = Union[str, int]
+FormulaOrTwoInts = Union[str, Tuple[int, int]]
 
 
 class ValidationError(ValueError):
@@ -76,12 +81,9 @@ class IkupConfig:
     # Image geometry options.
     cell_size: Union[Tuple[int, int], Literal["auto"]] = "auto"
     fallback_cell_size: Tuple[int, int] = (8, 16)
+    fallback_term_size: Tuple[int, int] = (80, 24)
     scale: float = 1.0
     global_scale: float = 1.0
-    max_rows: Union[int, Literal["auto"]] = "auto"
-    max_cols: Union[int, Literal["auto"]] = "auto"
-    fallback_max_rows: int = 24
-    fallback_max_cols: int = 80
 
     # Uploading options
     max_command_size: int = select.PIPE_BUF
@@ -160,6 +162,10 @@ class IkupConfig:
         if isinstance(self.fallback_cell_size, tuple):
             dic["fallback_cell_size"] = (
                 f"{self.fallback_cell_size[0]}x{self.fallback_cell_size[1]}"
+            )
+        if isinstance(self.fallback_term_size, tuple):
+            dic["fallback_term_size"] = (
+                f"{self.fallback_term_size[0]}x{self.fallback_term_size[1]}"
             )
         if isinstance(self.upload_method, TransmissionMedium):
             dic["upload_method"] = self.upload_method.value
@@ -246,6 +252,14 @@ class IkupConfig:
         self.override_from_dict(kwargs, provenance=provenance)
 
     @staticmethod
+    def _isValidLiteral(value: str, types_in_union: Tuple[Any, ...]) -> bool:
+        return any(
+            value in typing.get_args(t)
+            for t in types_in_union
+            if typing.get_origin(t) is Literal
+        )
+
+    @staticmethod
     def validate_and_normalize(
         name: str, value: Any, provenance: Optional[str] = None
     ) -> Any:
@@ -261,12 +275,14 @@ class IkupConfig:
 
         # Normalize values specified as strings.
         try:
-            if isinstance(value, str) and value != "auto":
+            if isinstance(value, str) and not IkupConfig._isValidLiteral(
+                value, types_in_union
+            ):
                 if IDSubspace in types_in_union:
                     value = IDSubspace.from_string(value)
                 if IDSpace in types_in_union:
                     value = IDSpace.from_string(value)
-                if name == "cell_size" or name == "fallback_cell_size":
+                if name in ("cell_size", "fallback_cell_size", "fallback_term_size"):
                     value = ikup.utils.validate_size(value)
                 if name == "id_database_dir" and value == "":
                     value = platformdirs.user_state_dir("ikup")
@@ -306,16 +322,6 @@ class IkupConfig:
             if "scale" in name and not (0.0 < value <= 1000000.0):
                 raise ValidationError(
                     f"{name} must be positive and not too big: '{value}' {provenance}"
-                )
-        if isinstance(value, int):
-            if "max_cols" in name and not (0 < value <= 4096):
-                raise ValidationError(
-                    f"{name} must be positive and not greater than 4096: '{value}' {provenance}"
-                )
-            if "max_rows" in name and not (0 < value <= 256):
-                raise ValidationError(
-                    "{name} must be positive and not greater than 256:"
-                    f" '{value}' {provenance}"
                 )
 
         return value
@@ -433,7 +439,9 @@ class IkupTerminal:
         in_response: Union[BinaryIO, str, None] = None,
         append_display: bool = False,
         id_database: Optional[str] = None,
-        final_cursor_pos: FinalCursorPos = "bottom-left",
+        final_cursor_pos: Optional[FinalCursorPos] = None,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
         config: Optional[Union[IkupConfig, str]] = None,
         config_overrides: dict = {},
         **kwargs,
@@ -478,7 +486,9 @@ class IkupTerminal:
                 config.log_level, config.get_provenance("log_level")
             )
 
-        self.final_cursor_pos: FinalCursorPos = final_cursor_pos
+        self.final_cursor_pos: FinalCursorPos = final_cursor_pos or "bottom-left"
+        self.max_cols: FormulaOrInt = max_cols or "inf"
+        self.max_rows: FormulaOrInt = max_rows or "inf"
 
         if config.num_tmux_layers == "auto":
             config._current_provenance = (
@@ -519,8 +529,6 @@ class IkupTerminal:
         self._id_manager: Optional[IDManager] = None
         self._conversion_cache: Optional[ConversionCache] = None
 
-    max_cols = _config_property("max_cols")
-    max_rows = _config_property("max_rows")
     scale = _config_property("scale")
     global_scale = _config_property("global_scale")
     id_space = _config_property("id_space")
@@ -615,46 +623,121 @@ class IkupTerminal:
             return cell_size
         return self._config.cell_size
 
-    def get_max_cols_and_rows(
-        self, *, max_cols: Optional[int] = None, max_rows: Optional[int] = None
+    def get_term_size(self) -> Tuple[int, int]:
+        term_size = self.term.get_size()
+        if term_size is None:
+            return self._config.fallback_term_size
+        return term_size
+
+    def variable_evaluator(
+        self, cache: Optional[Dict[str, float]] = None
+    ) -> Callable[[str], float]:
+        if cache is None:
+            cache = {}
+
+        def _get_var(var: str) -> float:
+            if var in cache:
+                return cache[var]
+            if var == "tc" or var == "tr":
+                cache["tc"], cache["tr"] = self.get_term_size()
+                logger.debug("Updated formula var cache: %s", cache)
+                return cache[var]
+            if var == "cw" or var == "ch":
+                cache["cw"], cache["ch"] = self.get_cell_size()
+                logger.debug("Updated formula var cache: %s", cache)
+                return cache[var]
+            if var == "cx" or var == "cy":
+                cache["cx"], cache["cy"] = self.term.get_cursor_position()
+                logger.debug("Updated formula var cache: %s", cache)
+                return cache[var]
+            raise FormulaEvaluationError(f"Unknown or unavailable variable: {var}")
+
+        return _get_var
+
+    def evaluate_formula(
+        self,
+        formula: str,
+        cache: Optional[Dict[str, float]] = None,
+        num_results: Optional[int] = None,
+    ) -> List[float]:
+        logger.debug("Evaluating formula: '%s' with cache %s", formula, cache)
+        return evaluate_formula(
+            formula,
+            variables=self.variable_evaluator(cache),
+            num_results=num_results,
+        )
+
+    def evaluate_max_cols_and_rows(
+        self,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
+    ) -> Tuple[float, float]:
+        logger.debug("evaluate_max_cols_and_rows(%s, %s)", max_cols, max_rows)
+        if max_cols is None:
+            max_cols = self.max_cols
+        if max_rows is None:
+            max_rows = self.max_rows
+        if isinstance(max_cols, str) or isinstance(self.max_rows, str):
+            max_cols_f, max_rows_f = self.evaluate_formula(
+                str(max_cols) + "," + str(max_rows), num_results=2
+            )
+            max_cols_f = ffloor(max_cols_f)
+            max_rows_f = ffloor(max_rows_f)
+        else:
+            assert max_cols and isinstance(max_cols, int)
+            assert max_rows and isinstance(max_rows, int)
+            max_cols_f, max_rows_f = max_cols, max_rows
+        if not (max_cols_f > 0):
+            raise ValueError(f"max_cols must be positive: {max_cols_f}")
+        if not (max_rows_f > 0):
+            raise ValueError(f"max_rows must be positive: {max_rows_f}")
+        logger.debug("max_cols = %s, max_rows = %s", max_cols_f, max_rows_f)
+        return max_cols_f, max_rows_f
+
+    def evaluate_pos(
+        self,
+        pos: FormulaOrTwoInts,
+        *,
+        start_col: int,
+        start_row: int,
+        end_col: int,
+        end_row: int,
     ) -> Tuple[int, int]:
-        if max_rows is None and self._config.max_rows != "auto":
-            max_rows = self._config.max_rows
-        if max_cols is None and self._config.max_cols != "auto":
-            max_cols = self._config.max_cols
-        if max_rows is None or max_cols is None:
-            term_size = self.term.get_size()
-            if term_size is None:
-                max_cols = max_cols or self._config.fallback_max_cols
-                max_rows = max_rows or self._config.fallback_max_rows
-            else:
-                max_cols = max_cols or term_size[0]
-                max_rows = max_rows or min(term_size[1], 256)
-        max_rows = max(1, max_rows)
-        max_cols = max(1, max_cols)
-        max_rows = min(256, max_rows)
-        return max_cols, max_rows
+        if isinstance(pos, str):
+            cache: Dict[str, float] = {
+                "sc": start_col,
+                "sr": start_row,
+                "ec": end_col,
+                "er": end_col,
+                "c": end_col - start_col,
+                "r": end_row - start_row,
+            }
+            x, y = self.evaluate_formula(pos, cache=cache, num_results=2)
+            return int(math.floor(x)), int(math.floor(y))
+        return pos
 
     def get_optimal_cols_and_rows(
         self,
         width: float,
         height: float,
         *,
+        max_cols: float,
+        max_rows: float,
         cols: Optional[int] = None,
         rows: Optional[int] = None,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
         scale: Optional[float] = None,
     ) -> Tuple[int, int]:
         if cols is not None and cols <= 0:
             raise ValueError(f"cols must be positive: {cols}")
         if rows is not None and rows <= 0:
             raise ValueError(f"rows must be positive: {rows}")
-        if cols is not None and rows is not None:
+        if (
+            cols is not None
+            and rows is not None
+            and cols <= max_cols
+            and rows <= max_rows
+        ):
             return cols, rows
-        max_cols, max_rows = self.get_max_cols_and_rows(
-            max_cols=max_cols, max_rows=max_rows
-        )
         cell_width, cell_height = self.get_cell_size()
         logger.debug("cell size: %sx%s", cell_width, cell_height)
         # Combine global and local scale factors
@@ -681,26 +764,32 @@ class IkupTerminal:
             # using the cell size.
             cols = math.ceil(width / cell_width)
             rows = math.ceil(height / cell_height)
-        elif rows is not None:
+        elif cols is None:
             # If only one dimension is specified, compute the other one to match
             # the aspect ratio as close as possible.
+            assert rows is not None
             cols = math.ceil(rows * cell_height * width / (height * cell_width))
-        elif cols is not None:
+        elif rows is None:
+            assert cols is not None
             rows = math.ceil(cols * cell_width * height / (width * cell_height))
         assert cols is not None and rows is not None
         logger.debug("CxR before limiting: %sx%s", cols, rows)
 
-        # Make sure that automatically computed rows and columns are within the
-        # limits.
-        if cols_auto_computed and cols > max_cols:
-            cols = max_cols
-            rows = math.ceil(cols * cell_width * height / (width * cell_height))
-        if rows_auto_computed and rows > max_rows:
-            rows = max_rows
-            cols = math.ceil(rows * cell_height * width / (height * cell_width))
+        # Make sure that rows and columns are within the limits. Doesn't matter, if they
+        # are autocomputed or not.
+        if cols > max_cols:
+            cols = int(max_cols)
+            # Recompute rows only if they were autocomputed.
+            if rows_auto_computed:
+                rows = math.ceil(cols * cell_width * height / (width * cell_height))
+        if rows > max_rows:
+            rows = int(max_rows)
+            # Recompute cols only if they were autocomputed.
+            if cols_auto_computed:
+                cols = math.ceil(rows * cell_height * width / (height * cell_width))
         # Limit them again, just in case.
-        cols = max(1, min(cols, max_cols))
-        rows = max(1, min(rows, max_rows))
+        cols = int(max(1, min(cols, max_cols)))
+        rows = int(max(1, min(rows, max_rows)))
 
         logger.debug("CxR after limiting: %sx%s", cols, rows)
         return cols, rows
@@ -710,16 +799,20 @@ class IkupTerminal:
         image: ImageOrFilename,
         id: int,
         *,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
+        cols: Optional[FormulaOrInt] = None,
+        rows: Optional[FormulaOrInt] = None,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
         scale: Optional[float] = None,
         id_atime: Optional[datetime] = None,
     ) -> ImageInstance:
         path, mtime = self._get_image_path_and_mtime(image)
-        if cols is None or rows is None:
+        max_cols_f, max_rows_f = self.evaluate_max_cols_and_rows(max_cols, max_rows)
+        if (not isinstance(cols, int) or cols > max_cols_f) or (
+            not isinstance(rows, int) or rows > max_rows_f
+        ):
             if isinstance(image, str):
+                logger.debug("Opening image file %s to get its size", image)
                 from PIL import Image
 
                 open_image = Image.open(image)
@@ -727,13 +820,25 @@ class IkupTerminal:
                 open_image.close()
             else:
                 width, height = ikup.utils.get_real_image_size(image)
+            cache: Optional[Dict[str, float]] = {
+                "w": width,
+                "h": height,
+                "mc": max_cols_f,
+                "mr": max_rows_f,
+            }
+            if isinstance(cols, str):
+                (cols_f,) = self.evaluate_formula(cols, cache=cache, num_results=1)
+                cols = int(math.floor(cols_f))
+            if isinstance(rows, str):
+                (rows_f,) = self.evaluate_formula(rows, cache=cache, num_results=1)
+                rows = int(math.floor(rows_f))
             cols, rows = self.get_optimal_cols_and_rows(
                 width,
                 height,
                 cols=cols,
                 rows=rows,
-                max_cols=max_cols,
-                max_rows=max_rows,
+                max_cols=max_cols_f,
+                max_rows=max_rows_f,
                 scale=scale,
             )
         if id_atime is None:
@@ -790,10 +895,10 @@ class IkupTerminal:
         self,
         image: ImageOrFilename,
         *,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
+        cols: Optional[FormulaOrInt] = None,
+        rows: Optional[FormulaOrInt] = None,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
         scale: Optional[float] = None,
         id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
@@ -864,10 +969,10 @@ class IkupTerminal:
         self,
         image: Union[ImageOrFilename, ImageInstance],
         *,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
+        cols: Optional[FormulaOrInt] = None,
+        rows: Optional[FormulaOrInt] = None,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
         scale: Optional[float] = None,
         id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
@@ -1051,6 +1156,7 @@ class IkupTerminal:
                     f"Image file {inst.path} with mtime {inst.mtime} does not"
                     " exist or was overwritten"
                 )
+            logger.debug("Opening image file %s", inst.path)
             from PIL import Image
 
             # Load the object.
@@ -1077,6 +1183,15 @@ class IkupTerminal:
             or format != image_object.format
             or self._config.cache_always
         ):
+            logger.debug(
+                "Image ID %s needs conversion, size = %s, max_upload_size = %s, supported format = %s, image format = %s, config.cache_always = %s",
+                inst.id,
+                size,
+                max_upload_size,
+                format,
+                image_object.format,
+                self._config.cache_always,
+            )
             self.cleanup_cache()
             cached_image = self.conversion_cache.convert(
                 image_path=inst.path,
@@ -1213,10 +1328,10 @@ class IkupTerminal:
         self,
         image: Union[ImageOrFilename, ImageInstance],
         *,
-        cols: Optional[int] = None,
-        rows: Optional[int] = None,
-        max_cols: Optional[int] = None,
-        max_rows: Optional[int] = None,
+        cols: Optional[FormulaOrInt] = None,
+        rows: Optional[FormulaOrInt] = None,
+        max_cols: Optional[FormulaOrInt] = None,
+        max_rows: Optional[FormulaOrInt] = None,
         scale: Optional[float] = None,
         id_space: Union[IDSpace, str, int, None] = None,
         id_subspace: Union[IDSubspace, str, None] = None,
@@ -1226,7 +1341,7 @@ class IkupTerminal:
         upload_method: Union[TransmissionMedium, str, None] = None,
         fewer_diacritics: Optional[bool] = None,
         background: Optional[BackgroundLike] = None,
-        abs_pos: Optional[Tuple[int, int]] = None,
+        abs_pos: Optional[FormulaOrTwoInts] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
         use_line_feeds: bool = False,
         mark_uploaded: Optional[bool] = None,
@@ -1308,7 +1423,7 @@ class IkupTerminal:
         allow_expansion: bool = True,
         fewer_diacritics: Optional[bool] = None,
         background: Optional[BackgroundLike] = None,
-        abs_pos: Optional[Tuple[int, int]] = None,
+        abs_pos: Optional[FormulaOrTwoInts] = None,
         final_cursor_pos: Optional[FinalCursorPos] = None,
         use_line_feeds: bool = False,
     ) -> ImagePlaceholder:
@@ -1366,10 +1481,17 @@ class IkupTerminal:
                 raise ValueError(
                     "Cannot specify use_line_feeds=True when abs_pos is specified"
                 )
-            if abs_pos[0] < 0 or abs_pos[1] < 0:
+            abs_pos_int = self.evaluate_pos(
+                abs_pos,
+                start_col=start_col,
+                start_row=start_row,
+                end_col=end_col,
+                end_row=end_row,
+            )
+            if abs_pos_int[0] < 0 or abs_pos_int[1] < 0:
                 raise ValueError(
                     "Absolute position must be non-negative (unless"
-                    f" clipping is enabled): {abs_pos}"
+                    f" clipping is enabled): {abs_pos_int} evaluated from {abs_pos}"
                 )
             self.term.print_placeholder(
                 image_id=id,
@@ -1378,7 +1500,7 @@ class IkupTerminal:
                 start_row=start_row,
                 end_col=end_col,
                 end_row=end_row,
-                pos=abs_pos,
+                pos=abs_pos_int,
                 mode=mode,
                 formatting=formatting,
             )

@@ -33,3 +33,35 @@ ikup display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-
 [s[0m[38;2;[[column_id?:.*]]m􎻮̍̅􎻮̍̍􎻮̍̎[0m[uD
 [s[0m[38;2;[[column_id?:.*]]m􎻮̎̅􎻮̎̍􎻮̎̎[0m[uD
 [0m[38;2;[[column_id?:.*]]m􎻮̐̅􎻮̐̍􎻮̐̎[0m[3DD
+
+---------- SUBTEST Cols > max-cols, scale down ----------
+
+ikup ./.cli-tests-data/wikipedia.png -c 10 --max-cols 3
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[3DD
+
+---------- SUBTEST Rows > max-rows, scale down ----------
+
+ikup ./.cli-tests-data/wikipedia.png -r 10 --max-rows 1
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=1,c=3;{{.*}}\
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[3DD
+
+---------- SUBTEST Many cols, make sure we are within max-rows ----------
+
+ikup ./.cli-tests-data/wikipedia.png -c 10 --max-rows 1
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=1,c=10;{{.*}}\
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊[0m[10DD
+
+---------- SUBTEST Cols > max-cols, rows > max-rows, fit to the maximum box ----------
+
+ikup ./.cli-tests-data/wikipedia.png -c 10 -r 10 --max-cols 3 --max-rows 4
+_Gi={{.*}},t=f,q=2,f=100,a=T,U=1,r=4,c=3;{{.*}}\
+[s[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎[0m[uD
+[0m[38;2;{{.*}}m􎻮̐̅􎻮̐̍􎻮̐̎[0m[3DD
+
+---------- SUBTEST Cols > max-cols, rows < max-rows, shrink cols, keep rows ----------
+
+ikup ./.cli-tests-data/wikipedia.png -c 20 -r 1 --max-cols 10 --max-rows 4
+[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽􎻮̅̾􎻮̅̿􎻮̅͆􎻮̅͊[0m[10DD

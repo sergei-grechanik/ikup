@@ -1,0 +1,15 @@
+========== TEST test_position_conflicts - Positioning constraints ==========
+
+
+---------- SUBTEST Display with positioning and line feeds ----------
+
+ikup ./.cli-tests-data/wikipedia.png --max-rows 2 --pos 0,0 --use-line-feeds true
+error: Cannot specify --use-line-feeds with --pos
+Exit code: 2
+
+---------- SUBTEST Placeholder with positioning and line feeds ----------
+
+ikup placeholder {{.*}} --cols 4 --rows 2 --pos 1,1 --use-line-feeds true
+error: Cannot specify --use-line-feeds with --pos
+Exit code: 2
+

@@ -362,6 +362,21 @@ test_max_rows_cols() {
 
     subtest "Max rows and cols"
     run_command display ./.cli-tests-data/wikipedia.png ./.cli-tests-data/column.png --max-cols=3 --max-rows=4
+
+    subtest "Cols > max-cols, scale down"
+    run_command $DATA_DIR/wikipedia.png -c 10 --max-cols 3
+
+    subtest "Rows > max-rows, scale down"
+    run_command $DATA_DIR/wikipedia.png -r 10 --max-rows 1
+
+    subtest "Many cols, make sure we are within max-rows"
+    run_command $DATA_DIR/wikipedia.png -c 10 --max-rows 1
+
+    subtest "Cols > max-cols, rows > max-rows, fit to the maximum box"
+    run_command $DATA_DIR/wikipedia.png -c 10 -r 10 --max-cols 3 --max-rows 4
+
+    subtest "Cols > max-cols, rows < max-rows, shrink cols, keep rows"
+    run_command $DATA_DIR/wikipedia.png -c 20 -r 1 --max-cols 10 --max-rows 4
 }
 
 ################################################################################
@@ -959,14 +974,14 @@ test_fallback_dimensions() {
     script -q -c "$IKUP status" < /dev/null
 
     subtest "Status with custom fallback dimensions"
-    IKUP_FALLBACK_MAX_ROWS=10 IKUP_FALLBACK_MAX_COLS=40 \
+    IKUP_FALLBACK_TERM_SIZE=40x10 \
         script -q -c "$IKUP status" < /dev/null
 
     subtest "Display image with fallback dimensions"
     script -q -c "$IKUP display $DATA_DIR/tux.png" < /dev/null
 
     subtest "Display with custom fallback dimensions"
-    IKUP_FALLBACK_MAX_ROWS=5 IKUP_FALLBACK_MAX_COLS=20 \
+    IKUP_FALLBACK_TERM_SIZE=20x5 \
         script -q -c "$IKUP display $DATA_DIR/tux.png" < /dev/null
 }
 
@@ -978,46 +993,52 @@ test_validation() {
     subtest "Invalid string values for cols/rows"
     run_command placeholder 123 --cols invalid --rows 5
     run_command placeholder 123 --cols 5 --rows invalid
-    run_command display /nonexistent --cols abc --rows 5
-    run_command upload /nonexistent --rows xyz --cols 3
+    run_command display $DATA_DIR/earth.jpg --cols abc --rows 5
+    run_command upload $DATA_DIR/earth.jpg --rows xyz --cols 3
 
     subtest "Negative values for cols/rows"
     run_command placeholder 123 --cols -1 --rows 5
     run_command placeholder 123 --cols 5 --rows -10
-    run_command display /nonexistent --cols -5 --rows 3
-    run_command upload /nonexistent --rows -2 --cols 4
+    run_command display $DATA_DIR/earth.jpg --cols -5 --rows 3
+    run_command upload $DATA_DIR/earth.jpg --rows -2 --cols 4
 
     subtest "Zero values for cols/rows"
     run_command placeholder 123 --cols 0 --rows 5
     run_command placeholder 123 --cols 5 --rows 0
-    run_command display /nonexistent --cols 0 --rows 3
-    run_command upload /nonexistent --rows 0 --cols 4
+    run_command display $DATA_DIR/earth.jpg --cols 0 --rows 3
+    run_command upload $DATA_DIR/earth.jpg --rows 0 --cols 4
 
     subtest "Invalid string values for scale"
-    run_command display /nonexistent --scale invalid
-    run_command display /nonexistent -s abc
-    run_command upload /nonexistent --scale xyz
+    run_command display $DATA_DIR/earth.jpg --scale invalid
+    run_command display $DATA_DIR/earth.jpg -s abc
+    run_command upload $DATA_DIR/earth.jpg --scale xyz
 
     subtest "Zero and negative values for scale"
-    run_command display /nonexistent --scale 0
-    run_command display /nonexistent --scale -1.5
-    run_command upload /nonexistent -s -0.1
+    run_command display $DATA_DIR/earth.jpg --scale 0
+    run_command display $DATA_DIR/earth.jpg --scale -1.5
+    run_command upload $DATA_DIR/earth.jpg -s -0.1
 
     subtest "Too large values for scale"
-    run_command display /nonexistent --scale 1000001
-    run_command upload /nonexistent -s 9999999.0
+    run_command display $DATA_DIR/earth.jpg --scale 1000001
+    run_command upload $DATA_DIR/earth.jpg -s 9999999.0
 
     subtest "Invalid IKUP_SCALE environment variable"
-    IKUP_SCALE=invalid run_command display /nonexistent
-    IKUP_SCALE=0 run_command display /nonexistent
-    IKUP_SCALE=-1 run_command display /nonexistent
-    IKUP_SCALE=1000001 run_command display /nonexistent
+    IKUP_SCALE=invalid run_command display $DATA_DIR/earth.jpg
+    IKUP_SCALE=0 run_command display $DATA_DIR/earth.jpg
+    IKUP_SCALE=-1 run_command display $DATA_DIR/earth.jpg
+    IKUP_SCALE=1000001 run_command display $DATA_DIR/earth.jpg
 
     subtest "Invalid IKUP_GLOBAL_SCALE environment variable"
-    IKUP_GLOBAL_SCALE=invalid run_command display /nonexistent
-    IKUP_GLOBAL_SCALE=0 run_command display /nonexistent
-    IKUP_GLOBAL_SCALE=-2.5 run_command display /nonexistent
-    IKUP_GLOBAL_SCALE=2000000 run_command display /nonexistent
+    IKUP_GLOBAL_SCALE=invalid run_command display $DATA_DIR/earth.jpg
+    IKUP_GLOBAL_SCALE=0 run_command display $DATA_DIR/earth.jpg
+    IKUP_GLOBAL_SCALE=-2.5 run_command display $DATA_DIR/earth.jpg
+    IKUP_GLOBAL_SCALE=2000000 run_command display $DATA_DIR/earth.jpg
+
+    subtest "Invalid max cols/rows values"
+    run_command display $DATA_DIR/earth.jpg --max-cols 0
+    run_command display $DATA_DIR/earth.jpg --max-rows 0
+    run_command upload $DATA_DIR/earth.jpg --max-cols -5
+    run_command upload $DATA_DIR/earth.jpg --max-rows -2
 }
 
 ################################################################################
@@ -1436,6 +1457,142 @@ test_concurrent_quality_uploads() {
     subtest "Check final quality result"
     echo "All uploads completed, checking final quality"
     run_command list -v $DATA_DIR/butterfly.jpg
+}
+
+################################################################################
+
+test_placeholder_formulas() {
+    start_test "Placeholder formulas and positioning"
+
+    run_command upload $DATA_DIR/wikipedia.png -r 2
+    ID=$($IKUP get-id $DATA_DIR/wikipedia.png -r 2)
+
+    subtest "Formula-derived placeholder size"
+    run_command placeholder $ID --cols 'tc/70' --rows 'tr/5'
+
+    subtest "Placeholder positioning formulas"
+    run_command placeholder $ID --cols 2 --rows 1 --pos 'tc-ec,tr-er'
+
+    subtest "Restore cursor flag without explicit value"
+    run_command placeholder $ID --cols 6 --rows 3 --pos '5,2' --restore-cursor
+}
+
+################################################################################
+
+test_position() {
+    start_test "Image positioning"
+
+    subtest "Absolute positioning, corners and in the middle"
+    $IKUP $DATA_DIR/wikipedia.png --max-rows 4 --pos 0,0
+    $IKUP $DATA_DIR/tux.png --max-rows 4 --pos tc-c,0
+    $IKUP $DATA_DIR/a_panorama.jpg --max-cols 10 --pos 0,tr-r
+    $IKUP $DATA_DIR/earth.jpg -r 5 --pos tc-c,tr-r
+    # Two images in the middle. Position is applied to the first one, the second
+    # one is placed immediately below it.
+    $IKUP $DATA_DIR/david.jpg $DATA_DIR/butterfly.jpg --max-rows 4 --pos '(tc-c)/2+0.5,(tr-r)/2+0.5'
+}
+
+################################################################################
+
+test_position_file_out() {
+    start_test "Image positioning, output goes to file"
+
+    subtest "Absolute positioning, corners and in the middle"
+    $IKUP --append -o $TMPDIR/out.txt $DATA_DIR/wikipedia.png --max-rows 4 --pos 0,0
+    $IKUP --append -o $TMPDIR/out.txt $DATA_DIR/tux.png --max-rows 4 --pos tc-c,0
+    $IKUP --append -o $TMPDIR/out.txt $DATA_DIR/a_panorama.jpg --max-cols 10 --pos 0,tr-r
+    $IKUP --append -o $TMPDIR/out.txt $DATA_DIR/earth.jpg -r 5 --pos tc-c,tr-r
+    $IKUP --append -o $TMPDIR/out.txt $DATA_DIR/david.jpg $DATA_DIR/butterfly.jpg --max-rows 4 --pos '(tc-c)/2+0.5,(tr-r)/2+0.5'
+
+    cat $TMPDIR/out.txt
+}
+
+################################################################################
+
+test_position_conflicts() {
+    start_test "Positioning constraints"
+
+    subtest "Display with positioning and line feeds"
+    run_command $DATA_DIR/wikipedia.png --max-rows 2 --pos '0,0' --use-line-feeds true
+
+    subtest "Placeholder with positioning and line feeds"
+    ID=$($IKUP get-id $DATA_DIR/small_arrow.png -r 2)
+    run_command placeholder $ID --cols 4 --rows 2 --pos '1,1' --use-line-feeds true
+}
+
+################################################################################
+
+test_formulas_basic() {
+    start_test "Basic formula functionality in CLI"
+
+    run_command $DATA_DIR/wikipedia.png --rows '10-2*3'
+    run_command $DATA_DIR/wikipedia.png --rows '(10-2)*3'
+    run_command $DATA_DIR/small_arrow.png --rows 'floor(3.8)'
+    run_command $DATA_DIR/small_arrow.png --rows 'ceil(3.8)'
+}
+
+################################################################################
+
+test_formulas_errors() {
+    start_test "Formula error handling"
+
+    subtest "Invalid formula syntax"
+    run_command $DATA_DIR/wikipedia.png --cols '2+'
+    run_command $DATA_DIR/tux.png --rows 'invalid_function(5)'
+    run_command $DATA_DIR/small_arrow.png --max-cols '2 ** 3'
+
+    subtest "Unknown variables"
+    run_command $DATA_DIR/wikipedia.png --cols 'unknown_var'
+    run_command $DATA_DIR/tux.png --rows 'fake_variable + 1'
+
+    subtest "Division by zero"
+    run_command $DATA_DIR/wikipedia.png --cols '10/0'
+    run_command $DATA_DIR/tux.png --max-rows '5/(2-2)'
+
+    subtest "Invalid function calls"
+    run_command $DATA_DIR/wikipedia.png --cols 'min()'
+    run_command $DATA_DIR/tux.png --rows 'ceil(1,2,3)'
+    run_command $DATA_DIR/small_arrow.png --max-cols 'unknown_func(5)'
+
+    subtest "Positioning formula errors"
+    run_command $DATA_DIR/wikipedia.png --pos 'invalid_pos_var,5'
+    run_command $DATA_DIR/tux.png --pos '5/0,tr/2'
+}
+
+################################################################################
+
+test_restore_cursor() {
+    start_test "Cursor restoration functionality"
+
+    clear
+
+    subtest "Automatic restore cursor with positioning"
+    run_command $DATA_DIR/wikipedia.png --max-rows 3 --pos '10,5'
+
+    subtest "Explicit restore cursor settings"
+    run_command $DATA_DIR/tux.png --max-rows 3 --pos '15,8' --restore-cursor true
+
+    subtest "No-value restore cursor (same as true)"
+    run_command $DATA_DIR/small_arrow.png --max-rows 3 --pos '5,2' --restore-cursor
+
+    subtest "Auto restore cursor behavior"
+    run_command $DATA_DIR/wikipedia.png --max-rows 3 --pos 'tc/2,tr/2' --restore-cursor auto
+
+    subtest "Disable restore cursor"
+    run_command $DATA_DIR/small_arrow.png --max-rows 3 --pos '5,2' --restore-cursor false
+}
+
+################################################################################
+
+test_formulas_multiple_images() {
+    start_test "Formulas with multiple images"
+
+    clear
+
+    subtest "Multiple images with different number of rows"
+    # The number of rows is calculated for each image separately using the same
+    # formula but with different cursor position.
+    run_command $DATA_DIR/wikipedia.png $DATA_DIR/tux.png $DATA_DIR/transparency.png $DATA_DIR/small_arrow.png $DATA_DIR/wikipedia.png --rows '(tr-cy)/3'
 }
 
 ################################################################################
