@@ -8,9 +8,16 @@ from typing import Optional, List, Tuple, Union
 
 import ikup
 from ikup.id_manager import IDSpace
-from ikup.ikup_terminal import ImageInfo, ImageInstance, ValidationError
+from ikup.ikup_terminal import (
+    IkupValueError,
+    ImageInfo,
+    ImageInstance,
+    ValidationError,
+    FinalCursorPos,
+)
 from ikup.conversion_cache import ConversionCache
 from ikup.utils import *
+from ikup.formula import FormulaEvaluationError
 
 HELP_PRINT = """\
 The --print (-p) option takes a string argument which may use the following
@@ -30,8 +37,45 @@ format specifiers:
 It may also use escape sequences: \\\\, \\n, \\t, \\r, \\e
 """
 
+HELP_FORMULAS = """\
+Some integers, such as --max-cols, --max-rows, --rows, --cols, --position
+may be specified using formulas involving the following elements:
 
-additional_help_topics = {"print": HELP_PRINT}
+    Standard arithmetic operators: +, -, *, /
+    Parentheses: ( )
+    Integer and floating point numbers: 123, 0.2, inf
+    Functions: min, max, ceil, floor
+    Commas to separate multiple results: '10,1+2'
+    Special variables:
+        tc - the number of terminal columns
+        tr - the number of terminal rows
+        cw - the width of a cell in pixels
+        ch - the height of a cell in pixels
+        cx - the current cursor column (0-based)
+        cy - the current cursor row (0-based)
+    Additional variables available only for --cols and --rows:
+        w  - the width of the image in pixels
+        h  - the height of the image in pixels
+        mc - the maximum number of columns computed earlier
+        mr - the maximum number of rows computed earlier
+    Additional variables available only for --position:
+        r  - the number of rows of the image (or its displayed portion)
+        c  - the number of columns of the image (or its displayed portion)
+        sc - the starting column of the displayed portion (0 for whole image)
+        sr - the starting row of the displayed portion (0 for whole image)
+        ec - the ending column of the displayed portion (c for whole image)
+        er - the ending row of the displayed portion (r for whole image)
+
+Don't forget to quote complex formulas to avoid shell interpretation.
+Examples:
+    --cols 'min(40, tc - 10)'  # Use 40 cols or less, leave 10 cols margin
+    --max-cols 'tc * 0.8'  # Use 80% of the terminal width
+    --max-cols 'tc - cx'  # Use the remaining width of the terminal
+    --position 'tc - c, tr - r'  # Place at the bottom right corner
+"""
+
+
+additional_help_topics = {"print": HELP_PRINT, "formulas": HELP_FORMULAS}
 
 
 def help(command: str, topic: Optional[str]) -> None:
@@ -208,10 +252,10 @@ def status(command: str) -> None:
     print(f"Supported formats: {ikupterm.get_supported_formats()}")
     print(f"Default uploading method: {ikupterm.get_upload_method()}")
     print(f"Allow concurrent uploads: {ikupterm.get_allow_concurrent_uploads()}")
-    maxcols, maxrows = ikupterm.get_max_cols_and_rows()
-    print(f"Max size in cells (cols x rows): {maxcols} x {maxrows}")
     cellw, cellh = ikupterm.get_cell_size()
     print(f"(Assumed) cell size in pixels (w x h): {cellw} x {cellh}")
+    termc, termr = ikupterm.get_term_size()
+    print(f"(Assumed) terminal size in cells (c x r): {termc} x {termr}")
 
     print(f"\nAll databases in {ikupterm._config.id_database_dir}")
     assert ikupterm._config.id_database_dir
@@ -253,9 +297,10 @@ def parse_as_id(image: str) -> Optional[int]:
 
 def handle_command(
     command: str,
+    *,
     images: List[str],
-    rows: Optional[int],
-    cols: Optional[int],
+    rows: Optional[str],
+    cols: Optional[str],
     force_upload: bool,
     no_upload: bool,
     out_display: str,
@@ -264,6 +309,8 @@ def handle_command(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    position: Optional[str],
+    restore_cursor: str,
     use_line_feeds: str,
     force_id: Optional[int],
     id_space: Optional[str],
@@ -276,14 +323,17 @@ def handle_command(
     if append and not out_display:
         raise CLIArgumentsError("--append can only be used with --out-display")
 
+    if position and use_line_feeds == "true":
+        raise CLIArgumentsError("Cannot specify --use-line-feeds with --pos")
+
     ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
         out_command=out_command if out_command else None,
         append_display=append,
+        max_cols=max_cols,
+        max_rows=max_rows,
         config_overrides={
             "force_upload": force_upload,
-            "max_cols": max_cols,
-            "max_rows": max_rows,
             "scale": scale,
             "id_space": id_space,
             "id_subspace": id_subspace,
@@ -297,15 +347,35 @@ def handle_command(
         print(ikupterm._config.to_toml_string(with_provenance=True), end="")
     errors = False
 
-    if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
+    if (
+        use_line_feeds == "auto"
+        and not ikupterm.term.out_display.isatty()
+        and position is None
+    ):
         use_line_feeds = "true"
+    if restore_cursor == "auto" and position is not None:
+        restore_cursor = "true"
 
     if len(images) > 1 and force_id is not None:
         raise CLIArgumentsError(
             "Cannot use --force-id and specify multiple images at the same time."
         )
 
-    for image_path in images:
+    initial_cursor_pos: Optional[Tuple[int, int]] = None
+    if restore_cursor == "true":
+        initial_cursor_pos = ikupterm.term.get_cursor_position()
+
+    for idx, image_path in enumerate(images):
+        # If we want to restore the cursor position, set the final cursor position of
+        # the last image to bottom-right to avoid any unnecessary cursor movements and
+        # potential scrolling.
+        final_cursor_pos: Optional[FinalCursorPos] = None
+        if idx == len(images) - 1 and restore_cursor == "true":
+            final_cursor_pos = "bottom-right"
+        # Apply position only to the first image.
+        if idx != 0:
+            position = None
+
         # Handle the case where image_path is an id, not a filename.
         image: Union[str, ImageInstance] = image_path
         if not os.path.exists(image_path):
@@ -325,6 +395,7 @@ def handle_command(
                     continue
                 # image is ImageInstance from now on (containing id, rows and cols).
                 image = image_inst
+
         # Handle the command itself. Don't stop on errors.
         try:
             if command == "display" and not no_upload:
@@ -332,7 +403,9 @@ def handle_command(
                     image,
                     rows=rows,
                     cols=cols,
+                    abs_pos=position,
                     use_line_feeds=(use_line_feeds == "true"),
+                    final_cursor_pos=final_cursor_pos,
                     force_id=force_id,
                 )
             elif command == "upload":
@@ -357,11 +430,17 @@ def handle_command(
                 if command == "display":
                     ikupterm.display_only(
                         instance,
+                        abs_pos=position,
+                        final_cursor_pos=final_cursor_pos,
                         use_line_feeds=(use_line_feeds == "true"),
                     )
         except (FileNotFoundError, OSError) as e:
             printerr(ikupterm, f"error: Failed to upload {image}: {e}")
             errors = True
+
+    if initial_cursor_pos is not None:
+        ikupterm.term.move_cursor_abs(initial_cursor_pos)
+
     if errors:
         sys.exit(1)
 
@@ -369,8 +448,8 @@ def handle_command(
 def display(
     command: str,
     images: List[str],
-    rows: Optional[int],
-    cols: Optional[int],
+    rows: Optional[str],
+    cols: Optional[str],
     force_upload: bool,
     no_upload: bool,
     out_display: str,
@@ -379,6 +458,8 @@ def display(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    position: Optional[str],
+    restore_cursor: str,
     use_line_feeds: str,
     force_id: Optional[int],
     id_space: Optional[str],
@@ -401,6 +482,8 @@ def display(
         max_rows=max_rows,
         scale=scale,
         dump_config=dump_config,
+        position=position,
+        restore_cursor=restore_cursor,
         use_line_feeds=use_line_feeds,
         force_id=force_id,
         id_space=id_space,
@@ -415,8 +498,8 @@ def display(
 def upload(
     command: str,
     images: List[str],
-    rows: Optional[int],
-    cols: Optional[int],
+    rows: Optional[str],
+    cols: Optional[str],
     force_upload: bool,
     max_cols: Optional[str],
     max_rows: Optional[str],
@@ -443,6 +526,8 @@ def upload(
         max_rows=max_rows,
         scale=scale,
         dump_config=dump_config,
+        position=None,
+        restore_cursor="auto",
         use_line_feeds="false",
         force_id=force_id,
         id_space=id_space,
@@ -456,8 +541,8 @@ def upload(
 def get_id(
     command: str,
     images: List[str],
-    rows: Optional[int],
-    cols: Optional[int],
+    rows: Optional[str],
+    cols: Optional[str],
     max_cols: Optional[str],
     max_rows: Optional[str],
     scale: Optional[float],
@@ -479,6 +564,8 @@ def get_id(
         max_rows=max_rows,
         scale=scale,
         dump_config=dump_config,
+        position=None,
+        restore_cursor="auto",
         use_line_feeds="false",
         force_id=force_id,
         id_space=id_space,
@@ -492,16 +579,21 @@ def get_id(
 def placeholder(
     command: str,
     id: List[str],
-    rows: int,
-    cols: int,
+    rows: str,
+    cols: str,
     out_display: str,
     dump_config: bool,
+    position: Optional[str],
+    restore_cursor: str,
     use_line_feeds: str,
     append: bool = False,
 ):
     _ = command
     if append and not out_display:
         raise CLIArgumentsError("--append can only be used with --out-display")
+
+    if position and use_line_feeds == "true":
+        raise CLIArgumentsError("Cannot specify --use-line-feeds with --pos")
 
     ikupterm = ikup.IkupTerminal(
         out_display=out_display if out_display else None,
@@ -518,14 +610,24 @@ def placeholder(
         printerr(ikupterm, f"error: ID is incorrect: {id[0]}")
         exit(1)
 
-    if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
+    if restore_cursor == "auto" and position is not None:
+        restore_cursor = "true"
+    if (
+        use_line_feeds == "auto"
+        and not ikupterm.term.out_display.isatty()
+        and position is None
+    ):
         use_line_feeds = "true"
+
+    colsf, rowsf = ikupterm.evaluate_formula(",".join((cols, rows)), num_results=2)
 
     ikupterm.display_only(
         id_int,
-        end_col=cols,
-        end_row=rows,
+        end_col=int(colsf),
+        end_row=int(rowsf),
+        abs_pos=position,
         use_line_feeds=(use_line_feeds == "true"),
+        final_cursor_pos=("bottom-right" if restore_cursor == "true" else None),
     )
 
 
@@ -582,8 +684,6 @@ def foreach(
         out_command=out_command if out_command else None,
         append_display=append,
         config_overrides={
-            "max_cols": max_cols,
-            "max_rows": max_rows,
             "upload_method": upload_method,
             "provenance": "set via command line",
             "allow_concurrent_uploads": allow_concurrent_uploads,
@@ -592,7 +692,9 @@ def foreach(
     )
     if dump_config:
         print(ikupterm._config.to_toml_string(with_provenance=True), end="")
-    max_cols_int, max_rows_int = ikupterm.get_max_cols_and_rows()
+    max_cols_float, max_rows_float = ikupterm.evaluate_max_cols_and_rows(
+        max_cols, max_rows
+    )
 
     if use_line_feeds == "auto" and not ikupterm.term.out_display.isatty():
         use_line_feeds = "true"
@@ -766,19 +868,19 @@ def foreach(
             try:
                 ikupterm.display_only(
                     inst,
-                    end_col=max_cols_int,
-                    end_row=max_rows_int,
+                    end_col=None if math.isinf(max_cols_float) else int(max_cols_float),
+                    end_row=None if math.isinf(max_rows_float) else int(max_rows_float),
                     allow_expansion=False,
                     use_line_feeds=(use_line_feeds == "true"),
                 )
             except (ValueError, RuntimeError) as e:
                 write(f"  \033[1m\033[38;5;1mCOULD NOT DISPLAY: {e}\033[0m\n")
                 errors = True
-            if inst.cols > max_cols_int or inst.rows > max_rows_int:
+            if inst.cols > max_cols_float or inst.rows > max_rows_float:
                 write(
-                    f"  Note: cropped to {min(inst.cols, max_cols_int)}x{min(inst.rows, max_rows_int)}\n"
+                    f"  Note: cropped to {min(inst.cols, max_cols_float)}x{min(inst.rows, max_rows_float)}\n"
                 )
-        write("-" * min(max_cols_int, 80) + "\n")
+        write("-" * int(min(max_cols_float, 80)) + "\n")
 
     if errors:
         exit(1)
@@ -1252,15 +1354,17 @@ def main_unwrapped():
         "--max-cols",
         metavar="W",
         type=str,
-        default="auto",
-        help="Maximum number of columns to display each listed image. 'auto' to use the terminal width.",
+        default="tc",
+        help="Maximum number of columns to display each listed image. "
+        "May be a formula (see `ikup help formulas`).",
     )
     p_list.add_argument(
         "--max-rows",
         metavar="H",
         type=str,
         default="4",
-        help="Maximum number of rows to display each listed image. 'auto' to use the terminal height.",
+        help="Maximum number of rows to display each listed image. "
+        "May be a formula (see `ikup help formulas`).",
     )
 
     # --dump-config is available for all commands.
@@ -1289,17 +1393,19 @@ def main_unwrapped():
             "--cols",
             "-c",
             metavar="W",
-            type=positive_int,
+            type=str,
             required=True,
-            help="Number of columns of the placeholder.",
+            help="Number of columns of the placeholder. "
+            "May be a formula (see `ikup help formulas`).",
         )
         p.add_argument(
             "--rows",
             "-r",
             metavar="H",
-            type=positive_int,
+            type=str,
             required=True,
-            help="Number of rows of the placeholder.",
+            help="Number of rows of the placeholder. "
+            "May be a formula (see `ikup help formulas`).",
         )
 
     # Arguments related to image/id and their size (rows/cols) specification. These are
@@ -1312,42 +1418,80 @@ def main_unwrapped():
             help="Image files to upload/display or known image IDs in the form of 'id:1234' or 'id:0xABC'.",
         )
         p.add_argument(
-            "--cols",
-            "-c",
-            metavar="W",
-            type=positive_int,
-            default=UseConfig(),
-            help="Number of columns to fit the image to.",
-        )
-        p.add_argument(
-            "--rows",
-            "-r",
-            metavar="H",
-            type=positive_int,
-            default=UseConfig(),
-            help="Number of rows to fit the image to.",
-        )
-        p.add_argument(
-            "--max-cols",
-            metavar="W",
-            type=str,
-            default=UseConfig(),
-            help="Maximum number of columns when computing the image size. 'auto' to use the terminal width.",
-        )
-        p.add_argument(
-            "--max-rows",
-            metavar="H",
-            type=str,
-            default=UseConfig(),
-            help="Maximum number of rows when computing the image size. 'auto' to use the terminal width.",
-        )
-        p.add_argument(
             "--scale",
             "-s",
             metavar="S",
             type=float,
             default=UseConfig(),
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
+        )
+        p.add_argument(
+            "--cols",
+            "-c",
+            metavar="W",
+            type=str,
+            default=None,
+            help="Number of columns to fit the image to. "
+            "May be a formula (see `ikup help formulas`). "
+            "None to infer from image size.",
+        )
+        p.add_argument(
+            "--rows",
+            "-r",
+            metavar="H",
+            type=str,
+            default=None,
+            help="Number of rows to fit the image to. "
+            "May be a formula (see `ikup help formulas`). "
+            "None to infer from image size.",
+        )
+        p.add_argument(
+            "--max-cols",
+            metavar="W",
+            type=str,
+            default="tc",
+            help="Maximum number of columns when computing the image size. "
+            "May be a formula (see `ikup help formulas`). "
+            "'inf' to have no limit, 'tc' to use the term width, "
+            "'tc-cx' to use the rest of the term width.",
+        )
+        p.add_argument(
+            "--max-rows",
+            metavar="H",
+            type=str,
+            default="min(256, tr)",
+            help="Maximum number of rows when computing the image size. "
+            "May be a formula (see `ikup help formulas`). "
+            "'inf' to have no limit, 'tr' to use the term height, "
+            "'tr-cy' to use the rest of the term width.",
+        )
+
+    # Positioning arguments, common for display and placeholder commands.
+    for p in [p_display, p_placeholder]:
+        p.add_argument(
+            "--position",
+            "--pos",
+            "-p",
+            metavar="X,Y",
+            type=str,
+            default=None,
+            help="Position the image at column X and row Y (0-based). "
+            "'None' to use the current cursor position. "
+            "May be a formula (see `ikup help formulas`), "
+            "for example, use 'cx+X,cy+Y' to position relative to cursor. "
+            "Positioning is always done with cursor movement commands, "
+            "incompatible with --use-line-feeds=true.",
+        )
+        p.add_argument(
+            "--restore-cursor",
+            "-R",
+            nargs="?",
+            type=str,
+            choices=["auto", "true", "false"],
+            const="true",  # if given without a value
+            default="auto",  # if not given
+            help="Whether to restore the initial cursor position after executing "
+            "the whole command. 'auto' to enable only if --position is used.",
         )
 
     # --force-upload is common for all commands that do uploading, but it's mutually
@@ -1381,8 +1525,10 @@ def main_unwrapped():
         )
         p.add_argument(
             "--allow-concurrent-uploads",
-            choices=["auto", "true", "false"],
+            nargs="?",
             type=str,
+            choices=["auto", "true", "false"],
+            const="true",  # if given without a value
             default=UseConfig(),
             help="Whether to allow direct upload of images with different IDs concurrently.",
         )
@@ -1491,7 +1637,7 @@ def main_unwrapped():
             "--force-id",
             metavar="ID",
             type=int,
-            default=UseConfig(),
+            default=None,
             help="Force the assigned id to be ID. The existing image with this ID will be forgotten.",
         )
         p.add_argument(
@@ -1704,6 +1850,8 @@ def main():
         CLIArgumentsError,
         NotImplementedError,
         ValidationError,
+        IkupValueError,
+        FormulaEvaluationError,
     ) as e:
         print(
             f"error: {e}",

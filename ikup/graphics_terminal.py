@@ -265,6 +265,8 @@ class GraphicsTerminal:
             )
 
     def _write(self, data: bytes, comment: str = "", flush: bool = False) -> None:
+        if comment:
+            logger.debug("_write: %s", comment)
         self.out_display.write(data)
         self._write_to_shellscript(data, comment)
         if flush:
@@ -545,6 +547,7 @@ class GraphicsTerminal:
         return res
 
     def get_cursor_position(self, timeout: float = 2.0) -> Tuple[int, int]:
+        logger.debug("Getting cursor position")
         self.out_display.flush()
         with self.guard_tty_settings(self.in_response):
             self.set_immediate_input_noecho(self.in_response)
@@ -579,6 +582,7 @@ class GraphicsTerminal:
                 )
             y, x = parts
             self.tracked_cursor_position = (int(x) - 1, int(y) - 1)
+            logger.debug("Cursor position: %s", self.tracked_cursor_position)
         return self.tracked_cursor_position
 
     def get_cursor_position_tracked(self, timeout: float = 2.0) -> Tuple[int, int]:
@@ -741,10 +745,10 @@ class GraphicsTerminal:
 
     def move_cursor_abs(
         self,
+        pos: Optional[Tuple[int, int]] = None,
         *,
         col: Optional[int] = None,
         row: Optional[int] = None,
-        pos: Optional[Tuple[int, int]] = None,
     ):
         if pos is not None:
             if row is not None or col is not None:

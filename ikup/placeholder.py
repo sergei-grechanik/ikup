@@ -399,32 +399,32 @@ class ImagePlaceholder:
         if self.image_id < 0 or self.image_id > 0xFFFFFFFF:
             raise ValueError(
                 "Image ID must be a 32-bit unsigned integer, but it is"
-                " {self.image_id}"
+                f" {self.image_id}"
             )
         if self.placement_id is not None and (
             self.placement_id < 0 or self.placement_id > 0xFFFFFF
         ):
             raise ValueError(
                 "Placement ID must be a 24-bit unsigned integer, but it is"
-                " {self.placement_id}"
+                f" {self.placement_id}"
             )
         if self.start_col < 0:
             raise ValueError(
-                "Start column must be non-negative, but it is {self.start_col}"
+                f"Start column must be non-negative, but it is {self.start_col}"
             )
         if self.start_row < 0:
             raise ValueError(
-                "Start row must be non-negative, but it is {self.start_row}"
+                f"Start row must be non-negative, but it is {self.start_row}"
             )
         if self.start_col >= self.end_col:
             raise ValueError(
                 "Start column must be less than end column, but"
-                " {self.start_col} >= {self.end_col}"
+                f" {self.start_col} >= {self.end_col}"
             )
         if self.start_row >= self.end_row:
             raise ValueError(
-                "Start row must be less than end row, but {self.start_row} >="
-                " {self.end_row}"
+                "Start row must be less than end row, but "
+                f"{self.start_row} >= {self.end_row}"
             )
 
     def clone_with(self, **kwargs):

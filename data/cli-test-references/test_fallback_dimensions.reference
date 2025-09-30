@@ -18,8 +18,8 @@ IDs in the subspace: 0
 Supported formats: ['png', 'jpeg']
 Default uploading method: f
 Allow concurrent uploads: True
-Max size in cells (cols x rows): 80 x 24
 (Assumed) cell size in pixels (w x h): 8 x 16
+(Assumed) terminal size in cells (c x r): 80 x 24
 
 {{:SKIP_LINES:}}
 
@@ -40,8 +40,8 @@ IDs in the subspace: 0
 Supported formats: ['png', 'jpeg']
 Default uploading method: f
 Allow concurrent uploads: True
-Max size in cells (cols x rows): 40 x 10
 (Assumed) cell size in pixels (w x h): 8 x 16
+(Assumed) terminal size in cells (c x r): 40 x 10
 
 {{:SKIP_LINES:}}
 

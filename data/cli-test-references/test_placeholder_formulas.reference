@@ -1,0 +1,20 @@
+========== TEST test_placeholder_formulas - Placeholder formulas and positioning ==========
+
+ikup upload ./.cli-tests-data/wikipedia.png -r 2
+_Gi=[[id:.*]],t=f,q=2,f=100,a=T,U=1,r=2,c=5;{{.*}}\
+---------- SUBTEST Formula-derived placeholder size ----------
+
+ikup placeholder [[id]] --cols tc/70 --rows tr/5
+[s[0m[38;2;{{.*}}m􎻮̅̅[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̍̅[0m[uD
+[s[0m[38;2;{{.*}}m􎻮̎̅[0m[uD
+[0m[38;2;{{.*}}m􎻮̐̅[0m[1DD
+
+---------- SUBTEST Placeholder positioning formulas ----------
+
+ikup placeholder [[id]] --cols 2 --rows 1 --pos tc-ec,tr-er
+[23;79H[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍[0m
+---------- SUBTEST Restore cursor flag without explicit value ----------
+
+ikup placeholder [[id]] --cols 6 --rows 3 --pos 5,2 --restore-cursor
+[3;6H[0m[38;2;{{.*}}m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒􎻮̅̽[0m[4;6H[0m[38;2;{{.*}}m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒􎻮̍̽[0m[5;6H[0m[38;2;{{.*}}m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒􎻮̎̽[0m
