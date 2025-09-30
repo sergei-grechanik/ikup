@@ -8,7 +8,13 @@ from typing import Optional, List, Tuple, Union
 
 import ikup
 from ikup.id_manager import IDSpace
-from ikup.ikup_terminal import ImageInfo, ImageInstance, ValidationError, FinalCursorPos
+from ikup.ikup_terminal import (
+    IkupValueError,
+    ImageInfo,
+    ImageInstance,
+    ValidationError,
+    FinalCursorPos,
+)
 from ikup.conversion_cache import ConversionCache
 from ikup.utils import *
 from ikup.formula import FormulaEvaluationError
@@ -1844,6 +1850,7 @@ def main():
         CLIArgumentsError,
         NotImplementedError,
         ValidationError,
+        IkupValueError,
         FormulaEvaluationError,
     ) as e:
         print(

@@ -63,6 +63,10 @@ class ValidationError(ValueError):
     """Raised when a configuration value is invalid."""
 
 
+class IkupValueError(ValueError):
+    """Raised when an ikup operation fails due to invalid value of some parameter."""
+
+
 @dataclass
 class IkupConfig:
     # Id allocation options.
@@ -688,9 +692,9 @@ class IkupTerminal:
             assert max_rows and isinstance(max_rows, int)
             max_cols_f, max_rows_f = max_cols, max_rows
         if not (max_cols_f > 0):
-            raise ValueError(f"max_cols must be positive: {max_cols_f}")
+            raise IkupValueError(f"max_cols must be positive: {max_cols_f}")
         if not (max_rows_f > 0):
-            raise ValueError(f"max_rows must be positive: {max_rows_f}")
+            raise IkupValueError(f"max_rows must be positive: {max_rows_f}")
         logger.debug("max_cols = %s, max_rows = %s", max_cols_f, max_rows_f)
         return max_cols_f, max_rows_f
 
@@ -728,9 +732,9 @@ class IkupTerminal:
         scale: Optional[float] = None,
     ) -> Tuple[int, int]:
         if cols is not None and cols <= 0:
-            raise ValueError(f"cols must be positive: {cols}")
+            raise IkupValueError(f"cols must be positive: {cols}")
         if rows is not None and rows <= 0:
-            raise ValueError(f"rows must be positive: {rows}")
+            raise IkupValueError(f"rows must be positive: {rows}")
         if (
             cols is not None
             and rows is not None
@@ -997,15 +1001,15 @@ class IkupTerminal:
             if isinstance(image, ImageInstance):
                 inst = image
                 if cols is not None or rows is not None:
-                    raise ValueError(
+                    raise IkupValueError(
                         "Cannot specify cols or rows when uploading an ImageInstance"
                     )
                 if force_id is not None:
-                    raise ValueError(
+                    raise IkupValueError(
                         "Cannot specify force_id when uploading an ImageInstance"
                     )
                 if inst.id is None:
-                    raise ValueError("Cannot upload an ImageInstance without an ID")
+                    raise IkupValueError("Cannot upload an ImageInstance without an ID")
             else:
                 inst = self.assign_id(
                     image,
@@ -1451,11 +1455,11 @@ class IkupTerminal:
             start_col = start_col or 0
             start_row = start_row or 0
             if end_col is None or end_row is None:
-                raise ValueError(
+                raise IkupValueError(
                     "end_col and end_row must be specified when id is an int"
                 )
             if not allow_expansion:
-                raise ValueError(
+                raise IkupValueError(
                     "Cannot specify allow_expansion=False when id is an int. "
                     "Use ImageInstance returned by get_image_instance instead."
                 )
@@ -1464,21 +1468,10 @@ class IkupTerminal:
 
         formatting = self.get_formatting(background)
 
-        if abs_pos is None:
-            self.term.print_placeholder(
-                image_id=id,
-                placement_id=placement_id,
-                start_col=start_col,
-                start_row=start_row,
-                end_col=end_col,
-                end_row=end_row,
-                mode=mode,
-                formatting=formatting,
-                use_line_feeds=use_line_feeds,
-            )
-        else:
+        abs_pos_int: Optional[Tuple[int, int]] = None
+        if abs_pos is not None:
             if use_line_feeds:
-                raise ValueError(
+                raise IkupValueError(
                     "Cannot specify use_line_feeds=True when abs_pos is specified"
                 )
             abs_pos_int = self.evaluate_pos(
@@ -1489,10 +1482,12 @@ class IkupTerminal:
                 end_row=end_row,
             )
             if abs_pos_int[0] < 0 or abs_pos_int[1] < 0:
-                raise ValueError(
+                raise IkupValueError(
                     "Absolute position must be non-negative (unless"
                     f" clipping is enabled): {abs_pos_int} evaluated from {abs_pos}"
                 )
+
+        try:
             self.term.print_placeholder(
                 image_id=id,
                 placement_id=placement_id,
@@ -1503,7 +1498,11 @@ class IkupTerminal:
                 pos=abs_pos_int,
                 mode=mode,
                 formatting=formatting,
+                use_line_feeds=use_line_feeds,
             )
+        except ValueError as e:
+            raise IkupValueError(str(e)) from e
+
         self._move_cursor_to_final_position(
             end_col - start_col,
             end_row - start_row,
@@ -1588,14 +1587,14 @@ class IkupTerminal:
             return
         elif final_cursor_pos == "top-right":
             if use_line_feeds:
-                raise ValueError(
+                raise IkupValueError(
                     "Cannot specify use_line_feeds=True when final_cursor_pos is"
                     " top-right"
                 )
             self.term.move_cursor(up=rows - 1)
         elif final_cursor_pos == "top-left":
             if use_line_feeds:
-                raise ValueError(
+                raise IkupValueError(
                     "Cannot specify use_line_feeds=True when final_cursor_pos is"
                     " top-left"
                 )
@@ -1608,4 +1607,4 @@ class IkupTerminal:
                 # This sequence moves the cursor down, maybe creating a newline.
                 self.term.write(b"\033D")
         else:
-            raise ValueError(f"Invalid final_cursor_pos: {final_cursor_pos}")
+            raise IkupValueError(f"Invalid final_cursor_pos: {final_cursor_pos}")

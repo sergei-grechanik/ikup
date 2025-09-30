@@ -19,40 +19,32 @@ Exit code: 2
 ---------- SUBTEST Negative values for cols/rows ----------
 
 ikup placeholder 123 --cols -1 --rows 5
-{{:SKIP_LINES:}}
-ValueError: Start column must be less than end column, but 0 >= -1
-Exit code: 1
+error: Start column must be less than end column, but 0 >= -1
+Exit code: 2
 ikup placeholder 123 --cols 5 --rows -10
-{{:SKIP_LINES:}}
-ValueError: Start row must be less than end row, but 0 >= -10
-Exit code: 1
+error: Start row must be less than end row, but 0 >= -10
+Exit code: 2
 ikup display ./.cli-tests-data/earth.jpg --cols -5 --rows 3
-{{:SKIP_LINES:}}
-ValueError: cols must be positive: -5
-Exit code: 1
+error: cols must be positive: -5
+Exit code: 2
 ikup upload ./.cli-tests-data/earth.jpg --rows -2 --cols 4
-{{:SKIP_LINES:}}
-ValueError: rows must be positive: -2
-Exit code: 1
+error: rows must be positive: -2
+Exit code: 2
 
 ---------- SUBTEST Zero values for cols/rows ----------
 
 ikup placeholder 123 --cols 0 --rows 5
-{{:SKIP_LINES:}}
-ValueError: Start column must be less than end column, but 0 >= 0
-Exit code: 1
+error: Start column must be less than end column, but 0 >= 0
+Exit code: 2
 ikup placeholder 123 --cols 5 --rows 0
-{{:SKIP_LINES:}}
-ValueError: Start row must be less than end row, but 0 >= 0
-Exit code: 1
+error: Start row must be less than end row, but 0 >= 0
+Exit code: 2
 ikup display ./.cli-tests-data/earth.jpg --cols 0 --rows 3
-{{:SKIP_LINES:}}
-ValueError: cols must be positive: 0
-Exit code: 1
+error: cols must be positive: 0
+Exit code: 2
 ikup upload ./.cli-tests-data/earth.jpg --rows 0 --cols 4
-{{:SKIP_LINES:}}
-ValueError: rows must be positive: 0
-Exit code: 1
+error: rows must be positive: 0
+Exit code: 2
 
 ---------- SUBTEST Invalid string values for scale ----------
 
@@ -123,18 +115,14 @@ Exit code: 2
 ---------- SUBTEST Invalid max cols/rows values ----------
 
 ikup display ./.cli-tests-data/earth.jpg --max-cols 0
-{{:SKIP_LINES:}}
-ValueError: max_cols must be positive: 0
-Exit code: 1
+error: max_cols must be positive: 0
+Exit code: 2
 ikup display ./.cli-tests-data/earth.jpg --max-rows 0
-{{:SKIP_LINES:}}
-ValueError: max_rows must be positive: 0
-Exit code: 1
+error: max_rows must be positive: 0
+Exit code: 2
 ikup upload ./.cli-tests-data/earth.jpg --max-cols -5
-{{:SKIP_LINES:}}
-ValueError: max_cols must be positive: -5
-Exit code: 1
+error: max_cols must be positive: -5
+Exit code: 2
 ikup upload ./.cli-tests-data/earth.jpg --max-rows -2
-{{:SKIP_LINES:}}
-ValueError: max_rows must be positive: -2
-Exit code: 1
+error: max_rows must be positive: -2
+Exit code: 2
