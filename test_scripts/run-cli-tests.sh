@@ -1597,6 +1597,23 @@ test_formulas_multiple_images() {
 
 ################################################################################
 
+test_multi_command() {
+    start_test "Multi-command mode with colon separators"
+
+    subtest "Multi-command with multiple colons as separators"
+    run_command upload $DATA_DIR/small_arrow.png -r 1 ::: get-id $DATA_DIR/transparency.png -r 2
+
+    subtest "Complex multi-command with different command types"
+    ID1=$($IKUP get-id $DATA_DIR/wikipedia.png -r 2)
+    ID2=$($IKUP get-id $DATA_DIR/tux.png -r 3)
+    run_command display $ID1 --no-upload : placeholder $ID2 --cols 5 --rows 3 : list --last 2
+
+    subtest "Multi-command error handling (invalid command should fail)"
+    run_command status : invalid-command : status
+}
+
+################################################################################
+
 # Run the tests.
 for test in $TESTS_TO_RUN; do
     CURRENT_TEST_NAME="$test"

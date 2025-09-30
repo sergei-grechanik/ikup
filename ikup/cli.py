@@ -1235,7 +1235,38 @@ def cache_status(conversion_cache: ConversionCache) -> None:
     print(f"Total size: {total_size} bytes ({size_mb:.1f} MB)")
 
 
-def main_unwrapped():
+def split_multi_commands(argv: List[str]) -> List[List[str]]:
+    """Split argv on colon separators (any arg consisting only of ':' chars)."""
+    commands: List[List[str]] = []
+    current: List[str] = []
+
+    for arg in argv:
+        if arg and set(arg) == {":"}:  # Separator: string of only colons
+            if current:
+                commands.append(current)
+                current = []
+        else:
+            current.append(arg)
+
+    if current:
+        commands.append(current)
+
+    return commands
+
+
+def main_unwrapped_multi():
+    """Multi-command argument parsing and execution."""
+    command_segments = split_multi_commands(sys.argv[1:])
+
+    if not command_segments:
+        command_segments = [[]]
+
+    for segment in command_segments:
+        main_unwrapped_single(segment)
+
+
+def main_unwrapped_single(argv: List[str]):
+    """Single-command argument parsing and execution."""
     parser = argparse.ArgumentParser(
         description="", formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -1773,27 +1804,20 @@ def main_unwrapped():
 
     # Handle the default command case.
     all_commands = subparsers.choices.keys()
-    contains_help = False
-    contains_version = False
-    for arg in sys.argv[1:]:
-        if arg in ["-h", "--help"]:
-            contains_help = True
-        elif arg in ["-v", "--version"]:
-            contains_version = True
-        if arg in all_commands:
-            break
-    else:
-        # It's not a known command.
-        if not contains_help and not contains_version and len(sys.argv) > 1:
-            # If it doesn't contain help or version, add the display command.
-            sys.argv.insert(1, "display")
-        elif contains_help or len(sys.argv) == 1:
-            # If there is -h or --help in the arguments or there are no arguments, show
-            # the help.
-            sys.argv.insert(1, "--help")
+    contains_help = any(arg in ["-h", "--help"] for arg in argv)
+    contains_version = any(arg in ["-v", "--version"] for arg in argv)
+    has_known_command = any(arg in all_commands for arg in argv)
 
-    # Parse the arguments
-    args = parser.parse_args()
+    if not has_known_command:
+        # No known command found
+        if not contains_help and not contains_version and argv:
+            # Add default display command
+            argv = ["display"] + argv
+        elif contains_help or not argv:
+            # Show help
+            argv = ["--help"] + argv
+
+    args = parser.parse_args(argv)
     vardict = vars(args)
 
     # Configure logging
@@ -1840,7 +1864,7 @@ def main_unwrapped():
 
 def main():
     try:
-        main_unwrapped()
+        main_unwrapped_multi()
         sys.stdout.flush()
     except BrokenPipeError:
         devnull = os.open(os.devnull, os.O_WRONLY)
