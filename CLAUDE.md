@@ -217,6 +217,11 @@ placeholder:
 [0m[38;2;[[rgb(id)]]m􎻮̅̅􎻮̅̍􎻮̅̎[0m[3DD
 ```
 
+Also it's recommended to replace base64-encoded image data/filenames with
+wildcards, in the simplest case when we don't care about the exact value:
+```
+_Gi=[[id:.*]],t=f,q=2,f=100,a=T,U=1,r=1,c=3;{{.*}}\
+```
 
 ### Creating Robust Reference Files
 

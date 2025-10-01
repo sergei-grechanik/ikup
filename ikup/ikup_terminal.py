@@ -33,7 +33,11 @@ from ikup.id_manager import ImageInfo, UploadInfo, RetryAssignIdError
 from ikup.conversion_cache import ConversionCache
 import ikup.utils
 from ikup.utils import ffloor
-from ikup.formula import FormulaEvaluationError, evaluate_formula
+from ikup.formula import (
+    FormulaEvaluationError,
+    evaluate_formula,
+    evaluate_formula_maybe,
+)
 from ikup.terminal_detection import detect_terminal_info
 from ikup import (
     GraphicsCommand,
@@ -671,6 +675,19 @@ class IkupTerminal:
             num_results=num_results,
         )
 
+    def evaluate_formula_maybe(
+        self,
+        formula: str,
+        cache: Optional[Dict[str, float]] = None,
+        num_results: Optional[int] = None,
+    ) -> List[Optional[float]]:
+        logger.debug("Evaluating formula: '%s' with cache %s", formula, cache)
+        return evaluate_formula_maybe(
+            formula,
+            variables=self.variable_evaluator(cache),
+            num_results=num_results,
+        )
+
     def evaluate_max_cols_and_rows(
         self,
         max_cols: Optional[FormulaOrInt] = None,
@@ -831,11 +848,15 @@ class IkupTerminal:
                 "mr": max_rows_f,
             }
             if isinstance(cols, str):
-                (cols_f,) = self.evaluate_formula(cols, cache=cache, num_results=1)
-                cols = int(math.floor(cols_f))
+                (cols_f,) = self.evaluate_formula_maybe(
+                    cols, cache=cache, num_results=1
+                )
+                cols = int(math.floor(cols_f)) if cols_f is not None else None
             if isinstance(rows, str):
-                (rows_f,) = self.evaluate_formula(rows, cache=cache, num_results=1)
-                rows = int(math.floor(rows_f))
+                (rows_f,) = self.evaluate_formula_maybe(
+                    rows, cache=cache, num_results=1
+                )
+                rows = int(math.floor(rows_f)) if rows_f is not None else None
             cols, rows = self.get_optimal_cols_and_rows(
                 width,
                 height,

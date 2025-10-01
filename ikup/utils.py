@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 def validate_size(value: str):
     split_value = value.split("x")
     if len(split_value) != 2:
+        split_value = value.split(",")
+    if len(split_value) != 2:
         raise argparse.ArgumentTypeError(f"Size must be specified as WxH: {value}")
     try:
         width = int(split_value[0])
