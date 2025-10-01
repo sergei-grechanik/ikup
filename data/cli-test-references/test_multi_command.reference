@@ -1,0 +1,45 @@
+========== TEST test_multi_command - Multi-command mode with colon separators ==========
+
+
+---------- SUBTEST Multi-command with multiple colons as separators ----------
+
+ikup upload ./.cli-tests-data/small_arrow.png -r 1 ::: get-id ./.cli-tests-data/transparency.png -r 2
+_Gi=[[id1:.*]],t=f,q=2,f=100,a=T,U=1,r=1,c=2;{{.*}}\
+[[id2:.*]]
+
+---------- SUBTEST Complex multi-command with different command types ----------
+
+ikup display [[id3:.*]] --no-upload : placeholder [[id4:.*]] --cols 5 --rows 3 : list --last 2
+[s[0m[38;2;[[rgb(id3)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[0m[38;2;[[rgb(id3)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[5DD
+[s[0m[38;2;[[rgb(id4)]]m􎻮̅̅􎻮̅̍􎻮̅̎􎻮̅̐􎻮̅̒[0m[uD
+[s[0m[38;2;[[rgb(id4)]]m􎻮̍̅􎻮̍̍􎻮̍̎􎻮̍̐􎻮̍̒[0m[uD
+[0m[38;2;[[rgb(id4)]]m􎻮̎̅􎻮̎̍􎻮̎̎􎻮̎̐􎻮̎̒[0m[5DD
+[[id4]]	6x3	{{.*}}
+[[id3]]	5x2	{{.*}}
+
+---------- SUBTEST Multi-command error handling (invalid command should fail) ----------
+
+ikup status : invalid-command : status
+Config file: DEFAULT
+num_tmux_layers: 0
+inside_ssh: False
+terminal_name: {{.*}}
+terminal_id: [[terminal_id:.*]]
+session_id: [[session_id:.*]]
+database_file: {{.*}}
+cache_directory: {{.*}}
+Default ID space: 24bit
+Default subspace: 0:256
+Total IDs in the session db: {{.*}}
+IDs in the subspace: {{.*}}
+Supported formats: ['png', 'jpeg']
+Default uploading method: f
+Allow concurrent uploads: True
+(Assumed) cell size in pixels (w x h): 7 x 14
+(Assumed) terminal size in cells (c x r): 80 x 24
+
+All databases in {{.*}}
+{{:SKIP_LINES:}}
+error: Failed to upload invalid-command: [Errno 2] No such file or directory: 'invalid-command'
+Exit code: 1
