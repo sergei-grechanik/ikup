@@ -18,6 +18,11 @@ from ikup.ikup_terminal import (
 from ikup.conversion_cache import ConversionCache
 from ikup.utils import *
 from ikup.formula import FormulaEvaluationError
+from ikup.place_specification import (
+    parse_place_specification,
+    PlaceSpecificationError,
+    PlaceSpec,
+)
 
 HELP_PRINT = """\
 The --print (-p) option takes a string argument which may use the following
@@ -38,8 +43,8 @@ It may also use escape sequences: \\\\, \\n, \\t, \\r, \\e
 """
 
 HELP_FORMULAS = """\
-Some integers, such as --max-cols, --max-rows, --rows, --cols, --position
-may be specified using formulas involving the following elements:
+Some integers and pairs of integers, such as --max-cols, --max-rows, --rows, --cols,
+--position, --box may be specified using formulas involving the following elements:
 
     Standard arithmetic operators: +, -, *, /
     Parentheses: ( )
@@ -58,6 +63,7 @@ may be specified using formulas involving the following elements:
         h  - the height of the image in pixels
         mc - the maximum number of columns computed earlier
         mr - the maximum number of rows computed earlier
+        none or _ - a special value meaning "not specified"
     Additional variables available only for --position:
         r  - the number of rows of the image (or its displayed portion)
         c  - the number of columns of the image (or its displayed portion)
@@ -72,6 +78,9 @@ Examples:
     --max-cols 'tc * 0.8'  # Use 80% of the terminal width
     --max-cols 'tc - cx'  # Use the remaining width of the terminal
     --position 'tc - c, tr - r'  # Place at the bottom right corner
+    --cols 'min(40, tc - 10)'  # Use 40 cols or less, leave 10 cols margin
+    --box '10,_ : 10,10 @ cx,cy'  # 10 cols, auto rows, max size is 10x10,
+                                  # place at the current cursor position
 """
 
 
@@ -310,6 +319,7 @@ def handle_command(
     scale: Optional[float],
     dump_config: bool,
     position: Optional[str],
+    box: Optional[List[str]],
     restore_cursor: str,
     use_line_feeds: str,
     force_id: Optional[int],
@@ -361,6 +371,23 @@ def handle_command(
             "Cannot use --force-id and specify multiple images at the same time."
         )
 
+    if box and len(box) != len(images):
+        raise CLIArgumentsError(
+            f"The number of --box arguments {box!r} must match the number of images {images!r}."
+        )
+
+    place_specs: List[PlaceSpec] = []
+    if box:
+        for b in box:
+            place = parse_place_specification(b)
+            place_specs.append(place)
+            if place.pos is not None and command in ("upload", "get-id"):
+                raise CLIArgumentsError(
+                    "Cannot specify position --box with upload or get-id commands."
+                )
+            if place.pos is not None and restore_cursor == "auto":
+                restore_cursor = "true"
+
     initial_cursor_pos: Optional[Tuple[int, int]] = None
     if restore_cursor == "true":
         initial_cursor_pos = ikupterm.term.get_cursor_position()
@@ -375,6 +402,14 @@ def handle_command(
         # Apply position only to the first image.
         if idx != 0:
             position = None
+
+        # Prioritize place specification from --box over other parameters.
+        place = place_specs[idx] if place_specs else PlaceSpec()
+        place.rows = place.rows or rows
+        place.cols = place.cols or cols
+        place.max_rows = place.max_rows or max_rows
+        place.max_cols = place.max_cols or max_cols
+        place.pos = place.pos or position
 
         # Handle the case where image_path is an id, not a filename.
         image: Union[str, ImageInstance] = image_path
@@ -401,9 +436,11 @@ def handle_command(
             if command == "display" and not no_upload:
                 ikupterm.upload_and_display(
                     image,
-                    rows=rows,
-                    cols=cols,
-                    abs_pos=position,
+                    rows=place.rows,
+                    cols=place.cols,
+                    max_rows=place.max_rows,
+                    max_cols=place.max_cols,
+                    abs_pos=place.pos,
                     use_line_feeds=(use_line_feeds == "true"),
                     final_cursor_pos=final_cursor_pos,
                     force_id=force_id,
@@ -411,8 +448,10 @@ def handle_command(
             elif command == "upload":
                 ikupterm.upload(
                     image,
-                    rows=rows,
-                    cols=cols,
+                    rows=place.rows,
+                    cols=place.cols,
+                    max_rows=place.max_rows,
+                    max_cols=place.max_cols,
                     force_id=force_id,
                 )
             elif command == "get-id" or (command == "display" and no_upload):
@@ -421,8 +460,10 @@ def handle_command(
                 else:
                     instance = ikupterm.assign_id(
                         image,
-                        rows=rows,
-                        cols=cols,
+                        rows=place.rows,
+                        cols=place.cols,
+                        max_rows=place.max_rows,
+                        max_cols=place.max_cols,
                         force_id=force_id,
                     )
                 if command == "get-id":
@@ -430,7 +471,7 @@ def handle_command(
                 if command == "display":
                     ikupterm.display_only(
                         instance,
-                        abs_pos=position,
+                        abs_pos=place.pos,
                         final_cursor_pos=final_cursor_pos,
                         use_line_feeds=(use_line_feeds == "true"),
                     )
@@ -459,6 +500,7 @@ def display(
     scale: Optional[float],
     dump_config: bool,
     position: Optional[str],
+    box: Optional[List[str]],
     restore_cursor: str,
     use_line_feeds: str,
     force_id: Optional[int],
@@ -483,6 +525,7 @@ def display(
         scale=scale,
         dump_config=dump_config,
         position=position,
+        box=box,
         restore_cursor=restore_cursor,
         use_line_feeds=use_line_feeds,
         force_id=force_id,
@@ -505,6 +548,7 @@ def upload(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    box: Optional[List[str]],
     force_id: Optional[int],
     id_space: Optional[str],
     id_subspace: Optional[str],
@@ -527,6 +571,7 @@ def upload(
         scale=scale,
         dump_config=dump_config,
         position=None,
+        box=box,
         restore_cursor="auto",
         use_line_feeds="false",
         force_id=force_id,
@@ -547,6 +592,7 @@ def get_id(
     max_rows: Optional[str],
     scale: Optional[float],
     dump_config: bool,
+    box: Optional[List[str]],
     force_id: Optional[int],
     id_space: Optional[str],
     id_subspace: Optional[str],
@@ -565,6 +611,7 @@ def get_id(
         scale=scale,
         dump_config=dump_config,
         position=None,
+        box=box,
         restore_cursor="auto",
         use_line_feeds="false",
         force_id=force_id,
@@ -1457,6 +1504,17 @@ def main_unwrapped_single(argv: List[str]):
             help="Scale images by this factor when automatically computing the image size (multiplied with global_scale from config).",
         )
         p.add_argument(
+            "--box",
+            "-b",
+            nargs="+",
+            metavar="SPEC",
+            type=str,
+            action="extend",
+            default=[],
+            help="Specify dimensions and/or position for each image. "
+            "Format: CxR@XxY, @XxY, CxR, etc. Number of --box arguments must match number of images.",
+        )
+        p.add_argument(
             "--cols",
             "-c",
             metavar="W",
@@ -1522,7 +1580,7 @@ def main_unwrapped_single(argv: List[str]):
             const="true",  # if given without a value
             default="auto",  # if not given
             help="Whether to restore the initial cursor position after executing "
-            "the whole command. 'auto' to enable only if --position is used.",
+            "the whole command. 'auto' to enable only if position is specified for any of the images.",
         )
 
     # --force-upload is common for all commands that do uploading, but it's mutually
@@ -1876,6 +1934,7 @@ def main():
         ValidationError,
         IkupValueError,
         FormulaEvaluationError,
+        PlaceSpecificationError,
     ) as e:
         print(
             f"error: {e}",
