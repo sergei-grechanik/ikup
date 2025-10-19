@@ -79,7 +79,7 @@ Examples:
     --max-cols 'tc - cx'  # Use the remaining width of the terminal
     --position 'tc - c, tr - r'  # Place at the bottom right corner
     --cols 'min(40, tc - 10)'  # Use 40 cols or less, leave 10 cols margin
-    --box '10,_ : 10,10 @ cx,cy'  # 10 cols, auto rows, max size is 10x10,
+    --box '10,_ ~ 10,10 @ cx,cy'  # 10 cols, auto rows, max size is 10x10,
                                   # place at the current cursor position
 """
 
