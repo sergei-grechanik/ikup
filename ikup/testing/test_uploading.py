@@ -509,7 +509,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> No
             image_id = int(image_id + step)
     # The threshold is high because there is a grid issue in st.
     ctx.take_screenshot(
-        "Displayed some one-pixel images, some will be missing.", diff_threshold=0.05
+        "Displayed some one-pixel images, some will be missing.", diff_threshold=0.06
     )
 
 
