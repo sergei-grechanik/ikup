@@ -270,12 +270,12 @@ test_place_specification() {
     run_command $DATA_DIR/wikipedia.png -b 3,_
 
     subtest "Formula variants"
-    run_command $DATA_DIR/wikipedia.png -b _x4:1+1,2+1@3+2,4+1
+    run_command $DATA_DIR/wikipedia.png -b _x4~1+1,2+1@3+2,4+1
 
     subtest "Max constraints"
-    run_command $DATA_DIR/wikipedia.png --box "_,_:5,3"
-    run_command $DATA_DIR/wikipedia.png -b "_,3:6,_"
-    run_command $DATA_DIR/wikipedia.png --box ":2,2"
+    run_command $DATA_DIR/wikipedia.png --box "_,_~5,3"
+    run_command $DATA_DIR/wikipedia.png -b "_,3~6,_"
+    run_command $DATA_DIR/wikipedia.png --box "~2,2"
 
     subtest "Multiple images with individual box specs"
     run_command $DATA_DIR/wikipedia.png $DATA_DIR/tux.png --box 2x1 --box 3x2
@@ -291,7 +291,7 @@ test_place_specification() {
     subtest "Error cases - conflicting specifications"
     run_command $DATA_DIR/wikipedia.png --box 3x2 --cols 5
     run_command $DATA_DIR/wikipedia.png --box @1x2 --position 3,4
-    run_command $DATA_DIR/wikipedia.png --box "_,3:5,_" --max-cols 10
+    run_command $DATA_DIR/wikipedia.png --box "_,3~5,_" --max-cols 10
 
     subtest "Error cases - invalid specifications"
     run_command $DATA_DIR/wikipedia.png --box ""

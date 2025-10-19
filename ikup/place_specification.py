@@ -34,7 +34,7 @@ def parse_place_specification(spec: str) -> PlaceSpec:
 
     The specification format is:
 
-        C,R:M,N@X,Y
+        C,R~M,N@X,Y
 
     Where:
         - C: Columns
@@ -49,7 +49,7 @@ def parse_place_specification(spec: str) -> PlaceSpec:
 
         5x10
         5x10@0,2
-        _x_:20,30@cx,cy+1
+        _x_~20,30@cx,cy+1
         @100,200
     """
     res = PlaceSpec()
@@ -64,10 +64,10 @@ def parse_place_specification(spec: str) -> PlaceSpec:
     dims_part = ""
     maxdims_part = ""
     if size_part:
-        dims_and_maxdims = size_part.split(":")
+        dims_and_maxdims = size_part.split("~")
         if len(dims_and_maxdims) > 2:
             raise PlaceSpecificationError(
-                f"Too many ':' in place specification: {spec!r}"
+                f"Too many '~' in place specification: {spec!r}"
             )
         dims_part = dims_and_maxdims[0].strip()
         maxdims_part = dims_and_maxdims[1].strip() if len(dims_and_maxdims) > 1 else ""
