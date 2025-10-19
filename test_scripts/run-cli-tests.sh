@@ -198,36 +198,38 @@ echorun() {
     fi
 }
 
+AGENT="ikup terminal image viewer testscript (github.com/sergei-grechanik/ikup)"
+
 [ -f $DATA_DIR/wikipedia.png ] || \
-    curl -o $DATA_DIR/wikipedia.png https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png
+    curl -A "$AGENT" -o $DATA_DIR/wikipedia.png https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png
 [ -f $DATA_DIR/transparency.png ] || \
-    curl -o $DATA_DIR/transparency.png https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png
+    curl -A "$AGENT" -o $DATA_DIR/transparency.png https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png
 [ -f $DATA_DIR/tux.png ] || \
-    curl -o $DATA_DIR/tux.png https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png
+    curl -A "$AGENT" -o $DATA_DIR/tux.png https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png
 [ -f $DATA_DIR/column.png ] || \
-    curl -o $DATA_DIR/column.png "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png"
+    curl -A "$AGENT" -o $DATA_DIR/column.png "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png"
 [ -f $DATA_DIR/small_arrow.png ] || \
-    curl -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
+    curl -A "$AGENT" -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
 [ -f $DATA_DIR/ruler.png ] || \
-    curl -o $DATA_DIR/ruler.png "https://upload.wikimedia.org/wikipedia/commons/3/38/Screen_Ruler.png"
+    curl -A "$AGENT" -o $DATA_DIR/ruler.png "https://upload.wikimedia.org/wikipedia/commons/3/38/Screen_Ruler.png"
 [ -f $DATA_DIR/earth.jpg ] || \
-    curl -o $DATA_DIR/earth.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/240px-The_Blue_Marble_%28remastered%29.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/earth.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/240px-The_Blue_Marble_%28remastered%29.jpg"
 [ -f $DATA_DIR/mars.jpg ] || \
-    curl -o $DATA_DIR/mars.jpg "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/mars.jpg "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg"
 [ -f $DATA_DIR/sun.jpg ] || \
-    curl -o $DATA_DIR/sun.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/628px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/sun.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/628px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
 [ -f $DATA_DIR/butterfly.jpg ] || \
-    curl -o $DATA_DIR/butterfly.jpg "https://upload.wikimedia.org/wikipedia/commons/a/a6/Peacock_butterfly_%28Aglais_io%29_2.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/butterfly.jpg "https://upload.wikimedia.org/wikipedia/commons/a/a6/Peacock_butterfly_%28Aglais_io%29_2.jpg"
 [ -f $DATA_DIR/david.jpg ] || \
-    curl -o $DATA_DIR/david.jpg "https://upload.wikimedia.org/wikipedia/commons/8/84/Michelangelo%27s_David_2015.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/david.jpg "https://upload.wikimedia.org/wikipedia/commons/8/84/Michelangelo%27s_David_2015.jpg"
 [ -f $DATA_DIR/fern.jpg ] || \
-    curl -o $DATA_DIR/fern.jpg "https://upload.wikimedia.org/wikipedia/commons/3/3d/Giant_fern_forest_7.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/fern.jpg "https://upload.wikimedia.org/wikipedia/commons/3/3d/Giant_fern_forest_7.jpg"
 [ -f $DATA_DIR/flake.jpg ] || \
-    curl -o $DATA_DIR/flake.jpg "https://upload.wikimedia.org/wikipedia/commons/d/d7/Snowflake_macro_photography_1.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/flake.jpg "https://upload.wikimedia.org/wikipedia/commons/d/d7/Snowflake_macro_photography_1.jpg"
 [ -f $DATA_DIR/flower.jpg ] || \
-    curl -o $DATA_DIR/flower.jpg "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/flower.jpg "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
 [ -f $DATA_DIR/a_panorama.jpg ] || \
-    curl -o $DATA_DIR/a_panorama.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/2560px-Kazbeg_Panorama.jpg"
+    curl -A "$AGENT" -o $DATA_DIR/a_panorama.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/2560px-Kazbeg_Panorama.jpg"
 
 ################################################################################
 
