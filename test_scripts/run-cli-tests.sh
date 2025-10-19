@@ -298,7 +298,7 @@ test_place_specification() {
     run_command $DATA_DIR/wikipedia.png --box @5
     run_command $DATA_DIR/wikipedia.png --box "invalid"
     run_command $DATA_DIR/wikipedia.png --box "@_,1"
-    run_command $DATA_DIR/wikipedia.png --box ":_,1"
+    run_command $DATA_DIR/wikipedia.png --box "~_,1"
     run_command $DATA_DIR/wikipedia.png --box 2+1x3
 }
 
