@@ -626,3 +626,151 @@ def direct_interrupted(ctx: TestingContext, nomore: bool = False) -> None:
         term.send_command(chunk)
     ctx.write("\nSent all of the commands.\n")
     ctx.take_screenshot("After sending all of the commands. Tux should be seen.")
+
+
+@screenshot_test(suffix="image_number", params={"image_number": True})
+@screenshot_test
+def direct_concurrent(ctx: TestingContext, image_number: bool = False) -> None:
+    """Test concurrent direct transmissions. Most terminal don't support it."""
+    term = ctx.term
+
+    # Direct transmission commands of tux, in multiple chunks.
+    tuxcmd = TransmitCommand(
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    )
+    if image_number:
+        tuxcmd.image_number = 127
+    else:
+        tuxcmd.image_id = 127
+    tuxcmd.set_placement(rows=10, cols=20)
+    with open(ctx.get_tux_png(), "rb") as f:
+        tuxcmd.set_data(f.read())
+    tuxcmds = list(tuxcmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
+
+    # Direct transmission commands of arrow up, in multiple chunks.
+    arrowcmd = TransmitCommand(
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    )
+    if image_number:
+        arrowcmd.image_number = 129
+    else:
+        arrowcmd.image_id = 129
+    arrowcmd.set_placement(rows=10, cols=20)
+    with open(ctx.get_small_arrow_png(), "rb") as f:
+        arrowcmd.set_data(f.read())
+    arrowcmds = list(arrowcmd.split(max_payload_size=int(SPLIT_PAYLOAD_SIZE / 8)))
+
+    term.write(f"Tux chunks: {len(tuxcmds)}\n")
+    term.write(f"Arrow chunks: {len(arrowcmds)}\n")
+
+    # Send the first chunks
+    term.send_command(arrowcmds[0])
+    term.send_command(tuxcmds[0])
+
+    # Send the rest of the commands except for the last ones.
+    for i in range(1, max(len(arrowcmds) - 1, len(tuxcmds) - 1)):
+        if i < len(arrowcmds) - 1:
+            term.send_command(arrowcmds[i])
+        if i < len(tuxcmds) - 1:
+            term.send_command(tuxcmds[i])
+
+    # Send the last commands
+    term.send_command(tuxcmds[-1])
+    term.write("\n", flush=True)
+    term.send_command(arrowcmds[-1])
+
+    ctx.take_screenshot("Tux, then arrow if the terminal supports concurrent uploads.")
+
+
+@screenshot_test
+def stress_direct_unfinished(ctx: TestingContext) -> None:
+    """Test many unfinished direct transmissions. Most importantly, the terminal must
+    not crash and remain functional. If the terminal supports concurrent direct uploads,
+    a single image will likely be displayed."""
+    term = ctx.term
+    cmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    )
+    cmd.set_placement(rows=10, cols=10)
+    rem_commands = []
+    # Use large IDs to avoid interfering with other tests. We want the uploads to remain
+    # unfinished.
+    id_base = 1000000
+    total_ids = 2000
+    image_id = id_base
+    # We will display a single image, closer to the end, because st has a timeout for
+    # upload resumption.
+    id_to_complete = id_base + total_ids - 100
+    for i in range(total_ids):
+        image_id += 1
+        commands = list(
+            cmd.clone_with(image_id=image_id)
+            .set_data(
+                ctx.to_png(ctx.text_to_image(str(image_id), colorize_by_id=image_id))
+            )
+            .split(max_payload_size=64)
+        )
+        term.send_command(commands[0])
+        if image_id == id_to_complete:
+            rem_commands = commands[1:]
+        if i % 100 == 0:
+            term.write(f"{i}/{total_ids}\r", flush=True)
+    for c in rem_commands:
+        term.send_command(c)
+    ctx.take_screenshot("A single finished upload")
+
+
+@screenshot_test
+def direct_interrupted_no_resume(ctx: TestingContext) -> None:
+    """Check that an interrupted direct transmission is not resumed if the size is
+    different."""
+    term = ctx.term
+
+    # Direct transmission commands of tux, in multiple chunks.
+    tuxcmd = TransmitCommand(
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+        image_id=123,
+    )
+    tuxcmd.set_placement(rows=10, cols=20)
+    tuxcmd.set_data_from_file(ctx.get_tux_png(), set_size=True)
+    tuxcmds = list(tuxcmd.split(max_payload_size=SPLIT_PAYLOAD_SIZE))
+
+    # Direct transmission commands of arrow up, in multiple chunks.
+    arrowcmd = TransmitCommand(
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+        image_id=123,
+    )
+    arrowcmd.set_placement(rows=10, cols=20)
+    arrowcmd.set_data_from_file(ctx.get_small_arrow_png(), set_size=True)
+    arrowcmds = list(arrowcmd.split(max_payload_size=int(SPLIT_PAYLOAD_SIZE / 8)))
+
+    # Start sending tux commands.
+    for c in tuxcmds[:2]:
+        term.send_command(c)
+
+    # Send a dummy graphics command to interrupt the transmission.
+    term.send_command(
+        TransmitCommand(
+            medium=ikup.TransmissionMedium.FILE,
+            quiet=ikup.Quietness.QUIET_ALWAYS,
+            format=ikup.Format.PNG,
+            image_id=9999,
+        ).set_filename(ctx.get_wikipedia_png())
+    )
+
+    # Send arrow commands.
+    for c in arrowcmds:
+        term.send_command(c)
+
+    ctx.take_screenshot("Only the arrow.")
