@@ -1,6 +1,7 @@
 import base64
 import dataclasses
 import io
+import os
 import select
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, is_dataclass
@@ -364,19 +365,33 @@ class TransmitCommand(GraphicsCommand):
             data = data.read()
         return data
 
-    def set_filename(self, filename: str) -> "TransmitCommand":
+    def set_filename(self, filename: str, set_size: bool = False) -> "TransmitCommand":
         """Sets the data to be a filename."""
         self.data = filename.encode()
+        if set_size:
+            self.size = os.path.getsize(filename)
         return self
 
-    def set_data(self, data: Union[bytes, BinaryIO]) -> "TransmitCommand":
+    def set_data(
+        self, data: Union[bytes, BinaryIO], set_size: bool = False
+    ) -> "TransmitCommand":
         """Sets the data to be a byte string or a file-like object."""
         self.data = data
+        if set_size:
+            if isinstance(data, bytes):
+                self.size = len(data)
+            else:
+                current_pos = data.tell()
+                data.seek(0, os.SEEK_END)
+                self.size = data.tell() - current_pos
+                data.seek(current_pos)
         return self
 
-    def set_data_from_file(self, filename: str) -> "TransmitCommand":
+    def set_data_from_file(
+        self, filename: str, set_size: bool = False
+    ) -> "TransmitCommand":
         """Sets the data to be the contents of a file."""
-        self.data = open(filename, "rb")
+        self.set_data(open(filename, "rb"), set_size=set_size)
         return self
 
     def set_placement(self, **kwargs) -> "TransmitCommand":
