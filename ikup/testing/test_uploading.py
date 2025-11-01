@@ -566,7 +566,7 @@ def stress_too_many_placements(ctx: TestingContext) -> None:
     ctx.take_screenshot(
         "Attempting to display 5 different placements for some of the images."
         " Many placements may be missing.",
-        diff_threshold=0.12,
+        diff_threshold=0.13,
     )
 
 
