@@ -782,7 +782,7 @@ def restore_file(ctx: TestingContext) -> None:
     np.random.seed(42)
 
     # This file will be preserved and may be restored.
-    fpreserved = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
+    fpreserved = tempfile.NamedTemporaryFile("wb", delete=False)
     fpreserved.close()
     shutil.copyfile(ctx.get_wikipedia_png(), fpreserved.name)
     term.send_command(
@@ -798,7 +798,7 @@ def restore_file(ctx: TestingContext) -> None:
     term.move_cursor(up=3)
 
     # This file will be overwritten and may not be restored.
-    foverwritten = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
+    foverwritten = tempfile.NamedTemporaryFile("wb", delete=False)
     foverwritten.close()
     shutil.copyfile(ctx.get_transparency_png(), foverwritten.name)
     term.send_command(
@@ -814,7 +814,7 @@ def restore_file(ctx: TestingContext) -> None:
     term.move_cursor(up=3)
 
     # This file will be deleted and may not be restored.
-    fdeleted = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
+    fdeleted = tempfile.NamedTemporaryFile("wb", delete=False)
     fdeleted.close()
     shutil.copyfile(ctx.get_tux_png(), fdeleted.name)
     term.send_command(
@@ -830,7 +830,7 @@ def restore_file(ctx: TestingContext) -> None:
     term.write("\n", flush=True)
 
     # Generate an image of ~20MB (when represented as RGBA).
-    fbig = tempfile.NamedTemporaryFile("wb", delete_on_close=False)
+    fbig = tempfile.NamedTemporaryFile("wb", delete=False)
     data = ctx.to_rgb(ctx.generate_image(10 * 500, 2 * 500), bits=32)
     fbig.write(data)
     fbig.close()
@@ -902,3 +902,6 @@ def restore_file(ctx: TestingContext) -> None:
         )
     )
     ctx.take_screenshot("Wikipedia should be restored, tux and dice should not.")
+    os.unlink(fpreserved.name)
+    os.unlink(foverwritten.name)
+    os.unlink(fbig.name)
