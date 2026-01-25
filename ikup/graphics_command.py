@@ -250,7 +250,77 @@ class PlacementData:
     src_y: Optional[int] = None
     src_w: Optional[int] = None
     src_h: Optional[int] = None
-    # TODO: z, X, Y
+    cell_x_offset: Optional[int] = None
+    cell_y_offset: Optional[int] = None
+    # TODO: z
+
+    # Assumed size in cells. These are NOT sent to the terminal, but are used
+    # for internal calculations (e.g., drawing backgrounds, sizing placeholders).
+    # When these are None, rows/cols are used instead.
+    assumed_rows: Optional[int] = None
+    assumed_cols: Optional[int] = None
+
+    @property
+    def effective_rows(self) -> Optional[int]:
+        """Returns assumed_rows if set, otherwise rows."""
+        return self.assumed_rows if self.assumed_rows is not None else self.rows
+
+    @property
+    def effective_cols(self) -> Optional[int]:
+        """Returns assumed_cols if set, otherwise cols."""
+        return self.assumed_cols if self.assumed_cols is not None else self.cols
+
+    def compute_assumed_size(
+        self,
+        img_size: Tuple[int, int],
+        cell_size: Tuple[int, int],
+    ) -> None:
+        """Compute and set assumed_rows and assumed_cols based on placement parameters.
+
+        This calculates the cell dimensions needed to display an image, accounting
+        for the specified rows/cols and cell offsets.
+
+        The logic here is taken from the graphics patch for st, and it assumes that:
+        - X and Y offsets larger than the cell size are ok (kitty clamps them to the
+          cell size),
+        - negative X and Y offsets are treated as 0,
+        - X and Y also affects virtual placements used for Unicode placeholders (kitty
+          and ghostty ignores X and Y for virtual placements).
+
+        Args:
+            img_size: Image (width, height) in pixels
+            cell_size: Cell (width, height) in pixels
+        """
+        img_width, img_height = img_size
+        cell_width, cell_height = cell_size
+        x_off = max(0, self.cell_x_offset or 0)
+        y_off = max(0, self.cell_y_offset or 0)
+
+        if self.rows is None and self.cols is None:
+            # Neither specified: compute cells needed for image + offset
+            cols = (img_width + x_off + cell_width - 1) // cell_width
+            rows = (img_height + y_off + cell_height - 1) // cell_height
+        elif self.rows is not None and self.cols is None:
+            # Only rows specified: compute cols preserving aspect ratio
+            rows = self.rows
+            box_h = max(1, rows * cell_height - y_off)
+            cols = (
+                img_width * box_h + x_off * img_height + img_height * cell_width - 1
+            ) // (img_height * cell_width)
+        elif self.rows is None and self.cols is not None:
+            # Only cols specified: compute rows preserving aspect ratio
+            cols = self.cols
+            box_w = max(1, cols * cell_width - x_off)
+            rows = (
+                img_height * box_w + y_off * img_width + img_width * cell_height - 1
+            ) // (img_width * cell_height)
+        else:
+            # Both specified
+            rows = self.rows
+            cols = self.cols
+
+        self.assumed_cols = cols
+        self.assumed_rows = rows
 
     def to_tuple(self) -> Tuple[Tuple[bytes, bytes | int], ...]:
         """Returns the placement data as a tuple of key-value pairs that can be used for
@@ -266,6 +336,8 @@ class PlacementData:
                 (b"w", self.src_w),
                 (b"h", self.src_h),
                 (b"C", self.do_not_move_cursor),
+                (b"X", self.cell_x_offset),
+                (b"Y", self.cell_y_offset),
             )
         )
 

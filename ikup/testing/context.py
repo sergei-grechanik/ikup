@@ -226,6 +226,22 @@ class TestingContext:
         )
         return img
 
+    def add_border(
+        self,
+        img: Union[Image.Image, str],
+        color: Tuple[int, int, int] = (0, 255, 0),
+        width: int = 2,
+    ) -> Image.Image:
+        """Add a colored border around an image."""
+        if isinstance(img, str):
+            img = Image.open(img)
+        img = img.copy()
+        d = ImageDraw.Draw(img)
+        w, h = img.size
+        for i in range(width):
+            d.rectangle([(i, i), (w - 1 - i, h - 1 - i)], outline=color)
+        return img
+
     def to_png(self, img: Image.Image) -> bytes:
         bytesio = io.BytesIO()
         img.save(bytesio, format="PNG")

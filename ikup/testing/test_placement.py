@@ -875,3 +875,339 @@ def alpha(ctx: TestingContext) -> None:
             f"Rainbow background and a gradient going from transparent to solid, color {color}"
         )
         term.reset()
+
+
+def _checkerboard_formatting(col: int, row: int) -> bytes:
+    """Return background color escape sequence for checkerboard pattern."""
+    gray = 80 if (row + col) % 2 == 0 else 160
+    return f"\033[48;2;{gray};{gray};{gray}m".encode()
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_basic(ctx: TestingContext, placeholder: bool = False) -> None:
+    """Test basic X and Y cell offset functionality."""
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    arrow_path = ctx.get_small_arrow_png()
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    ).set_filename(arrow_path)
+    term.send_command(trcmd)
+
+    img_width, img_height = ctx.get_image_size(arrow_path)
+
+    checkerboard = ikup.CellFormatting(_checkerboard_formatting)
+
+    # Description at top
+    mode = "placeholder" if placeholder else "classic"
+    term.move_cursor_abs(row=0, col=0)
+    term.write(f"cols and rows not specified, {mode}")
+
+    # Display images at different offsets with checkerboard backgrounds
+    # 2x2 grid layout to fit with labels above each image
+    test_cases = [
+        (0, 0, 2, 0),  # (x_off, y_off, pos_row, pos_col)
+        (15, 0, 2, 20),
+        (0, 20, 12, 0),
+        (15, 20, 12, 20),
+    ]
+
+    for x_off, y_off, pos_row, pos_col in test_cases:
+        # Write label above image
+        term.move_cursor_abs(row=pos_row, col=pos_col)
+        term.write(f"X={x_off} Y={y_off}")
+        # Display image with offset and checkerboard background.
+        term.move_cursor_abs(row=pos_row + 1, col=pos_col)
+        put_cmd = PutCommand(
+            image_id=1,
+            cell_x_offset=x_off,
+            cell_y_offset=y_off,
+            quiet=Quietness.QUIET_UNLESS_ERROR,
+            do_not_move_cursor=True,
+        )
+        put_cmd.compute_assumed_size(
+            (img_width, img_height), term.get_cell_size_or_fail()
+        )
+        term.send_command(put_cmd, formatting=checkerboard)
+
+    term.move_cursor_abs(row=22, col=0)
+    ctx.take_screenshot(
+        "Four arrows with different X/Y cell offsets on checkerboard backgrounds."
+        " Images should NOT be cropped and should not go beyond the checkerboard area."
+    )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_with_size(ctx: TestingContext, placeholder: bool = False) -> None:
+    """Test cell offset with explicit rows/cols."""
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    # Add a bright green border to the tux image to make edges visible
+    tux_with_border = ctx.add_border(ctx.get_tux_png(), color=(0, 255, 0), width=4)
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    ).set_data(ctx.to_png(tux_with_border))
+    term.send_command(trcmd)
+
+    checkerboard = ikup.CellFormatting(_checkerboard_formatting)
+
+    # Description at top
+    mode = "placeholder" if placeholder else "classic"
+    term.move_cursor_abs(row=0, col=0)
+    term.write(f"cols and rows specified (5x10), {mode}")
+
+    # Grid of images (4 cols x 3 rows) with varying X and Y offsets
+    # Use fewer columns to fit labels above each image
+    x_offsets = [0, 6, 12]
+    y_offsets = [0, 8, 16]
+    img_rows, img_cols = 5, 10
+
+    for row_idx, y_off in enumerate(y_offsets):
+        for col_idx, x_off in enumerate(x_offsets):
+            # 7 rows per image block (1 label + 5 image + 1 gap)
+            pos_row = 2 + row_idx * 7
+            # 12 cols per image block (10 image + 2 gap)
+            pos_col = col_idx * 13
+
+            # Write label above image
+            term.move_cursor_abs(row=pos_row, col=pos_col)
+            term.write(f"X={x_off} Y={y_off}")
+
+            term.move_cursor_abs(row=pos_row + 1, col=pos_col)
+            term.send_command(
+                PutCommand(
+                    image_id=1,
+                    rows=img_rows,
+                    cols=img_cols,
+                    cell_x_offset=x_off,
+                    cell_y_offset=y_off,
+                    quiet=Quietness.QUIET_UNLESS_ERROR,
+                    do_not_move_cursor=True,
+                ),
+                formatting=checkerboard,
+            )
+
+    term.move_cursor_abs(row=23, col=0)
+    ctx.take_screenshot(
+        "Grid of penguins with varying X/Y offsets on  checkerboard backgrounds."
+    )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_rows_only(ctx: TestingContext, placeholder: bool = False) -> None:
+    """Test cell offset when only rows are specified (cols inferred)."""
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    tux_with_border = ctx.add_border(ctx.get_tux_png(), color=(0, 255, 0), width=4)
+    img_width, img_height = tux_with_border.size
+
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    ).set_data(ctx.to_png(tux_with_border))
+    term.send_command(trcmd)
+
+    checkerboard = ikup.CellFormatting(_checkerboard_formatting)
+
+    # Description at top
+    mode = "placeholder" if placeholder else "classic"
+    term.move_cursor_abs(row=0, col=0)
+    term.write(f"rows=5 only (cols inferred), {mode}")
+
+    # Grid with only rows specified, cols inferred
+    x_offsets = [0, 8, 16]
+    y_offsets = [0, 10, 20]
+    img_rows = 5
+
+    for row_idx, y_off in enumerate(y_offsets):
+        for col_idx, x_off in enumerate(x_offsets):
+            # 7 rows per image block (1 label + 5 image + 1 gap)
+            pos_row = 2 + row_idx * 7
+            # 14 cols per image block to ensure gap
+            pos_col = col_idx * 15
+
+            # Write label above image
+            term.move_cursor_abs(row=pos_row, col=pos_col)
+            term.write(f"X={x_off} Y={y_off}")
+
+            term.move_cursor_abs(row=pos_row + 1, col=pos_col)
+            put_cmd = PutCommand(
+                image_id=1,
+                rows=img_rows,  # Only rows specified
+                cell_x_offset=x_off,
+                cell_y_offset=y_off,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
+                do_not_move_cursor=True,
+            )
+            put_cmd.compute_assumed_size(
+                (img_width, img_height), term.get_cell_size_or_fail()
+            )
+            term.send_command(put_cmd, formatting=checkerboard)
+
+    term.move_cursor_abs(row=23, col=0)
+    ctx.take_screenshot(
+        "Grid of penguins with only rows specified (cols inferred)."
+        " X/Y offsets applied. Green border shows image edges."
+    )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_cols_only(ctx: TestingContext, placeholder: bool = False) -> None:
+    """Test cell offset when only cols are specified (rows inferred)."""
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    tux_with_border = ctx.add_border(ctx.get_tux_png(), color=(0, 255, 0), width=4)
+    img_width, img_height = tux_with_border.size
+
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.DIRECT,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    ).set_data(ctx.to_png(tux_with_border))
+    term.send_command(trcmd)
+
+    checkerboard = ikup.CellFormatting(_checkerboard_formatting)
+
+    # Description at top
+    mode = "placeholder" if placeholder else "classic"
+    term.move_cursor_abs(row=0, col=0)
+    term.write(f"cols=9 only (rows inferred), {mode}")
+
+    # Grid with only cols specified, rows inferred.
+    x_offsets = [0, 8, 16]
+    y_offsets = [0, 10, 20]
+    img_cols = 9
+
+    for row_idx, y_off in enumerate(y_offsets):
+        for col_idx, x_off in enumerate(x_offsets):
+            # 7 or 8 rows per image block
+            pos_row = 1 + row_idx * 7 + (1 if row_idx > 1 else 0)
+            # 13 cols per image block (9 image + 3 gap)
+            pos_col = col_idx * 14
+
+            # Write label above image
+            term.move_cursor_abs(row=pos_row, col=pos_col)
+            term.write(f"X={x_off} Y={y_off}")
+
+            term.move_cursor_abs(row=pos_row + 1, col=pos_col)
+            put_cmd = PutCommand(
+                image_id=1,
+                cols=img_cols,  # Only cols specified
+                cell_x_offset=x_off,
+                cell_y_offset=y_off,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
+                do_not_move_cursor=True,
+            )
+            put_cmd.compute_assumed_size(
+                (img_width, img_height), term.get_cell_size_or_fail()
+            )
+            term.send_command(put_cmd, formatting=checkerboard)
+
+    ctx.take_screenshot(
+        "Grid of penguins with only cols specified (rows inferred)."
+        " X/Y offsets applied. Green border shows image edges."
+    )
+
+
+def _cell_offset_bounds_helper(
+    ctx: TestingContext,
+    placeholder: bool,
+    rows: int | None,
+    cols: int | None,
+    title: str,
+) -> None:
+    """Helper to test X/Y offset boundary values for a given rows/cols configuration.
+
+    Tests combinations of X in (-100, -10, 0, 100) and Y in (-100, -10, 0).
+    """
+    term = ctx.term.clone_with(force_placeholders=placeholder)
+    arrow_path = ctx.get_small_arrow_png()
+    trcmd = TransmitCommand(
+        image_id=1,
+        medium=ikup.TransmissionMedium.FILE,
+        quiet=ikup.Quietness.QUIET_UNLESS_ERROR,
+        format=ikup.Format.PNG,
+    ).set_filename(arrow_path)
+    term.send_command(trcmd)
+
+    img_width, img_height = ctx.get_image_size(arrow_path)
+    checkerboard = ikup.CellFormatting(_checkerboard_formatting)
+
+    mode = "placeholder" if placeholder else "classic"
+    term.move_cursor_abs(row=0, col=0)
+    term.write(f"{title}, {mode}")
+
+    x_offsets = [-100, -10, 0, 100]
+    y_offsets = [-100, -10, 0]
+
+    for row_idx, y_off in enumerate(y_offsets):
+        for col_idx, x_off in enumerate(x_offsets):
+            pos_row = 2 + row_idx * 5
+            pos_col = col_idx * 20
+
+            term.move_cursor_abs(row=pos_row, col=pos_col)
+            term.write(f"X={x_off} Y={y_off}")
+
+            term.move_cursor_abs(row=pos_row + 1, col=pos_col)
+
+            put_cmd = PutCommand(
+                image_id=1,
+                rows=rows,
+                cols=cols,
+                cell_x_offset=x_off,
+                cell_y_offset=y_off,
+                quiet=Quietness.QUIET_UNLESS_ERROR,
+                do_not_move_cursor=True,
+            )
+            put_cmd.compute_assumed_size(
+                (img_width, img_height), term.get_cell_size_or_fail()
+            )
+            term.send_command(put_cmd, formatting=checkerboard)
+
+    term.move_cursor_abs(row=23, col=0)
+    ctx.take_screenshot(f"{title}. Testing X in (-100,-10,0,100), Y in (-100,-10,0).")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_bounds_no_size(ctx: TestingContext, placeholder: bool = False) -> None:
+    """Test X/Y offset boundary values when rows and cols are not specified."""
+    _cell_offset_bounds_helper(
+        ctx, placeholder, rows=None, cols=None, title="rows/cols not specified"
+    )
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_bounds_both_size(
+    ctx: TestingContext, placeholder: bool = False
+) -> None:
+    """Test X/Y offset boundary values when both rows and cols are specified."""
+    _cell_offset_bounds_helper(ctx, placeholder, rows=4, cols=6, title="rows=4 cols=6")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_bounds_rows_only(
+    ctx: TestingContext, placeholder: bool = False
+) -> None:
+    """Test X/Y offset boundary values when only rows is specified."""
+    _cell_offset_bounds_helper(ctx, placeholder, rows=4, cols=None, title="rows=4 only")
+
+
+@screenshot_test(suffix="placeholder", params={"placeholder": True})
+@screenshot_test
+def cell_offset_bounds_cols_only(
+    ctx: TestingContext, placeholder: bool = False
+) -> None:
+    """Test X/Y offset boundary values when only cols is specified."""
+    _cell_offset_bounds_helper(ctx, placeholder, rows=None, cols=6, title="cols=6 only")
