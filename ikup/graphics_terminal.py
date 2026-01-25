@@ -20,8 +20,10 @@ from ikup import (
 from ikup.graphics_command import TransmissionMedium
 from ikup.placeholder import (
     AdditionalFormatting,
+    CellFormatting,
     ImagePlaceholder,
     ImagePlaceholderMode,
+    RowFormatting,
 )
 
 logger = logging.getLogger(__name__)
@@ -294,6 +296,61 @@ class GraphicsTerminal:
             template = b"\033Ptmux;%b\033\\" % template.replace(b"\033", b"\033\033")
         return template
 
+    def draw_formatted_background(
+        self,
+        rows: int,
+        cols: int,
+        formatting: AdditionalFormatting,
+        start_col: int = 0,
+        start_row: int = 0,
+    ) -> None:
+        """Draw a formatted background area using spaces with the specified formatting.
+
+        This is used to set cell backgrounds for classic placements. The formatting
+        parameter works the same as for placeholder placements.
+
+        Args:
+            rows: Number of rows to fill
+            cols: Number of columns to fill
+            formatting: CellFormatting, RowFormatting, bytes, or None
+            start_col: Column offset for formatting function (default 0)
+            start_row: Row offset for formatting function (default 0)
+        """
+        if formatting is None:
+            return
+
+        # Resolve formatting to cell or row function
+        cell_formatting = None
+        row_formatting = None
+        if isinstance(formatting, bytes):
+            row_formatting = lambda row: formatting
+        elif isinstance(formatting, CellFormatting):
+            cell_formatting = formatting.func
+        elif isinstance(formatting, RowFormatting):
+            row_formatting = formatting.func
+        else:
+            raise TypeError(
+                f"formatting must be None, bytes, CellFormatting or RowFormatting: {formatting}"
+            )
+
+        # Save cursor position
+        cur_x, cur_y = self.get_cursor_position()
+
+        for r in range(rows):
+            self.move_cursor_abs(col=cur_x, row=cur_y + r)
+            line = b""
+            if row_formatting is not None:
+                line += row_formatting(start_row + r)
+            for c in range(cols):
+                if cell_formatting is not None:
+                    line += cell_formatting(start_col + c, start_row + r)
+                line += b" "
+            line += b"\033[0m"
+            self._write(line)
+
+        # Restore cursor position
+        self.move_cursor_abs(col=cur_x, row=cur_y)
+
     def print_placeholder(
         self,
         placeholder: Optional[ImagePlaceholder] = None,
@@ -353,10 +410,13 @@ class GraphicsTerminal:
         self,
         put_command: PutCommand,
         mode: ImagePlaceholderMode = ImagePlaceholderMode.default(),
+        formatting: AdditionalFormatting = None,
     ):
-        if put_command.rows is None or put_command.cols is None:
+        effective_rows = put_command.effective_rows
+        effective_cols = put_command.effective_cols
+        if effective_rows is None or effective_cols is None:
             raise ValueError(
-                f"put_command must have known rows and cols: {put_command}"
+                f"put_command must have known rows and cols (or assumed_rows/cols): {put_command}"
             )
         if put_command.image_id is None:
             raise ValueError(f"put_command must have a known image_id: {put_command}")
@@ -365,8 +425,8 @@ class GraphicsTerminal:
             placement_id = 0
         term_cols, term_rows = self.get_size_or_infinity()
         cur_x, cur_y = self.get_cursor_position_tracked()
-        cols = int(min(put_command.cols, term_cols - cur_x))
-        rows = put_command.rows
+        cols = int(min(effective_cols, term_cols - cur_x))
+        rows = effective_rows
         if term_rows - cur_y < rows:
             if put_command.do_not_move_cursor:
                 rows = int(term_rows - cur_y)
@@ -387,7 +447,7 @@ class GraphicsTerminal:
         )
         cur_x, cur_y = self.get_cursor_position()
         self.tracked_cursor_position = None
-        self.print_placeholder(placeholder, mode=mode)
+        self.print_placeholder(placeholder, mode=mode, formatting=formatting)
         if put_command.do_not_move_cursor:
             self.move_cursor_abs(col=cur_x, row=cur_y)
         elif cur_x + cols >= term_cols:
@@ -404,6 +464,7 @@ class GraphicsTerminal:
         force_placeholders: Optional[bool] = None,
         force_direct_transmission: Optional[bool] = None,
         callback: Optional[Callable[[GraphicsCommand], None]] = None,
+        formatting: AdditionalFormatting = None,
     ):
         # Convert a classic placement to a unicode placeholder placement if requested.
         if force_placeholders is None:
@@ -448,6 +509,27 @@ class GraphicsTerminal:
         if placement_data is not None and placement_data.virtual != True:
             self.out_display.flush()
 
+        # For classic placements with formatting, draw the formatted background first.
+        # The image will be drawn on top of this background.
+        if (
+            formatting is not None
+            and not need_to_print_placeholder
+            and placement_data is not None
+            and placement_data.virtual != True
+        ):
+            if (
+                placement_data.effective_rows is None
+                or placement_data.effective_cols is None
+            ):
+                raise ValueError(
+                    f"Cannot draw formatted background for placement with unknown size: {placement_data}"
+                )
+            self.draw_formatted_background(
+                rows=placement_data.effective_rows,
+                cols=placement_data.effective_cols,
+                formatting=formatting,
+            )
+
         # Create a callback if it's specified by the user or we need to write to the
         # shell script.
         orig_callback = callback
@@ -476,9 +558,9 @@ class GraphicsTerminal:
             if isinstance(command, TransmitCommand):
                 put_command = command.get_put_command()
                 if put_command is not None:
-                    self.print_placeholder_for_put(put_command)
+                    self.print_placeholder_for_put(put_command, formatting=formatting)
             if isinstance(command, PutCommand):
-                self.print_placeholder_for_put(command)
+                self.print_placeholder_for_put(command, formatting=formatting)
 
     def set_immediate_input_noecho(self, tty: BinaryIO) -> None:
         if tty is None:
@@ -685,6 +767,13 @@ class GraphicsTerminal:
             if lines != 0 and cols != 0 and width != 0 and height != 0:
                 return (width // cols, height // lines)
         return None
+
+    def get_cell_size_or_fail(self) -> Tuple[int, int]:
+        """Get cell size in pixels, raising an exception if detection fails."""
+        size = self.get_cell_size()
+        if size is None:
+            raise RuntimeError("Could not determine cell size")
+        return size
 
     def set_tracked_cursor_position(
         self,
