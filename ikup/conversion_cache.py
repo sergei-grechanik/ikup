@@ -159,8 +159,7 @@ class ConversionCache:
             cursor.execute("PRAGMA busy_timeout = 30000")
 
             # Create a table for images
-            cursor.execute(
-                """
+            cursor.execute("""
                     CREATE TABLE IF NOT EXISTS conversion_cache (
                         src_path TEXT NOT NULL,
                         src_mtime TIMESTAMP NOT NULL,
@@ -173,8 +172,7 @@ class ConversionCache:
                         dst_quality REAL NOT NULL,
                         dst_atime TIMESTAMP NOT NULL
                     )
-                """
-            )
+                """)
 
             cursor.execute(
                 "CREATE INDEX IF NOT EXISTS idx_src_lookup ON conversion_cache(src_path, src_mtime, dst_size_bytes)"
@@ -724,12 +722,10 @@ class ConversionCache:
             logger.debug("target_images: %s", target_images)
             logger.debug("target_total_size_bytes: %s", target_total_size_bytes)
 
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT dst_name, dst_size_bytes FROM conversion_cache
                 ORDER BY dst_atime ASC
-                """
-            )
+                """)
 
             to_remove = []
             remaining_count = current_count
@@ -761,14 +757,12 @@ class ConversionCache:
     def get_cached_images(self) -> List[CachedSourceImage]:
         """Returns all cached images grouped by the source image."""
         with closing(self.conn.cursor()) as cursor:
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT src_path, src_mtime, dst_name, dst_width, dst_height, dst_format,
                        dst_size_bytes, dst_atime, dst_quality, dst_is_biggest
                 FROM conversion_cache
                 ORDER BY src_path, src_mtime, dst_size_bytes
-                """
-            )
+                """)
 
             result = []
             current_source = None

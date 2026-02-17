@@ -98,7 +98,9 @@ class TestingContext:
                 req = urllib.request.Request(
                     url,
                     headers={
-                        "User-Agent": f"ikup/{ikup.__version__} (github.com/sergei-grechanik/ikup)",
+                        "User-Agent": (
+                            f"ikup/{ikup.__version__} (github.com/sergei-grechanik/ikup)"
+                        ),
                         "Accept": "*/*",
                     },
                 )

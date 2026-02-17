@@ -9,7 +9,8 @@ from ikup.testing.output_comparison import (
 TEST_CASES = {
     ####################################################################################
     "basic": {
-        "input": """
+        "input": (
+            """
 ========== TEST basic
 Exact match
 Regex match 123
@@ -19,8 +20,10 @@ Some noise
 More noise
 Target line 42
 Check 42
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST skip test
 {{:SKIP_LINES:}}
 Target line [[num:\d+]]
@@ -29,12 +32,14 @@ Check [[num]]
 Exact match
 Regex match {{\d+}}
 [[var:Variable (.*) test]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "variable_validation": {
-        "input": """
+        "input": (
+            """
 ========== TEST vars
 start 5
 value 5
@@ -43,8 +48,10 @@ junk1
 junk2
 target 99
 validate 99
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST vars
 start [[x:\d+]]
 [[x]]
@@ -52,32 +59,38 @@ start [[x:\d+]]
 {{:SKIP_LINES:}}
 target [[y:\d+]]
 validate [[y]]
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": r"Reference line 4:\n\[\[x]]",
     },
     ####################################################################################
     "error_conditions": {
-        "input": """
+        "input": (
+            """
 ========== TEST errors
 line 1
 line 2
 ========== TEST missing ref test
 content
-""",
-        "reference": """
+"""
+        ),
+        "reference": (
+            """
 ========== TEST errors
 [[undefined_var]]
 line 2
 ========== TEST missing input test
 content
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Undefined variable 'undefined_var'",
     },
     ####################################################################################
     "complex_patterns": {
-        "input": """
+        "input": (
+            """
 ========== TEST complex vars
 start 42
 value1:99 value2:hello
@@ -91,8 +104,10 @@ line3
 line4
 target 123-456
 verify 123 456
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST complex vars
 start [[num:\d+]]
 [[key:\w+]]:[[x:\d+]] [[key2:\w+]]:[[y:\w+]]
@@ -104,29 +119,35 @@ final match [[num]]
 target [[a:\d+]]-[[b:\d+]]
 {{:SKIP_LINES:}}
 verify [[a]] [[b]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "duplicate_tests": {
-        "input": """
+        "input": (
+            """
 ========== TEST duplicate
 line1
 ========== TEST duplicate
 line2
-""",
-        "reference": """
+"""
+        ),
+        "reference": (
+            """
 ========== TEST duplicate
 pattern1
 ========== TEST duplicate
 pattern2
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Duplicate test name '========== TEST duplicate' at line 4",
     },
     ####################################################################################
     "empty_lines": {
-        "input": """
+        "input": (
+            """
 ========== TEST trailing empty
 Line 1
 Line 2
@@ -135,8 +156,10 @@ Line 2
 Line 1
 
 Line 2
-""",
-        "reference": """
+"""
+        ),
+        "reference": (
+            """
 ========== TEST trailing empty
 Line 1
 Line 2
@@ -144,162 +167,206 @@ Line 2
 Line 1
 
 Line 2
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "empty_lines_fail": {
-        "input": """
+        "input": (
+            """
 ========== TEST middle empty
 Line 1
 
 
 Line 2
-""",
-        "reference": """
+"""
+        ),
+        "reference": (
+            """
 ========== TEST middle empty
 Line 1
 
 Line 2
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Reference line 5:\nLine 2",
     },
     ####################################################################################
     "empty_lines_beginning_fail": {
-        "input": """
+        "input": (
+            """
 ========== TEST middle empty
 
 Line 1
 Line 2
-""",
-        "reference": """
+"""
+        ),
+        "reference": (
+            """
 ========== TEST middle empty
 Line 1
 Line 2
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Reference line 3:\nLine 1",
     },
     ####################################################################################
     "regex_group_conflict": {
-        "input": """
+        "input": (
+            """
 ========== TEST group_test
 not captured 123 and 567
 567
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST group_test
 {{not captured (.*)}} and [[v:.*]]
 [[v]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "var_group_conflict": {
-        "input": """
+        "input": (
+            """
 ========== TEST group_test
 not captured 123 andand 567
 567
 not captured 123
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST group_test
 [[x:not captured (.*)]] {{((and)*)}} [[v:.*]]
 [[v]]
 [[x]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "var_same_line": {
-        "input": """
+        "input": (
+            """
 ========== TEST same line var capture and use
 123 and 123
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST same line var capture and use
 [[x:\d+]] and [[x]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "var_same_line_redefinition": {
-        "input": """
+        "input": (
+            """
 ========== TEST same line var capture and use
 smth
 smth 123 and 123
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST same line var capture and use
 [[x:.*]]
 [[x]] [[x:\d+]] and [[x]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "func_call": {
-        "input": """
+        "input": (
+            """
 ========== TEST rgb
 id 6027195
 rgb 91;247;187
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST rgb
 id [[id:.*]]
 rgb [[rgb(id)]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "capture_or_use_pass": {
-        "input": """
+        "input": (
+            """
 ========== TEST capture or use
 abcd 12345 12345
 use 12345
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST capture or use
 abcd [[id?:\d*]] [[id?:\d*]]
 use [[id?:\d*]]
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "capture_or_use_fail": {
-        "input": """
+        "input": (
+            """
 ========== TEST capture or use
 abcd 12345 12345
 use 1234
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST capture or use
 abcd [[id?:\d*]] [[id?:\d*]]
 use [[id?:\d*]]
-""",
+"""
+        ),
         "should_fail": True,
     },
     ####################################################################################
     "capture_or_use_fail2": {
-        "input": """
+        "input": (
+            """
 ========== TEST capture or use
 abcd 12345 1234
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST capture or use
 abcd [[id?:\d*]] [[id?:\d*]]
-""",
+"""
+        ),
         "should_fail": True,
     },
     ####################################################################################
     "assertion_basic_pass": {
-        "input": """
+        "input": (
+            """
 ========== TEST assertions
 id 123
 name hello
 value 45
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST assertions
 id [[id:\d+]]
 name [[name:\w+]]
@@ -307,34 +374,42 @@ name [[name:\w+]]
 {{:ASSERT: len(name) == 5}}
 value [[value:\d+]]
 {{:ASSERT: int(value) < 50}}
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "assertion_basic_fail": {
-        "input": """
+        "input": (
+            """
 ========== TEST assertions
 id 50
 name hello
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST assertions
 id [[id:\d+]]
 {{:ASSERT: int(id) > 100}}
 name [[name:\w+]]
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Assertion failed at reference line 4",
     },
     ####################################################################################
     "assertion_string_operations": {
-        "input": """
+        "input": (
+            """
 ========== TEST string ops
 path /tmp/test.png
 format PNG
 size 1024KB
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST string ops
 path [[path:.*]]
 format [[format:\w+]]
@@ -343,34 +418,42 @@ format [[format:\w+]]
 size [[size:.*]]
 {{:ASSERT: endswith(size, 'KB')}}
 {{:ASSERT: contains(size, '1024')}}
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
     "assertion_evaluation_error": {
-        "input": """
+        "input": (
+            """
 ========== TEST eval error
 name hello
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST eval error
 name [[name:\w+]]
 {{:ASSERT: undefined_function(name)}}
-""",
+"""
+        ),
         "should_fail": True,
         "error_pattern": "Assertion evaluation failed",
     },
     ####################################################################################
     "assertion_with_skip_lines": {
-        "input": """
+        "input": (
+            """
 ========== TEST skip and assert
 start 42
 junk1
 junk2
 target 84
 end 126
-""",
-        "reference": r"""
+"""
+        ),
+        "reference": (
+            r"""
 ========== TEST skip and assert
 start [[x:\d+]]
 {{:ASSERT: int(x) == 42}}
@@ -379,7 +462,8 @@ target [[y:\d+]]
 {{:ASSERT: int(y) == int(x) * 2}}
 end [[z:\d+]]
 {{:ASSERT: int(z) == int(x) + int(y)}}
-""",
+"""
+        ),
         "should_fail": False,
     },
     ####################################################################################
