@@ -244,12 +244,12 @@ def _get_coefficients(area_to_size: List[Tuple[int, int]]) -> Tuple[float, float
 
     # Find two points with different sizes.
     # Always use the most recent points.
-    (f1, s1) = area_to_size[0]
-    (f2, s2) = 0.0, 0.0
+    f1, s1 = area_to_size[0]
+    f2, s2 = 0.0, 0.0
     rest = area_to_size[1:]
     for f2_cand, s2_cand in rest:
         if s2_cand != s1:
-            (f2, s2) = (f2_cand, s2_cand)
+            f2, s2 = (f2_cand, s2_cand)
             break
 
     a = (f1 - f2) / (s1 - s2)

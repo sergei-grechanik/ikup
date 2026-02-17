@@ -8,7 +8,6 @@ import random
 import numpy as np
 from PIL import Image
 
-
 DEFAULT_DIFF_THRESHOLD = 0.03
 
 

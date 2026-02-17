@@ -416,28 +416,23 @@ class IDManager:
             # Make sure we have tables for all ID namespaces.
             for id_space in IDSpace.all_values():
                 namespace = id_space.namespace_name()
-                cursor.execute(
-                    f"""
+                cursor.execute(f"""
                         CREATE TABLE IF NOT EXISTS {namespace} (
                             id INTEGER PRIMARY KEY,
                             description TEXT NOT NULL,
                             atime TIMESTAMP NOT NULL
                         )
-                    """
-                )
+                    """)
                 cursor.execute(
                     f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_path_parameters
                         ON {namespace} (description)
                     """
                 )
-                cursor.execute(
-                    f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_atime
+                cursor.execute(f"""CREATE INDEX IF NOT EXISTS idx_{namespace}_atime
                         ON {namespace} (atime)
-                    """
-                )
+                    """)
             # Make sure we have a table for recent uploads.
-            cursor.execute(
-                f"""
+            cursor.execute(f"""
                     CREATE TABLE IF NOT EXISTS upload (
                         id INTEGER NOT NULL,
                         description TEXT NOT NULL,
@@ -449,13 +444,10 @@ class IDManager:
                         upload_id INTEGER NOT NULL,
                         PRIMARY KEY (id, terminal)
                     )
-                """
-            )
-            cursor.execute(
-                f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
+                """)
+            cursor.execute(f"""CREATE INDEX IF NOT EXISTS idx_upload_upload_time
                     ON upload (upload_time)
-                """
-            )
+                """)
 
     def close(self):
         self.conn.close()
