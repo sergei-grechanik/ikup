@@ -26,6 +26,7 @@ jobs:
         run: |
           git clone https://github.com/sergei-grechanik/st-graphics.git
           cd st-graphics
+          git switch graphics-dev
           make
 
       - name: Install uv and set the python version
