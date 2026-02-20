@@ -202,6 +202,7 @@ def shm_png(ctx: TestingContext) -> None:
         data = f.read()
     size = len(data)
     shm = shared_memory.SharedMemory(create=True, size=offset + len(data))
+    assert shm.buf is not None
     shm.buf[offset : offset + len(data)] = data
     shm.close()
     term.send_command(
@@ -270,6 +271,7 @@ def shm_rgb(ctx: TestingContext):
             # bug in python.
             # TODO: In 3.13 there is a new track=False parameter to SharedMemory.
             shm = shared_memory.SharedMemory(create=True, size=offset + len(data))
+            assert shm.buf is not None
             shm.buf[offset : offset + len(data)] = data
             shm.close()
             term.send_command(

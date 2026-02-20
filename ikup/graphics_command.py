@@ -316,6 +316,7 @@ class PlacementData:
             ) // (img_width * cell_height)
         else:
             # Both specified
+            assert self.rows is not None and self.cols is not None
             rows = self.rows
             cols = self.cols
 
