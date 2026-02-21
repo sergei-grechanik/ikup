@@ -198,38 +198,61 @@ echorun() {
     fi
 }
 
-AGENT="ikup terminal image viewer testscript (github.com/sergei-grechanik/ikup)"
+# Helper to download images using the Python downloader.
+# Usage: download_image OUTPUT_FILE URL [--size WxH] [--fallback URL]...
+download_image() {
+    uv run --no-sync python -m ikup.testing download-image "$@" --verbose || exit 1
+}
 
-[ -f $DATA_DIR/wikipedia.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/wikipedia.png https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png
-[ -f $DATA_DIR/transparency.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/transparency.png https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png
-[ -f $DATA_DIR/tux.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/tux.png https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png
-[ -f $DATA_DIR/column.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/column.png "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png"
-[ -f $DATA_DIR/small_arrow.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/small_arrow.png "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
-[ -f $DATA_DIR/ruler.png ] || \
-    curl -A "$AGENT" -o $DATA_DIR/ruler.png "https://upload.wikimedia.org/wikipedia/commons/3/38/Screen_Ruler.png"
-[ -f $DATA_DIR/earth.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/earth.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/240px-The_Blue_Marble_%28remastered%29.jpg"
-[ -f $DATA_DIR/mars.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/mars.jpg "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg"
-[ -f $DATA_DIR/sun.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/sun.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/628px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
-[ -f $DATA_DIR/butterfly.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/butterfly.jpg "https://upload.wikimedia.org/wikipedia/commons/a/a6/Peacock_butterfly_%28Aglais_io%29_2.jpg"
-[ -f $DATA_DIR/david.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/david.jpg "https://upload.wikimedia.org/wikipedia/commons/8/84/Michelangelo%27s_David_2015.jpg"
-[ -f $DATA_DIR/fern.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/fern.jpg "https://upload.wikimedia.org/wikipedia/commons/3/3d/Giant_fern_forest_7.jpg"
-[ -f $DATA_DIR/flake.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/flake.jpg "https://upload.wikimedia.org/wikipedia/commons/d/d7/Snowflake_macro_photography_1.jpg"
-[ -f $DATA_DIR/flower.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/flower.jpg "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
-[ -f $DATA_DIR/a_panorama.jpg ] || \
-    curl -A "$AGENT" -o $DATA_DIR/a_panorama.jpg "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/2560px-Kazbeg_Panorama.jpg"
+# Download test images (with scaling for images where Wikimedia no longer provides
+# the exact thumbnail size we need).
+# Note: Wikimedia only supports specific thumbnail sizes (steps): 20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840
+# See https://www.mediawiki.org/wiki/Common_thumbnail_sizes
+
+download_image -o $DATA_DIR/wikipedia.png -s 440x402 \
+    "https://upload.wikimedia.org/wikipedia/en/thumb/8/80/Wikipedia-logo-v2.svg/500px-Wikipedia-logo-v2.svg.png"
+
+download_image -o $DATA_DIR/transparency.png \
+    "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png"
+
+download_image -o $DATA_DIR/tux.png \
+    "https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png"
+
+download_image -o $DATA_DIR/column.png \
+    "https://upload.wikimedia.org/wikipedia/commons/9/95/Column6.png"
+
+download_image -o $DATA_DIR/small_arrow.png \
+    "https://upload.wikimedia.org/wikipedia/commons/b/ba/Arrow-up.png"
+
+download_image -o $DATA_DIR/ruler.png \
+    "https://upload.wikimedia.org/wikipedia/commons/3/38/Screen_Ruler.png"
+
+download_image -o $DATA_DIR/earth.jpg -s 240x240 \
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cb/The_Blue_Marble_%28remastered%29.jpg/330px-The_Blue_Marble_%28remastered%29.jpg"
+
+download_image -o $DATA_DIR/mars.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/0/02/OSIRIS_Mars_true_color.jpg"
+
+download_image -o $DATA_DIR/sun.jpg -s 628x599 \
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b4/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg/960px-The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg"
+
+download_image -o $DATA_DIR/butterfly.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/a/a6/Peacock_butterfly_%28Aglais_io%29_2.jpg"
+
+download_image -o $DATA_DIR/david.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/8/84/Michelangelo%27s_David_2015.jpg"
+
+download_image -o $DATA_DIR/fern.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/3/3d/Giant_fern_forest_7.jpg"
+
+download_image -o $DATA_DIR/flake.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/d/d7/Snowflake_macro_photography_1.jpg"
+
+download_image -o $DATA_DIR/flower.jpg \
+    "https://upload.wikimedia.org/wikipedia/commons/4/40/Sunflower_sky_backdrop.jpg"
+
+download_image -o $DATA_DIR/a_panorama.jpg -s 2560x217 \
+    "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Kazbeg_Panorama.jpg/3840px-Kazbeg_Panorama.jpg"
 
 ################################################################################
 

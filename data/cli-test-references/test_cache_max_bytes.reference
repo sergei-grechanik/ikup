@@ -12,7 +12,7 @@ No cached images found.
 
 stat -c %s ./.cli-tests-data/earth.jpg
 [[earth_original_size:[0-9]+]]
-{{:ASSERT: int(earth_original_size) > 18000 and int(earth_original_size) < 21000}}
+{{:ASSERT: int(earth_original_size) > 13000 and int(earth_original_size) < 16000}}
 ikup cache convert ./.cli-tests-data/earth.jpg --max-bytes 1000000
 [[earth_large_cache:.*]]
 ikup cache list ./.cli-tests-data/earth.jpg

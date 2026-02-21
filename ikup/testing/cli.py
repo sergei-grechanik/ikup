@@ -8,6 +8,7 @@ from typing import List
 
 import ikup
 import ikup.testing.comparison
+import ikup.testing.image_downloader
 from ikup import GraphicsTerminal
 from ikup.testing import TestingContext
 from ikup.utils import validate_size
@@ -170,6 +171,19 @@ def compare(args):
         exit(1)
 
 
+def download_image_cmd(args):
+    try:
+        ikup.testing.image_downloader.download_image(
+            args.url,
+            args.output,
+            target_size=args.size,
+            verbose=args.verbose,
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(description="")
     subparsers = parser.add_subparsers(dest="command")
@@ -204,6 +218,34 @@ def main():
     parser_compare.add_argument("test_output", type=str)
     parser_compare.add_argument("reference", type=str)
     parser_compare.set_defaults(func=compare)
+
+    parser_download = subparsers.add_parser(
+        "download-image",
+        help="Download an image and optionally scale it. "
+        "Skips download if a valid image already exists at the output path.",
+    )
+    parser_download.add_argument("url", help="URL to download the image from")
+    parser_download.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="Output file path",
+    )
+    parser_download.add_argument(
+        "--size",
+        "-s",
+        type=validate_size,
+        default=None,
+        help="Target size as WIDTHxHEIGHT (e.g., 440x402). Image will be "
+        "resized to exactly this size.",
+    )
+    parser_download.add_argument(
+        "--verbose",
+        "-v",
+        action="store_true",
+        help="Print progress details for download/skip decisions.",
+    )
+    parser_download.set_defaults(func=download_image_cmd)
 
     # Parse the arguments
     args = parser.parse_args()
