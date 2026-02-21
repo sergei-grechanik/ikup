@@ -3,16 +3,14 @@ import io
 import json
 import os
 import subprocess
-import shutil
 import time
-import urllib.request
 import zlib
 from typing import Callable, List, Optional, Tuple, Union
 
 from PIL import Image, ImageDraw, ImageFont
 
 from ikup import GraphicsTerminal
-import ikup
+from ikup.testing.image_downloader import download_image
 
 
 def take_screenshot(
@@ -87,33 +85,29 @@ class TestingContext:
         self.init_image_downloaders()
 
     def image_downloader(
-        self, url: str, name: Optional[str] = None
+        self,
+        url: str,
+        name: Optional[str] = None,
+        target_size: Optional[Tuple[int, int]] = None,
     ) -> Callable[[], str]:
         if name is None:
             name = url.split("/")[-1]
 
         def download() -> str:
-            path = os.path.abspath(os.path.join(self.data_dir, name))
-            if not os.path.exists(path):
-                req = urllib.request.Request(
-                    url,
-                    headers={
-                        "User-Agent": (
-                            f"ikup/{ikup.__version__} (github.com/sergei-grechanik/ikup)"
-                        ),
-                        "Accept": "*/*",
-                    },
-                )
-                with urllib.request.urlopen(req) as resp, open(path, "wb") as f:
-                    shutil.copyfileobj(resp, f)
-            return path
+            path = os.path.join(self.data_dir, name)
+            return download_image(url, path, target_size=target_size)
 
         return download
 
     def init_image_downloaders(self):
+        # Note: Wikimedia only supports specific thumbnail sizes (steps):
+        # 20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840
+        # See https://www.mediawiki.org/wiki/Common_thumbnail_sizes
         self.get_wikipedia_png = self.image_downloader(
             "https://upload.wikimedia.org/wikipedia/en/thumb/8/80/"
-            "Wikipedia-logo-v2.svg/440px-Wikipedia-logo-v2.svg.png"
+            "Wikipedia-logo-v2.svg/500px-Wikipedia-logo-v2.svg.png",
+            name="440px-Wikipedia-logo-v2.svg.png",
+            target_size=(440, 402),
         )
         self.get_tux_png = self.image_downloader(
             "https://upload.wikimedia.org/wikipedia/commons/a/af/Tux.png"
