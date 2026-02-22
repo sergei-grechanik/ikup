@@ -3,9 +3,7 @@ import math
 import os
 from dataclasses import dataclass, field
 from typing import List, Optional, TextIO, Tuple
-import random
 
-import numpy as np
 from PIL import Image
 
 DEFAULT_DIFF_THRESHOLD = 0.03
@@ -159,6 +157,8 @@ def compare_images(
     diffmap_filename: Optional[str] = None,
     abs_diff_threshold: float = 0.03,
 ) -> float:
+    import numpy as np
+
     img = Image.open(filename).convert("RGB")
     refimg = Image.open(ref_filename).convert("RGB")
 

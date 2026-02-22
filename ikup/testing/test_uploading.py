@@ -4,13 +4,17 @@ import tempfile
 import time
 from multiprocessing import shared_memory
 
-import numpy as np
-
 import ikup
 from ikup import DeleteCommand, GraphicsTerminal, PutCommand, TransmitCommand
 from ikup.testing import TestingContext, screenshot_test
 
 SPLIT_PAYLOAD_SIZE = 2816
+
+
+def _seed_numpy(seed: int = 42) -> None:
+    import numpy as np
+
+    np.random.seed(seed)
 
 
 @screenshot_test
@@ -103,7 +107,7 @@ def direct_jpeg(ctx: TestingContext) -> None:
 @screenshot_test
 def direct_random_png(ctx: TestingContext) -> None:
     term = ctx.term
-    np.random.seed(42)
+    _seed_numpy(42)
     cmd = TransmitCommand(
         image_id=1,
         medium=ikup.TransmissionMedium.DIRECT,
@@ -410,7 +414,7 @@ def stress_many_small_images(ctx: TestingContext, placeholder: bool = False) -> 
 @screenshot_test
 def stress_large_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
-    np.random.seed(42)
+    _seed_numpy(42)
     with tempfile.NamedTemporaryFile("wb") as f:
         # Generate an image of ~20MB (when represented as RGBA).
         data = ctx.to_rgb(ctx.generate_image(10 * 500, 2 * 500), bits=32)
@@ -475,7 +479,7 @@ def stress_large_images(ctx: TestingContext, placeholder: bool = False) -> None:
 @screenshot_test
 def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> None:
     term = ctx.term.clone_with(force_placeholders=placeholder)
-    np.random.seed(42)
+    _seed_numpy(42)
     # Create and upload lots of 1-pixel images.
     total_count = 10000
     for i in range(total_count):
@@ -518,7 +522,7 @@ def stress_too_many_images(ctx: TestingContext, placeholder: bool = False) -> No
 @screenshot_test
 def stress_too_many_placements(ctx: TestingContext) -> None:
     term = ctx.term.clone_with(force_placeholders=True)
-    np.random.seed(42)
+    _seed_numpy(42)
     # Create and upload 1-pixel images and create placements for them.
     total_image_count = 1000
     placements_per_image = 20
@@ -781,7 +785,7 @@ def direct_interrupted_no_resume(ctx: TestingContext) -> None:
 @screenshot_test
 def restore_file(ctx: TestingContext) -> None:
     term = ctx.term.clone_with(force_placeholders=True)
-    np.random.seed(42)
+    _seed_numpy(42)
 
     # This file will be preserved and may be restored.
     fpreserved = tempfile.NamedTemporaryFile("wb", delete=False)
