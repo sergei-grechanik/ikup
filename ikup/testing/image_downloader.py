@@ -8,6 +8,8 @@ import os
 import shutil
 import sys
 import tempfile
+import time
+import urllib.error
 import urllib.request
 from typing import Optional, Tuple
 
@@ -16,6 +18,24 @@ from PIL import Image
 import ikup
 
 USER_AGENT = f"ikup/{ikup.__version__} (github.com/sergei-grechanik/ikup)"
+DEFAULT_429_RETRY_DELAY_SECONDS = 5
+MAX_429_RETRIES = 5
+MAX_429_RETRY_DELAY_SECONDS = 60
+
+
+def _retry_delay_seconds_for_429(error: urllib.error.HTTPError) -> int:
+    """Calculate a retry delay for HTTP 429 responses."""
+    try:
+        if error.headers is not None:
+            retry_after = error.headers.get("Retry-After")
+            if retry_after:
+                return min(
+                    MAX_429_RETRY_DELAY_SECONDS,
+                    max(DEFAULT_429_RETRY_DELAY_SECONDS, int(retry_after.strip())),
+                )
+    except Exception:
+        pass
+    return DEFAULT_429_RETRY_DELAY_SECONDS
 
 
 def _download_and_scale(
@@ -52,8 +72,23 @@ def _download_and_scale(
         try:
             if verbose:
                 print(f"Downloading image: {url}", file=sys.stderr)
-            with urllib.request.urlopen(req) as resp:
-                shutil.copyfileobj(resp, tmp)
+            for attempt in range(MAX_429_RETRIES + 1):
+                try:
+                    with urllib.request.urlopen(req) as resp:
+                        shutil.copyfileobj(resp, tmp)
+                    break
+                except urllib.error.HTTPError as e:
+                    is_last_attempt = attempt >= MAX_429_RETRIES
+                    if e.code != 429 or is_last_attempt:
+                        raise
+                    delay_seconds = _retry_delay_seconds_for_429(e)
+                    if verbose:
+                        print(
+                            f"Got HTTP 429, retrying in {delay_seconds}s "
+                            f"(attempt {attempt + 1}/{MAX_429_RETRIES})",
+                            file=sys.stderr,
+                        )
+                    time.sleep(delay_seconds)
             tmp.flush()
 
             if not _is_valid_image(tmp_path):
