@@ -112,7 +112,6 @@ def run(args):
     # The max number of pixels in a screenshot.
     screenshot_pixels = (
         args.cell_size[0] * args.cell_size[1] * real_term_size[0] * real_term_size[1]
-        + (real_term_size[0] + real_term_size[1]) * 2
     )
 
     ctx = TestingContext(

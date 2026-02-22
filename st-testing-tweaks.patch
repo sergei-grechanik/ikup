@@ -1,0 +1,25 @@
+From 51f9f437f1cef2dded1fff573f2e2a7f21bb81ff Mon Sep 17 00:00:00 2001
+From: Sergei Grechanik <sergei.grechanik@gmail.com>
+Date: Sun, 22 Feb 2026 08:36:27 -0800
+Subject: [PATCH] [TESTING] Tweak the config for testing purposes
+
+---
+ config.def.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/config.def.h b/config.def.h
+index 4aadbbc..e800b78 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -6,7 +6,7 @@
+  * font: see http://freedesktop.org/software/fontconfig/fontconfig-user.html
+  */
+ static char *font = "Liberation Mono:pixelsize=12:antialias=true:autohint=true";
+-static int borderpx = 2;
++static int borderpx = 0;
+ 
+ /* How to align the content in the window when the size of the terminal
+  * doesn't perfectly match the size of the window. The values are percentages.
+-- 
+2.43.0
+
