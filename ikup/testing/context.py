@@ -14,8 +14,13 @@ from ikup.testing.image_downloader import download_image
 
 
 def take_screenshot(
-    filename: str, num_pixels: int = 480 * 288, window_id: Optional[str] = None
+    filename: str,
+    num_pixels: int = 480 * 288,
+    window_id: Optional[str] = None,
+    screenshot_border: int = 0,
 ):
+    if screenshot_border < 0:
+        raise ValueError("Screenshot border must be non-negative")
     if window_id is None:
         window_id = os.getenv("WINDOWID")
         if window_id is None:
@@ -25,8 +30,7 @@ def take_screenshot(
             "import",
             "-depth",
             "8",
-            "-resize",
-            "{}@".format(num_pixels),
+            *([] if screenshot_border else ["-resize", f"{num_pixels}@"]),
             "-window",
             window_id,
             filename,
@@ -36,6 +40,28 @@ def take_screenshot(
     )
     if res.returncode != 0:
         raise RuntimeError(f"Screenshot capture failed: {res.stderr}")
+    if screenshot_border:
+        # Capture at native resolution so the border is removed before scaling.
+        # ImageMagick's import command does not support -shave; convert does.
+        with Image.open(filename) as image:
+            if 2 * screenshot_border >= min(image.size):
+                raise ValueError("Screenshot border would remove the entire image")
+        res = subprocess.run(
+            [
+                "convert",
+                filename,
+                "-shave",
+                f"{screenshot_border}x{screenshot_border}",
+                "+repage",
+                "-resize",
+                f"{num_pixels}@",
+                filename,
+            ],
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"Screenshot border removal failed: {res.stderr}")
 
 
 class TestManager:
@@ -68,6 +94,7 @@ class TestingContext:
         take_screenshots: bool = True,
         reset_before_test: bool = True,
         window_id: Optional[str] = None,
+        screenshot_border: int = 0,
     ):
         self.term: GraphicsTerminal = term
         self.output_dir: str = output_dir
@@ -82,6 +109,7 @@ class TestingContext:
         self.take_screenshots: bool = take_screenshots
         self.reset_before_test: bool = reset_before_test
         self.window_id: Optional[str] = window_id
+        self.screenshot_border = screenshot_border
         self.init_image_downloaders()
 
     def image_downloader(
@@ -315,6 +343,7 @@ class TestingContext:
                 filename,
                 num_pixels=self.screenshot_pixels,
                 window_id=self.window_id,
+                screenshot_border=self.screenshot_border,
             )
             self.current_test_data["screenshots"].append(
                 {

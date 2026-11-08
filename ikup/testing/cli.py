@@ -27,6 +27,13 @@ from ikup.testing import (
 # isort: on
 
 
+def nonnegative_int(value: str) -> int:
+    number = int(value)
+    if number < 0:
+        raise argparse.ArgumentTypeError("must be non-negative")
+    return number
+
+
 def is_test_matching(funcname, tests: List[str]) -> bool:
     name = funcname[5:] if funcname.startswith("test_") else funcname
     for test in tests:
@@ -125,6 +132,7 @@ def run(args):
         take_screenshots=not args.no_screenshots,
         reset_before_test=not args.no_reset,
         window_id=args.window_id,
+        screenshot_border=args.screenshot_border,
     )
 
     if not args.tests:
@@ -191,6 +199,13 @@ def main():
     parser_run.add_argument("--term-size", default="80x24", type=validate_size)
     parser_run.add_argument("--cell-size", default="4x8", type=validate_size)
     parser_run.add_argument("--window-id", type=str, default=None)
+    parser_run.add_argument(
+        "--screenshot-border",
+        type=nonnegative_int,
+        default=0,
+        metavar="PIXELS",
+        help="Strip this many pixels from each edge before resizing screenshots.",
+    )
     parser_run.add_argument("--ignore-size", action="store_true")
     parser_run.add_argument("--output-dir", "-o", default=None, type=str)
     parser_run.add_argument("--data-dir", default=None, type=str)
