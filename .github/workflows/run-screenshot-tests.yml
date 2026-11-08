@@ -27,7 +27,6 @@ jobs:
           git clone https://github.com/sergei-grechanik/st-graphics.git
           cd st-graphics
           git switch graphics-dev
-          git apply ../st-testing-tweaks.patch
           make
 
       - name: Install uv and set the python version
@@ -66,7 +65,8 @@ jobs:
           run: |
             sudo apt install -y bsdutils imagemagick xdotool
             mkdir report
-            ./st-graphics/st -e script -e -c ./test_scripts/run-screenshot-tests.sh
+            ./st-graphics/st -e script -e -c \
+              './test_scripts/run-screenshot-tests.sh --screenshot-border 2'
             cp typescript report/
 
       - name: Dump the tail of the output
